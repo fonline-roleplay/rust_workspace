@@ -1,10 +1,24 @@
-use crate::engine_types::{
-    item::{Item, ItemVec},
-    primitives::{
-        int16, stlp_std_allocator, stlp_std_vector, uint, uint16, uint8, IntVec, ScriptString,
-        Spinlock, SyncObj, Uint16PairVec, Uint16Vec, UintSet,
+use crate::{
+    engine_types::{
+        item::{Item, ItemVec},
+        primitives::{
+            int16, stlp_std_allocator, stlp_std_vector, uint, uint16, uint8, IntVec, ScriptString,
+            Spinlock, SyncObj, Uint16PairVec, Uint16Vec, UintSet,
+        },
     },
+    defines::param::{Param, CritterParam},
 };
+
+impl CritterParam for Critter {
+    fn param(&self, p: Param) -> i32 {
+        self.Params[p as usize]
+    }
+}
+impl CritterParam for CritterCl {
+    fn param(&self, p: Param) -> i32 {
+        self.Params[p as usize]
+    }
+}
 
 pub type CrVec = stlp_std_vector<*mut Critter, stlp_std_allocator>;
 

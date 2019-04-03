@@ -43,57 +43,7 @@ fn demo_init() {
 
 mod defines;
 mod engine_types;
-
-use engine_types::{
-    game_options::{game_state, GameOptions},
-    mutual::CritterMutual,
-    primitives::{int, uint},
-};
-
-#[no_mangle]
-#[allow(non_snake_case)]
-pub extern "C" fn getParam_Strength(cr: &CritterMutual, _: uint) -> int {
-    use defines::fos as df;
-
-    let mut val: int =
-        cr.Params[df::ST_STRENGTH as usize] + cr.Params[df::ST_STRENGTH_EXT as usize];
-    if cr.Params[ df::PE_ADRENALINE_RUSH as usize ] > 0 && getParam_Timeout( cr, df::TO_BATTLE ) > 0 // Adrenaline rush perk
-        && cr.Params[ df::ST_CURRENT_HP as usize ] <= (
-                cr.Params[ df::ST_MAX_LIFE as usize ] +
-                cr.Params[ df::ST_STRENGTH as usize ] +
-                cr.Params[ df::ST_ENDURANCE as usize ] * 2
-            ) / 2
-    {
-        val += 1;
-    }
-    clamp(val, 1, 10)
-}
-
-#[no_mangle]
-#[allow(non_snake_case)]
-pub extern "C" fn getParam_Timeout(cr: &CritterMutual, index: uint) -> int {
-    let full_second = game_state().map(|g| g.FullSecond).unwrap_or(0);
-    let param = cr.Params[index as usize] as uint;
-    if param > full_second {
-        (param - full_second) as int
-    } else {
-        0
-    }
-}
-
-fn clamp<T: std::cmp::Ord>(val: T, min: T, max: T) -> T
-where
-    T: Sized,
-{
-    assert!(min <= max);
-    if val < min {
-        min
-    } else if val > max {
-        max
-    } else {
-        val
-    }
-}
+mod param_getters;
 
 #[no_mangle]
 #[allow(non_snake_case, unused_variables)]

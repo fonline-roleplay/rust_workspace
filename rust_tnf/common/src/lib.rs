@@ -42,8 +42,35 @@ fn demo_init() {
 
 // ========= General stuff is above, FOnline-related stuff is below
 
-// Placeholder for Critter struct
-pub enum CritterMutual{}
+#[cfg(feature = "server")]
+mod mutual {
+    #[no_mangle]
+    #[allow(non_snake_case)]
+    pub extern "C" fn SERVER() {
+        // FOnline needs this to check if this is correct dll for server
+    }
+
+    // Placeholder for Critter struct
+    pub enum Critter{}
+
+    pub type CritterMutual = Critter;
+}
+
+#[cfg(feature = "client")]
+mod mutual {
+    #[no_mangle]
+    #[allow(non_snake_case)]
+    pub extern "C" fn CLIENT() {
+        // FOnline needs this to check if this is correct dll for client
+    }
+
+    // Placeholder for CritterCl struct
+    pub enum CritterCl{}
+
+    pub type CritterMutual = CritterCl;
+}
+
+use mutual::CritterMutual;
 
 #[no_mangle]
 #[allow(non_snake_case, unused_variables)]

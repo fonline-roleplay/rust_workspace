@@ -7,7 +7,7 @@ publish = false
 
 [dependencies]
 winapi = { version = "0.3.6", features = ["consoleapi"] }
-tnf_common = { path = "../common" }
+tnf_common = { path = "../common", features = ["client"] }
 
 [lib]
 crate-type = ["cdylib"]

@@ -8,5 +8,10 @@ publish = false
 [dependencies]
 winapi = { version = "0.3.6", features = ["consoleapi"] }
 
+[features]
+default = []
+client = []
+server = []
+
 #[lib]
 #crate-type = ["cdylib"]

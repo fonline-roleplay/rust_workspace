@@ -1,4 +1,5 @@
 use crate::{
+    defines::param::{CritterParam, Param},
     engine_types::{
         item::{Item, ItemVec},
         primitives::{
@@ -6,7 +7,6 @@ use crate::{
             Spinlock, SyncObj, Uint16PairVec, Uint16Vec, UintSet,
         },
     },
-    defines::param::{Param, CritterParam},
 };
 
 impl CritterParam for Critter {

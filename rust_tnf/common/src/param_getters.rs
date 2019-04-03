@@ -1,17 +1,16 @@
 use crate::{
+    defines::param::{CritterParam, Param as PAR},
     engine_types::{
         game_options::{game_state, GameOptions},
         mutual::CritterMutual,
         primitives::{int, uint},
     },
-    defines::param::{Param as PAR, CritterParam},
 };
 
 #[no_mangle]
 #[allow(non_snake_case)]
 pub extern "C" fn getParam_Strength(cr: &CritterMutual, _: uint) -> int {
-    let mut val: int =
-        cr.param( PAR::ST_STRENGTH ) + cr.param( PAR::ST_STRENGTH_EXT );
+    let mut val: int = cr.param(PAR::ST_STRENGTH) + cr.param(PAR::ST_STRENGTH_EXT);
     if cr.param( PAR::PE_ADRENALINE_RUSH ) > 0 && getParam_Timeout( cr, PAR::TO_BATTLE as uint ) > 0 // Adrenaline rush perk
         && cr.param( PAR::ST_CURRENT_HP ) <= (
                 cr.param( PAR::ST_MAX_LIFE ) +

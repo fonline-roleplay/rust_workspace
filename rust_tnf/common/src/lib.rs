@@ -3,7 +3,7 @@ extern crate winapi;
 use winapi::{
     shared::{
         minwindef,
-        minwindef::{BOOL, DWORD, HINSTANCE, LPVOID}
+        minwindef::{BOOL, DWORD, HINSTANCE, LPVOID},
     },
     um::consoleapi,
 };
@@ -21,16 +21,15 @@ use winapi::{
 pub extern "system" fn DllMain(
     dll_module: HINSTANCE,
     call_reason: DWORD,
-    reserved: LPVOID)
-    -> BOOL
-{
+    reserved: LPVOID,
+) -> BOOL {
     const DLL_PROCESS_ATTACH: DWORD = 1;
     const DLL_PROCESS_DETACH: DWORD = 0;
 
     match call_reason {
         DLL_PROCESS_ATTACH => demo_init(),
         DLL_PROCESS_DETACH => (),
-        _ => ()
+        _ => (),
     }
     minwindef::TRUE
 }
@@ -42,41 +41,58 @@ fn demo_init() {
 
 // ========= General stuff is above, FOnline-related stuff is below
 
-#[cfg(feature = "server")]
-mod mutual {
-    #[no_mangle]
-    #[allow(non_snake_case)]
-    pub extern "C" fn SERVER() {
-        // FOnline needs this to check if this is correct dll for server
-    }
+mod defines;
+mod engine_types;
 
-    // Placeholder for Critter struct
-    pub enum Critter{}
-
-    pub type CritterMutual = Critter;
-}
-
-#[cfg(feature = "client")]
-mod mutual {
-    #[no_mangle]
-    #[allow(non_snake_case)]
-    pub extern "C" fn CLIENT() {
-        // FOnline needs this to check if this is correct dll for client
-    }
-
-    // Placeholder for CritterCl struct
-    pub enum CritterCl{}
-
-    pub type CritterMutual = CritterCl;
-}
-
-use mutual::CritterMutual;
+use engine_types::{
+    game_options::{game_state, GameOptions},
+    mutual::CritterMutual,
+    primitives::{int, uint},
+};
 
 #[no_mangle]
-#[allow(non_snake_case, unused_variables)]
-pub extern "C" fn getParam_Strength(cr: *mut CritterMutual, _: u32) -> i32 {
-    // Placeholder for getParam_Strength (it works)
-	8
+#[allow(non_snake_case)]
+pub extern "C" fn getParam_Strength(cr: &CritterMutual, _: uint) -> int {
+    use defines::fos as df;
+
+    let mut val: int =
+        cr.Params[df::ST_STRENGTH as usize] + cr.Params[df::ST_STRENGTH_EXT as usize];
+    if cr.Params[ df::PE_ADRENALINE_RUSH as usize ] > 0 && getParam_Timeout( cr, df::TO_BATTLE ) > 0 // Adrenaline rush perk
+        && cr.Params[ df::ST_CURRENT_HP as usize ] <= (
+                cr.Params[ df::ST_MAX_LIFE as usize ] +
+                cr.Params[ df::ST_STRENGTH as usize ] +
+                cr.Params[ df::ST_ENDURANCE as usize ] * 2
+            ) / 2
+    {
+        val += 1;
+    }
+    clamp(val, 1, 10)
+}
+
+#[no_mangle]
+#[allow(non_snake_case)]
+pub extern "C" fn getParam_Timeout(cr: &CritterMutual, index: uint) -> int {
+    let full_second = game_state().map(|g| g.FullSecond).unwrap_or(0);
+    let param = cr.Params[index as usize] as uint;
+    if param > full_second {
+        (param - full_second) as int
+    } else {
+        0
+    }
+}
+
+fn clamp<T: std::cmp::Ord>(val: T, min: T, max: T) -> T
+where
+    T: Sized,
+{
+    assert!(min <= max);
+    if val < min {
+        min
+    } else if val > max {
+        max
+    } else {
+        val
+    }
 }
 
 #[no_mangle]

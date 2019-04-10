@@ -1,3 +1,5 @@
+clear
+clear
 cd client
 cargo build --release --target=i686-pc-windows-msvc
 cd ../server

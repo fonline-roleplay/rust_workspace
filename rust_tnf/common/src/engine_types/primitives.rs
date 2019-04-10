@@ -30,8 +30,9 @@ pub struct stlp_std_pair<_T1, _T2> {
     pub _phantom_1: ::std::marker::PhantomData<::std::cell::UnsafeCell<_T2>>,
 }
 
+#[repr(C)]
 #[derive(Debug)]
-pub enum stlp_std_allocator {}
+pub struct stlp_std_allocator;
 
 pub type Uint16Pair = stlp_std_pair<uint16, uint16>;
 pub type IntVec = stlp_std_vector<::std::os::raw::c_int, stlp_std_allocator>;
@@ -41,7 +42,7 @@ pub type Uint16PairVec = stlp_std_vector<Uint16Pair, stlp_std_allocator>;
 #[repr(C)]
 #[derive(Debug)]
 pub struct stlp_std_vector<_Tp, _Alloc> {
-    //pub _base: stlp_std_priv___Vector_base<_Tp, _Alloc>,
+    //pub _base: stlp_std_priv__Vector_base<_Tp, _Alloc>,
     //pub _phantom_0: ::std::marker::PhantomData<::std::cell::UnsafeCell<_Tp>>,
     //pub _phantom_1: ::std::marker::PhantomData<::std::cell::UnsafeCell<_Alloc>>,
     start: usize,
@@ -56,12 +57,11 @@ pub struct stlp_std_set([u8; 24]);
 pub type UintSet = stlp_std_set;
 
 #[repr(C)]
-pub struct stlp_std_string([u8; 24]);
-#[repr(C)]
-pub struct ScriptString__bindgen_vtable(::std::os::raw::c_void);
-#[repr(C)]
-pub struct ScriptString {
-    pub vtable_: *const ScriptString__bindgen_vtable,
-    pub buffer: stlp_std_string,
-    pub refCount: ::std::os::raw::c_int,
+#[derive(Debug, Copy, Clone)]
+pub struct stlp_std_priv__STLP_alloc_proxy<_Value, _Tp: Copy, _MaybeReboundAlloc> {
+    pub _base: _MaybeReboundAlloc,
+    pub _M_data: _Value,
+    pub _phantom_0: ::std::marker::PhantomData<::std::cell::UnsafeCell<_Value>>,
+    pub _phantom_1: ::std::marker::PhantomData<::std::cell::UnsafeCell<_MaybeReboundAlloc>>,
+    pub _phantom_2: ::std::marker::PhantomData<::std::cell::UnsafeCell<_Tp>>,
 }

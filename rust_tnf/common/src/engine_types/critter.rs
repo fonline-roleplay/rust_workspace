@@ -3,9 +3,10 @@ use crate::{
     engine_types::{
         item::{Item, ItemVec},
         primitives::{
-            int16, stlp_std_allocator, stlp_std_vector, uint, uint16, uint8, IntVec, ScriptString,
-            Spinlock, SyncObj, Uint16PairVec, Uint16Vec, UintSet,
+            int16, stlp_std_allocator, stlp_std_vector, uint, uint16, uint8, IntVec, Spinlock,
+            SyncObj, Uint16PairVec, Uint16Vec, UintSet,
         },
+        ScriptString,
     },
 };
 

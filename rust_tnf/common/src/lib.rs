@@ -42,11 +42,11 @@ fn demo_init() {
 // ========= General stuff is above, FOnline-related stuff is below
 
 mod defines;
-mod engine_types;
+pub mod engine_types;
 mod param_getters;
 
 #[no_mangle]
-#[allow(non_snake_case, unused_variables)]
+#[allow(non_snake_case)]
 pub extern "C" fn TestFuncRust() {
     println!("TestFuncRust!");
 }

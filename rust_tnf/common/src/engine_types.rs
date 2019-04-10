@@ -1,6 +1,10 @@
 #[allow(non_snake_case, non_camel_case_types, unused_variables, dead_code)]
 pub mod primitives;
 
+#[allow(non_camel_case_types, non_snake_case)] //, dead_code
+mod string;
+pub use self::string::ScriptString;
+
 #[allow(non_snake_case)]
 pub mod item;
 
@@ -30,4 +34,9 @@ pub mod mutual {
     }
 
     pub type CritterMutual = crate::engine_types::critter::CritterCl;
+}
+
+#[cfg(not(any(feature = "server", feature = "client")))]
+pub mod mutual {
+    pub type CritterMutual = crate::engine_types::critter::Critter;
 }

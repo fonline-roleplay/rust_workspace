@@ -1,0 +1,164 @@
+body{
+    margin: 0px;
+    padding: 0px;
+    /*transform: scale(2.0) translateX(25%) translateY(25%);*/
+}
+
+@font-face {
+    font-family: Gothic821; /* Гарнитура шрифта */
+    src: url(fonts/Gothic821.ttf); /* Путь к файлу со шрифтом */
+}
+@font-face {
+    font-family: Terminus;
+    src: url(fonts/TerminusTTFWindows-4.47.0.ttf);
+}
+@font-face {
+    font-family: FoDisplay;
+    src: url(fonts/fallout_display.ttf);
+}
+@font-face {
+    font-family: Crasng;
+    src: url(fonts/Crasng.ttf);
+}
+
+label {
+    font-family: Gothic821, 'Comic Sans MS', cursive;
+}
+
+img {
+    display: block;
+    position: absolute;
+    width: 640px;
+    height: 480px;
+    top: 0px;
+    left: 0px;
+}
+
+/*bg {
+    position: absolute;
+    display: block;
+}*/
+
+.lb {
+    position: absolute;
+}
+.row1{
+    position: absolute;
+    top: 3px;
+    /*height: 22px;*/
+}
+.cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: Gothic821, 'Comic Sans MS', cursive;
+    font-size: 22px;
+    line-height: 20px;
+    color: #c4a028;
+    position: absolute;
+    text-align: center;
+}
+span {
+    vertical-align: middle;
+}
+.name{
+    left: 25px;
+    width: 125px;
+}
+.age{
+    left: 165px;
+    width: 60px;
+}
+.sex{
+    left: 240px;
+    width: 70px;
+}
+
+.stats{
+    text-align: center;
+    /*font-size: 22px;*/
+    line-height: 18px;
+    /*color: #c4a028;*/
+    position: absolute;
+}
+
+.stat-row {
+    position: absolute;
+}
+
+/*.stats tr {
+    height: 22px;
+}*/
+.stat-row div:first-child{
+    position: absolute;
+    color: rgb(196, 160, 40);
+    font-family: Gothic821, 'Comic Sans MS', cursive;
+    font-size: 30px;
+    
+    width: 35px;
+    left: 20px;
+}
+.stat-row div:nth-child(2){
+    position: absolute;
+    color: rgb(252, 252, 252);
+    font-family: Crasng, Helvetica, sans-serif;
+    font-size: 24px;
+
+    letter-spacing: 3px;    
+    width: 25px;
+    left: 63px;
+    top: 1px;
+}
+.stat-row div:nth-child(3){
+    position: absolute;
+    color: rgb(72, 252, 0);
+    font-family: FoDisplay, Terminus, sans-serif;
+    font-size: 8px;
+    
+    width: 56px;
+    left: 101px;
+    top: 1px;
+}
+
+.skills{
+    text-align: left;
+    /*font-size: 22px;*/
+    line-height: 18px;
+    /*color: #c4a028;*/
+    position: absolute;
+}
+.skill-row {
+    position: absolute;
+    color: rgb(72, 252, 0);
+}
+.skill-row div:nth-child(1){
+    position: absolute;
+    font-family: FoDisplay, Terminus, sans-serif;
+    font-size: 8px;
+    
+    width: 200px;
+    left: 375px;
+}
+.skill-row div:nth-child(2){
+    position: absolute;
+    font-family: FoDisplay, Terminus, sans-serif;
+    font-size: 8px;
+    
+    width: 30px;
+    left: 585px;
+}
+.skill-tagged{
+    color: rgb(171, 171, 171);
+}
+
+.tab-level {
+    position: absolute;
+    font-family: FoDisplay, Terminus, sans-serif;
+    font-size: 8px;
+    color: rgb(72, 252, 0);
+    text-align: left;
+    left: 30px;
+    top: 279px;
+}
+.tab-level p{
+    margin: 1px;
+}

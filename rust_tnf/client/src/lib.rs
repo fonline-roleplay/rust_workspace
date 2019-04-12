@@ -1,6 +1,10 @@
 #![cfg(windows)]
 
-use tnf_common::engine_types::ScriptString;
+use tnf_common::{
+    engine_types::ScriptString,
+    dll_main,
+};
+dll_main!({});
 
 #[no_mangle]
 pub extern "C" fn open_link(link: &ScriptString) {

@@ -1,5 +1,5 @@
 use crate::{
-    defines::param::{CritterParam, Param},
+    defines::param::CritterParam,
     engine_types::{
         item::{Item, ItemVec},
         primitives::{
@@ -10,14 +10,65 @@ use crate::{
     },
 };
 
+mod critter_info {
+    use super::*;
+
+    macro_rules! copycat {        
+        (; $cr:ident $field:ident $conv:ident
+        ) => {
+            $cr.$field.$conv()
+        };
+        (; $cr:ident $field:ident
+        ) => {
+            $cr.$field.clone()
+        };
+        (
+            $tyfrom:path >> $tyto:ident;
+            $($visy:vis $field:ident : $typ:ty
+                $(=> $conv:ident)?
+            ,)*
+        ) => {
+            #[allow(non_snake_case, dead_code)]
+            #[derive(Clone)]
+            pub struct $tyto {
+                $($visy $field : $typ),*
+            }
+            
+            impl $tyto {
+                pub fn new(cr: &$tyfrom) -> Self {
+                    Self {
+                        $( $field: copycat!(; cr $field $($conv)?) ),*
+                    }
+                }
+            }
+        }
+    }
+
+    copycat!( super::Critter >> CritterInfo;
+        pub Id: uint,
+        pub HexX: uint16,
+        pub HexY: uint16,
+        pub Dir: uint8,
+        pub MapId: uint,
+        pub Params: [i32; 1000],
+        pub NameStr: String => string ,
+    );
+}
+pub use critter_info::CritterInfo;
+
+impl CritterParam for CritterInfo {
+    fn params_all(&self) -> &[i32] {
+        &self.Params
+    }
+}
 impl CritterParam for Critter {
-    fn param(&self, p: Param) -> i32 {
-        self.Params[p as usize]
+    fn params_all(&self) -> &[i32] {
+        &self.Params
     }
 }
 impl CritterParam for CritterCl {
-    fn param(&self, p: Param) -> i32 {
-        self.Params[p as usize]
+    fn params_all(&self) -> &[i32] {
+        &self.Params
     }
 }
 

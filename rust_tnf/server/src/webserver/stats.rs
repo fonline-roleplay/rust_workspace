@@ -121,7 +121,7 @@ impl<'a> Stats<'a> {
             exp: cr.param(Param::ST_EXPERIENCE),
             levelup_exp: (next_level * level / 2) * 1000,
             stat_fields,
-            skill_fields
+            skill_fields,
         }
     }
 }

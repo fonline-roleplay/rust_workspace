@@ -1,12 +1,12 @@
 use std::sync::mpsc::channel;
 
-use actix::prelude::{Actor, Addr, SendError};
+use actix::prelude::{Actor, Addr, SendError, SyncArbiter};
 use actix_web::{fs, http, server, App, Error, HttpRequest, HttpResponse, Responder};
 use futures::{future::ok as fut_ok, future::Either, Future};
 
 use tnf_common::engine_types::critter::{Critter, CritterInfo};
 
-use crate::critters_db::{CrittersDb, GetCritterInfo, UpdateCritterInfo};
+use crate::critters_db::{CrittersDb, GetCritterInfo, ListClients, UpdateCritterInfo};
 
 mod stats;
 
@@ -21,6 +21,17 @@ impl Mailbox {
 fn nope(_req: &HttpRequest<AppState>) -> impl Responder {
     //let to = req.match_info().get("name").unwrap_or("World");
     format!("Hello there and go to hell!")
+}
+
+fn gm_clients(req: &HttpRequest<AppState>) -> impl Future<Item = HttpResponse, Error = Error> {
+    req.state()
+        .critters_db
+        .send(ListClients)
+        .from_err()
+        .and_then(|res| match res {
+            Ok(clients) => Ok(format!("Clients: {:#?}", clients).into()),
+            Err(_) => Ok(HttpResponse::InternalServerError().into()),
+        })
 }
 
 fn _info(req: &HttpRequest<AppState>) -> impl Future<Item = HttpResponse, Error = Error> {
@@ -64,13 +75,14 @@ pub fn run() -> Mailbox {
     std::thread::spawn(move || {
         let sys = actix::System::new("charsheet");
 
-        let addr = CrittersDb::start_default();
+        //let addr = CrittersDb::start_default();
+        let addr = SyncArbiter::start(1, || CrittersDb::new());
 
         let state = AppState::new(addr.clone());
         server::HttpServer::new(move || {
             App::with_state(state.clone())
                 .resource("/", |r| r.method(http::Method::GET).f(nope))
-                //.resource("/{crid}", |r| r.method(http::Method::GET).a(info))
+                .resource("/gm/clients", |r| r.method(http::Method::GET).a(gm_clients))
                 .resource("/{crid}", |r| r.method(http::Method::GET).a(stats::stats))
                 .handler(
                     "/static",

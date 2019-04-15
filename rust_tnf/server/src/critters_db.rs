@@ -16,7 +16,7 @@ impl CrittersDb {
 }
 
 impl Actor for CrittersDb {
-    type Context = Context<Self>;
+    type Context = SyncContext<Self>;
 }
 
 pub struct GetCritterInfo {
@@ -59,5 +59,30 @@ impl Handler<UpdateCritterInfo> for CrittersDb {
 impl Default for CrittersDb {
     fn default() -> Self {
         CrittersDb::new()
+    }
+}
+
+pub struct ListClients;
+
+impl Message for ListClients {
+    type Result = Result<Vec<String>, Error>;
+}
+
+impl Handler<ListClients> for CrittersDb {
+    type Result = Result<Vec<String>, Error>;
+
+    fn handle(&mut self, _msg: ListClients, _: &mut Self::Context) -> Self::Result {
+        let clients: Vec<String> = std::fs::read_dir("./save/clients/")?
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| path.is_file() && path.extension() == Some("client".as_ref()))
+            .filter_map(|path| {
+                path.file_stem()
+                    .and_then(std::ffi::OsStr::to_str)
+                    .map(String::from)
+            })
+            .collect();
+        Ok(clients)
+        //Ok(self.hashmap.get(&msg.id).cloned())
     }
 }

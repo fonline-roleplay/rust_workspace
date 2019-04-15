@@ -1,10 +1,13 @@
 use actix::prelude::*;
 use actix_web::Error;
 use std::collections::HashMap;
+use std::sync::Arc;
 use tnf_common::engine_types::critter::CritterInfo;
 
+type InnerCritter = Arc<CritterInfo>;
+
 pub struct CrittersDb {
-    hashmap: HashMap<u32, CritterInfo>,
+    hashmap: HashMap<u32, InnerCritter>,
 }
 
 impl CrittersDb {
@@ -24,22 +27,22 @@ pub struct GetCritterInfo {
 }
 
 impl Message for GetCritterInfo {
-    type Result = Result<Option<CritterInfo>, Error>;
+    type Result = Result<Option<InnerCritter>, Error>;
 }
 
 impl Handler<GetCritterInfo> for CrittersDb {
-    type Result = Result<Option<CritterInfo>, Error>;
+    type Result = Result<Option<InnerCritter>, Error>;
 
     fn handle(&mut self, msg: GetCritterInfo, _: &mut Self::Context) -> Self::Result {
         Ok(self.hashmap.get(&msg.id).cloned())
     }
 }
 
-pub struct UpdateCritterInfo(CritterInfo);
+pub struct UpdateCritterInfo(InnerCritter);
 
 impl From<CritterInfo> for UpdateCritterInfo {
     fn from(cr_info: CritterInfo) -> Self {
-        UpdateCritterInfo(cr_info)
+        UpdateCritterInfo(Arc::new(cr_info))
     }
 }
 

@@ -8,7 +8,7 @@ use tnf_common::{
 };
 
 #[derive(Template, Debug)]
-#[template(path = "charlist.html")]
+#[template(path = "charsheet.html")]
 struct Stats<'a> {
     nickname: &'a str,
     age: i32,
@@ -109,7 +109,7 @@ impl<'a> Stats<'a> {
             .collect();
         let level = cr.param(Param::ST_LEVEL);
         let next_level = level + 1;
-        dbg!(Stats {
+        Stats {
             nickname: &cr.NameStr,
             age: cr.param(Param::ST_AGE),
             sex: if cr.param(Param::ST_GENDER) == 0 {
@@ -122,7 +122,7 @@ impl<'a> Stats<'a> {
             levelup_exp: (next_level * level / 2) * 1000,
             stat_fields,
             skill_fields
-        })
+        }
     }
 }
 

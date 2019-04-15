@@ -62,7 +62,7 @@ pub fn run() -> Mailbox {
     let (sender, receiver) = channel();
 
     std::thread::spawn(move || {
-        let sys = actix::System::new("charlist");
+        let sys = actix::System::new("charsheet");
 
         let addr = CrittersDb::start_default();
 

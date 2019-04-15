@@ -1,10 +1,10 @@
-use super::{AppState, GetCritterInfo};
+use super::{AppState, GetCritterInfo, GetClientInfo};
+use crate::{critter_info::CritterInfo};
 use actix_web::{Error, HttpRequest, HttpResponse};
 use askama::Template;
 use futures::{future::ok as fut_ok, future::Either, Future};
 use tnf_common::{
     defines::param::{CritterParam, Param},
-    engine_types::critter::CritterInfo,
 };
 
 #[derive(Template, Debug)]
@@ -110,7 +110,7 @@ impl<'a> Stats<'a> {
         let level = cr.param(Param::ST_LEVEL);
         let next_level = level + 1;
         Stats {
-            nickname: &cr.NameStr,
+            nickname: &cr.name,
             age: cr.param(Param::ST_AGE),
             sex: if cr.param(Param::ST_GENDER) == 0 {
                 "МУЖ."
@@ -148,6 +148,36 @@ pub fn stats(req: &HttpRequest<AppState>) -> impl Future<Item = HttpResponse, Er
                             }
                         }
                         Ok(None) => Ok("I don't know about you!".into()),
+                        Err(_) => Ok(HttpResponse::InternalServerError().into()),
+                    }
+                }),
+        )
+    } else {
+        Either::B(fut_ok("Get out!".into()))
+    }
+}
+
+pub fn gm_stats(req: &HttpRequest<AppState>) -> impl Future<Item = HttpResponse, Error = Error> {
+    let name = req
+        .match_info()
+        .get("client")
+        .and_then(|crid| crid.parse().ok());
+    if let Some(name) = name {
+        Either::A(
+            req.state()
+                .critters_db
+                .send(GetClientInfo { name })
+                .from_err()
+                .and_then(|res| {
+                    match res {
+                        //Ok(Some(cr_info)) => Ok(format!("Your info: {:?}", cr_info).into()),
+                        Ok(cr_info) => {
+                            if let Ok(body) = Stats::new(&cr_info).render() {
+                                Ok(HttpResponse::Ok().content_type("text/html").body(body))
+                            } else {
+                                Ok(HttpResponse::InternalServerError().into())
+                            }
+                        }
                         Err(_) => Ok(HttpResponse::InternalServerError().into()),
                     }
                 }),

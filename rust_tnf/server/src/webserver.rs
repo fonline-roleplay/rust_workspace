@@ -4,9 +4,12 @@ use actix::prelude::{Actor, Addr, SendError, SyncArbiter};
 use actix_web::{fs, http, server, App, Error, HttpRequest, HttpResponse, Responder};
 use futures::{future::ok as fut_ok, future::Either, Future};
 
-use tnf_common::engine_types::critter::{Critter, CritterInfo};
+use tnf_common::engine_types::critter::{Critter};
 
-use crate::critters_db::{CrittersDb, GetCritterInfo, ListClients, UpdateCritterInfo};
+use crate::{
+    critter_info::CritterInfo,
+    critters_db::{CrittersDb, GetCritterInfo, ListClients, UpdateCritterInfo, GetClientInfo}
+};
 
 mod stats;
 
@@ -14,7 +17,7 @@ pub struct Mailbox(actix::Addr<CrittersDb>);
 impl Mailbox {
     pub fn update_critter(&self, cr: &Critter) -> Result<(), SendError<UpdateCritterInfo>> {
         self.0
-            .try_send(UpdateCritterInfo::from(CritterInfo::new(cr)))
+            .try_send(UpdateCritterInfo::from(CritterInfo::from(cr)))
     }
 }
 
@@ -46,7 +49,7 @@ fn _info(req: &HttpRequest<AppState>) -> impl Future<Item = HttpResponse, Error 
                 .send(GetCritterInfo { id: crid })
                 .from_err()
                 .and_then(|res| match res {
-                    Ok(Some(cr_info)) => Ok(format!("Your id: {:?}", cr_info.Id).into()),
+                    Ok(Some(cr_info)) => Ok(format!("Your id: {:?}", cr_info.id).into()),
                     Ok(None) => Ok("I don't know about you!".into()),
                     Err(_) => Ok(HttpResponse::InternalServerError().into()),
                 }),
@@ -83,6 +86,7 @@ pub fn run() -> Mailbox {
             App::with_state(state.clone())
                 .resource("/", |r| r.method(http::Method::GET).f(nope))
                 .resource("/gm/clients", |r| r.method(http::Method::GET).a(gm_clients))
+                .resource("/gm/client/{client}", |r| r.method(http::Method::GET).a(stats::gm_stats))
                 .resource("/{crid}", |r| r.method(http::Method::GET).a(stats::stats))
                 .handler(
                     "/static",

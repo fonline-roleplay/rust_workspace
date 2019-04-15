@@ -2,7 +2,8 @@ use actix::prelude::*;
 use actix_web::Error;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tnf_common::engine_types::critter::CritterInfo;
+use crate::critter_info::CritterInfo;
+use fo_client_format::ClientSaveData;
 
 type InnerCritter = Arc<CritterInfo>;
 
@@ -54,7 +55,7 @@ impl Handler<UpdateCritterInfo> for CrittersDb {
     type Result = Result<(), Error>;
 
     fn handle(&mut self, msg: UpdateCritterInfo, _: &mut Self::Context) -> Self::Result {
-        self.hashmap.insert(msg.0.Id, msg.0);
+        self.hashmap.insert(msg.0.id, msg.0);
         Ok(())
     }
 }
@@ -87,5 +88,26 @@ impl Handler<ListClients> for CrittersDb {
             .collect();
         Ok(clients)
         //Ok(self.hashmap.get(&msg.id).cloned())
+    }
+}
+
+pub struct GetClientInfo {
+    pub name: String,
+}
+
+impl Message for GetClientInfo {
+    type Result = Result<InnerCritter, Error>;
+}
+
+impl Handler<GetClientInfo> for CrittersDb {
+    type Result = Result<InnerCritter, Error>;
+
+    fn handle(&mut self, msg: GetClientInfo, _: &mut Self::Context) -> Self::Result {
+        //Ok(self.hashmap.get(&msg.id).cloned())
+        let data = std::fs::read(format!("./save/clients/{}.client", msg.name))?;
+        let client_data = ClientSaveData::read_bincode(&mut &data[..])?;
+        let mut critter_info = CritterInfo::from(&client_data);
+        critter_info.name = msg.name;
+        Ok(Arc::new(critter_info))
     }
 }

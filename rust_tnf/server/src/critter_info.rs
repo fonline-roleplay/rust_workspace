@@ -1,8 +1,5 @@
 use fo_client_format::ClientSaveData;
-use tnf_common::{
-    engine_types::critter::Critter,
-    defines::param::CritterParam,
-};
+use tnf_common::{defines::param::CritterParam, engine_types::critter::Critter};
 
 pub struct CritterInfo {
     pub id: u32,
@@ -23,7 +20,7 @@ impl From<&Critter> for CritterInfo {
             dir: cr.Dir,
             map_id: cr.MapId,
             params: cr.Params.clone(),
-            name: cr.NameStr.string()
+            name: cr.NameStr.string(),
         }
     }
 }

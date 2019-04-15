@@ -1,20 +1,9 @@
-use super::{AppState, GetCritterInfo, GetClientInfo};
-use crate::{critter_info::CritterInfo};
+use super::{AppState, GetClientInfo, GetCritterInfo};
+use crate::{critter_info::CritterInfo, templates};
 use actix_web::{Error, HttpRequest, HttpResponse};
 use futures::{future::ok as fut_ok, future::Either, Future};
-use tnf_common::{
-    defines::param::{CritterParam, Param},
-};
-use lazy_static::lazy_static;
-use tera::{compile_templates, Tera};
 use serde::Serialize;
-
-lazy_static! {
-    pub static ref TERA: Tera = {
-        let mut tera = compile_templates!("web/templates/**/*");
-        tera
-    };
-}
+use tnf_common::defines::param::{CritterParam, Param};
 
 #[derive(Debug, Serialize)]
 struct Stats<'a> {
@@ -29,8 +18,8 @@ struct Stats<'a> {
 }
 
 impl<'a> Stats<'a> {
-    fn render(&self) -> tera::Result<String> {
-        TERA.render("charsheet.html", self)
+    fn render(&self) -> Result<String, templates::TemplatesError> {
+        templates::render("charsheet.html", self)
     }
 }
 
@@ -179,13 +168,13 @@ pub fn gm_stats(req: &HttpRequest<AppState>) -> impl Future<Item = HttpResponse,
                 .and_then(|res| {
                     match res {
                         //Ok(Some(cr_info)) => Ok(format!("Your info: {:?}", cr_info).into()),
-                        Ok(cr_info) => {
-                            if let Ok(body) = Stats::new(&cr_info).render() {
-                                Ok(HttpResponse::Ok().content_type("text/html").body(body))
-                            } else {
+                        Ok(cr_info) => match Stats::new(&cr_info).render() {
+                            Ok(body) => Ok(HttpResponse::Ok().content_type("text/html").body(body)),
+                            Err(err) => {
+                                eprintln!("GM Stats error: {:#?}", err);
                                 Ok(HttpResponse::InternalServerError().into())
                             }
-                        }
+                        },
                         Err(_) => Ok(HttpResponse::InternalServerError().into()),
                     }
                 }),

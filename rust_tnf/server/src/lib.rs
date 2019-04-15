@@ -4,7 +4,8 @@ use tnf_common::dll_main;
 
 dll_main!({});
 
-pub mod critters_db;
+mod critter_info;
+mod critters_db;
 mod hooks;
-pub mod webserver;
-pub mod critter_info;
+mod templates;
+mod webserver;

@@ -4,11 +4,11 @@ use actix::prelude::{Actor, Addr, SendError, SyncArbiter};
 use actix_web::{fs, http, server, App, Error, HttpRequest, HttpResponse, Responder};
 use futures::{future::ok as fut_ok, future::Either, Future};
 
-use tnf_common::engine_types::critter::{Critter};
+use tnf_common::engine_types::critter::Critter;
 
 use crate::{
     critter_info::CritterInfo,
-    critters_db::{CrittersDb, GetCritterInfo, ListClients, UpdateCritterInfo, GetClientInfo}
+    critters_db::{CrittersDb, GetClientInfo, GetCritterInfo, ListClients, UpdateCritterInfo},
 };
 
 mod stats;
@@ -78,7 +78,7 @@ pub fn run() -> Mailbox {
     std::thread::spawn(move || {
         let sys = actix::System::new("charsheet");
 
-        let _ = *stats::TERA;
+        crate::templates::init();
 
         //let addr = CrittersDb::start_default();
         let addr = SyncArbiter::start(1, || CrittersDb::new());
@@ -88,7 +88,9 @@ pub fn run() -> Mailbox {
             App::with_state(state.clone())
                 .resource("/", |r| r.method(http::Method::GET).f(nope))
                 .resource("/gm/clients", |r| r.method(http::Method::GET).a(gm_clients))
-                .resource("/gm/client/{client}", |r| r.method(http::Method::GET).a(stats::gm_stats))
+                .resource("/gm/client/{client}", |r| {
+                    r.method(http::Method::GET).a(stats::gm_stats)
+                })
                 .resource("/{crid}", |r| r.method(http::Method::GET).a(stats::stats))
                 .handler(
                     "/static",

@@ -1,9 +1,9 @@
+use crate::critter_info::CritterInfo;
 use actix::prelude::*;
 use actix_web::Error;
+use fo_client_format::ClientSaveData;
 use std::collections::HashMap;
 use std::sync::Arc;
-use crate::critter_info::CritterInfo;
-use fo_client_format::ClientSaveData;
 
 type InnerCritter = Arc<CritterInfo>;
 

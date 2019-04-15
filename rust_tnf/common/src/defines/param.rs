@@ -6,10 +6,10 @@ pub trait CritterParam {
         self.param(p) as u32
     }
     fn params_range(&self, range: std::ops::Range<Param>) -> &[i32] {
-        &self.params_all()[range.start as usize .. range.end as usize]
+        &self.params_all()[range.start as usize..range.end as usize]
     }
     fn params_range_inc(&self, range: std::ops::RangeInclusive<Param>) -> &[i32] {
-        &self.params_all()[*range.start() as usize ..= *range.end() as usize]
+        &self.params_all()[*range.start() as usize..=*range.end() as usize]
     }
     fn params_all(&self) -> &[i32];
 }

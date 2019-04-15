@@ -6,10 +6,7 @@
 /// What you can safely do inside here is very limited, see the Microsoft documentation
 /// about "DllMain". Rust also doesn't officially support a "life before main()",
 /// though it is unclear what that that means exactly for DllMain.
-
-use winapi::{
-    um::consoleapi,
-};
+use winapi::um::consoleapi;
 
 #[macro_export(local_inner_macros)]
 macro_rules! dll_main(($callback:expr) => { mod dll {

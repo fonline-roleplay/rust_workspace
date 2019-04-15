@@ -3,7 +3,7 @@ pub mod engine_types;
 mod param_getters;
 
 mod dll;
-pub use dll::{console_init};
+pub use dll::console_init;
 
 #[no_mangle]
 #[allow(non_snake_case)]

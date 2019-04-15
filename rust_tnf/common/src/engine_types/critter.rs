@@ -13,7 +13,7 @@ use crate::{
 mod critter_info {
     use super::*;
 
-    macro_rules! copycat {        
+    macro_rules! copycat {
         (; $cr:ident $field:ident $conv:ident
         ) => {
             $cr.$field.$conv()
@@ -33,7 +33,7 @@ mod critter_info {
             pub struct $tyto {
                 $($visy $field : $typ),*
             }
-            
+
             impl $tyto {
                 pub fn new(cr: &$tyfrom) -> Self {
                     Self {

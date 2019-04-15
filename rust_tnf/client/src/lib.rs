@@ -1,9 +1,6 @@
 #![cfg(windows)]
 
-use tnf_common::{
-    engine_types::ScriptString,
-    dll_main,
-};
+use tnf_common::{dll_main, engine_types::ScriptString};
 dll_main!({});
 
 #[no_mangle]

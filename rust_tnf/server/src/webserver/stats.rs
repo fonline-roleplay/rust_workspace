@@ -1,14 +1,22 @@
 use super::{AppState, GetCritterInfo, GetClientInfo};
 use crate::{critter_info::CritterInfo};
 use actix_web::{Error, HttpRequest, HttpResponse};
-use askama::Template;
 use futures::{future::ok as fut_ok, future::Either, Future};
 use tnf_common::{
     defines::param::{CritterParam, Param},
 };
+use lazy_static::lazy_static;
+use tera::{compile_templates, Tera};
+use serde::Serialize;
 
-#[derive(Template, Debug)]
-#[template(path = "charsheet.html")]
+lazy_static! {
+    pub static ref TERA: Tera = {
+        let mut tera = compile_templates!("web/templates/**/*");
+        tera
+    };
+}
+
+#[derive(Debug, Serialize)]
 struct Stats<'a> {
     nickname: &'a str,
     age: i32,
@@ -20,14 +28,20 @@ struct Stats<'a> {
     skill_fields: Vec<SkillField>,
 }
 
-#[derive(Debug)]
+impl<'a> Stats<'a> {
+    fn render(&self) -> tera::Result<String> {
+        TERA.render("charsheet.html", self)
+    }
+}
+
+#[derive(Debug, Serialize)]
 struct StatField {
     name: &'static str,
     value: (u8, u8),
     title: &'static str,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 struct SkillField {
     name: &'static str,
     value: i32,
@@ -68,12 +82,6 @@ const SKILL_NAMES: [&'static str; 18] = [
     "Азартные игры",
     "Скиталец",
 ];
-
-mod filters {
-    pub fn boolly(s: &dyn std::fmt::Display, test: &bool) -> Result<String, askama::Error> {
-        Ok(if *test { s.to_string() } else { String::new() })
-    }
-}
 
 impl<'a> Stats<'a> {
     fn new(cr: &'a CritterInfo) -> Self {

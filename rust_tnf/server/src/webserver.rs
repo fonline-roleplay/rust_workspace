@@ -78,6 +78,8 @@ pub fn run() -> Mailbox {
     std::thread::spawn(move || {
         let sys = actix::System::new("charsheet");
 
+        let _ = *stats::TERA;
+
         //let addr = CrittersDb::start_default();
         let addr = SyncArbiter::start(1, || CrittersDb::new());
 
@@ -90,7 +92,7 @@ pub fn run() -> Mailbox {
                 .resource("/{crid}", |r| r.method(http::Method::GET).a(stats::stats))
                 .handler(
                     "/static",
-                    fs::StaticFiles::new("./web_static")
+                    fs::StaticFiles::new("./web/static/")
                         .unwrap()
                         .show_files_listing(),
                 )

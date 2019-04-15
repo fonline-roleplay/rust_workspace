@@ -37,7 +37,11 @@
     </div>
     <div class="skills">
         {% for field in skill_fields %}
-            <div style="top: {{22+loop.index0*11}}px" class="skill-row {{"skill-tagged"|boolly(field.tagged)}}">
+            <div style="top: {{22+loop.index0*11}}px" class="skill-row {%
+                if field.tagged -%}
+                skill-tagged
+                {% endif -%}
+            ">
                 <div class="skill-cell"><span>{{field.name}}</span></div>
                 <div class="skill-cell"><span>{{field.value}}%</span></div>
             </div>

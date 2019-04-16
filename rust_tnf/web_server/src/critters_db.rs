@@ -2,9 +2,13 @@ use crate::critter_info::CritterInfo;
 use actix::prelude::*;
 use actix_web::Error;
 use fo_client_format::ClientSaveData;
-use std::collections::{BTreeMap, HashMap};
-use std::ffi::OsStr;
-use std::sync::Arc;
+use std::{
+    io,
+    collections::{BTreeMap, HashMap},
+    ffi::OsStr,
+    sync::Arc,
+    time::SystemTime,
+};
 
 const CLIENTS_PATH: &'static str = "../save/clients/";
 
@@ -13,6 +17,36 @@ type InnerClients = Arc<BTreeMap<String, ClientRecord>>;
 
 pub struct ClientRecord {
     pub filename: Box<OsStr>,
+    pub modified: Option<SystemTime>,
+    pub info: Option<InnerCritter>,
+}
+
+impl ClientRecord {
+    fn new(filename: &OsStr) -> Self {
+        Self{
+            filename: filename.into(),
+            modified: None,
+            info: None,
+        }
+    }
+    fn update_info(&mut self, name: String) -> io::Result<()>{
+        let mut pathbuf = std::path::PathBuf::new();
+        pathbuf.push(CLIENTS_PATH);
+        pathbuf.push(&*self.filename);
+        pathbuf.set_extension("client");
+        self.modified = pathbuf.metadata().and_then(|md| md.modified()).ok();
+        let data = std::fs::read(&pathbuf)?;
+        let client_data = ClientSaveData::read_bincode(&mut &data[..])?;
+        let mut critter_info = CritterInfo::from(&client_data);
+        critter_info.name = name;
+        self.info = Some(Arc::new(critter_info));
+        Ok(())
+    }
+    fn info(&self) -> io::Result<InnerCritter> {
+        //self.update_info(name)?;
+        let info = self.info.as_ref().ok_or_else(not_found)?;
+        Ok(Arc::clone(info))
+    }
 }
 
 pub struct CrittersDb {
@@ -22,12 +56,14 @@ pub struct CrittersDb {
 
 impl CrittersDb {
     pub fn new() -> Self {
-        Self {
+        let mut db = Self {
             hashmap: HashMap::new(),
             clients: Arc::new(BTreeMap::new()),
-        }
+        };
+        db.update_clients().expect("Can't load clients");
+        db
     }
-    fn update_clients(&mut self) -> std::io::Result<()> {
+    fn update_clients(&mut self) -> io::Result<()> {
         let clients: BTreeMap<String, ClientRecord> = std::fs::read_dir(CLIENTS_PATH)?
             .filter_map(Result::ok)
             .map(|entry| entry.path())
@@ -35,11 +71,11 @@ impl CrittersDb {
             .filter_map(|path| {
                 path.file_stem().and_then(|stem| {
                     decode_filename(stem).map(|nickname| {
+                        let mut record = ClientRecord::new(stem);
+                        let _ = record.update_info(nickname.clone());
                         (
                             nickname,
-                            ClientRecord {
-                                filename: stem.into(),
-                            },
+                            record,
                         )
                     })
                 })
@@ -47,6 +83,13 @@ impl CrittersDb {
             .collect();
         self.clients = Arc::new(clients);
         Ok(())
+    }
+    pub fn client_info(&self, name: &str) -> io::Result<InnerCritter> {
+        if let Some(record) = self.clients.get(name) {
+            record.info()
+        } else {
+            Err(not_found())
+        }
     }
 }
 
@@ -186,18 +229,13 @@ impl Handler<GetClientInfo> for CrittersDb {
     fn handle(&mut self, msg: GetClientInfo, _: &mut Self::Context) -> Self::Result {
         //Ok(self.hashmap.get(&msg.id).cloned())
         if let Some(record) = self.clients.get(&msg.name) {
-            let mut pathbuf = std::path::PathBuf::new();
-            pathbuf.push(CLIENTS_PATH);
-            pathbuf.push(&*record.filename);
-            pathbuf.set_extension("client");
-            let data = std::fs::read(&pathbuf)?;
-            let client_data = ClientSaveData::read_bincode(&mut &data[..])?;
-            let mut critter_info = CritterInfo::from(&client_data);
-            critter_info.name = msg.name;
-            Ok(Arc::new(critter_info))
+            Ok(self.client_info(&msg.name)?)
         } else {
-            let err: std::io::Error = std::io::ErrorKind::NotFound.into();
-            Err(err.into())
+            Err(not_found().into())
         }
     }
+}
+
+fn not_found() -> io::Error {
+    io::ErrorKind::NotFound.into()
 }

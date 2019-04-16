@@ -7,6 +7,7 @@ pub struct CritterInfo {
     pub hex_y: u16,
     pub dir: u8,
     pub map_id: u32,
+    pub map_pid: u16,
     pub params: [i32; 1000],
     pub name: String,
 }
@@ -19,6 +20,7 @@ impl From<&Critter> for CritterInfo {
             hex_y: cr.HexY,
             dir: cr.Dir,
             map_id: cr.MapId,
+            map_pid: cr.MapPid,
             params: cr.Params.clone(),
             name: cr.NameStr.string(),
         }
@@ -33,6 +35,7 @@ impl From<&ClientSaveData> for CritterInfo {
             hex_y: cr.data.HexY,
             dir: cr.data.Dir,
             map_id: cr.data.MapId,
+            map_pid: cr.data.MapPid,
             params: cr.data.Params.clone(),
             name: Default::default(),
         }

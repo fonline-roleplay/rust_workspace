@@ -1,10 +1,19 @@
-use std::sync::mpsc::channel;
+use std::{
+    sync::mpsc::channel,
+    time::Duration,
+};
 
 use actix::prelude::{Actor, Addr, SendError, SyncArbiter};
 use actix_web::{fs, http, server, App, Error, HttpRequest, HttpResponse, Responder};
 use futures::{future::ok as fut_ok, future::Either, Future};
 
-use tnf_common::engine_types::critter::Critter;
+use tnf_common::{
+    engine_types::critter::Critter,
+    defines::{
+        param::{Param, CritterParam},
+        fos,
+    }
+};
 
 use crate::{
     critter_info::CritterInfo,
@@ -40,14 +49,56 @@ struct ClientsList<'a> {
 struct ClientRow<'a> {
     name: &'a str,
     file: &'a str,
+    info: Option<ClientRowInfo>,
+    last_seen: Option<(String, bool)>,
 }
+#[derive(Debug, Serialize)]
+struct ClientRowInfo {
+    id: u32,
+    lvl: i32,
+    map_id: u32,
+    map_pid: u16,
+    gamemode: &'static str,
+}
+
+const GAMEMODS: [&'static str; fos::GAME_MAX as usize] = ["START", "ADVENTURE", "SURVIVAL", "ARCADE", "TEST"];
+
+fn ago(duration: &Duration) -> (String, bool) {
+    let secs = duration.as_secs();
+    (
+        if secs<60 {
+            format!("{}s ago", secs)
+        } else if secs < 60*60 {
+            format!("{}m ago", secs/60)
+        } else if secs < 24*60*60 {
+            format!("{}h ago", secs/60/60)
+        } else {
+            format!("{}d ago", secs/60/60/24)
+        },
+        secs < 60*5
+    )
+}
+
 impl<'a> ClientsList<'a> {
     fn new<I: Iterator<Item = (&'a String, &'a ClientRecord)>>(clients: I) -> Self {
         Self {
             clients: clients
-                .map(|(name, record)| ClientRow {
-                    name: &name,
-                    file: record.filename.to_str().unwrap_or(""),
+                .map(|(name, record)| {
+                    let info = record.info.as_ref().map(|info| {
+                        ClientRowInfo{
+                            id: info.id,
+                            lvl: info.param(Param::ST_LEVEL),
+                            map_id: info.map_id,
+                            map_pid: info.map_pid,
+                            gamemode: GAMEMODS[info.uparam(Param::QST_GAMEMODE).min(fos::GAME_MAX-1) as usize]
+                        }
+                    });
+                    ClientRow {
+                        info,
+                        name: &name,
+                        file: record.filename.to_str().unwrap_or(""),
+                        last_seen: record.modified.and_then(|time| time.elapsed().ok()).as_ref().map(ago)
+                    }
                 })
                 .collect(),
         }

@@ -20,9 +20,6 @@ body {
   font-family: Crasng;
   src: url(fonts/Crasng.ttf);
 }
-label {
-  font-family: Gothic821, 'Comic Sans MS', cursive;
-}
 
 img {
   display: block;
@@ -271,10 +268,39 @@ span {
   border: 1px solid black;
   margin: 5px;
   padding: 3px;
+  empty-cells: hide;
 }
 
 .clients-table td {
   border: 1px solid black;
   margin: 5px;
   padding: 3px;
+}
+
+.bg-green {
+  background-color: lightgreen;
+}
+
+.bg-grey {
+  background-color: grey;
+}
+
+.client-START {
+  background-color: lightgrey;
+}
+
+.client-SURVIVAL {
+  background-color: lightyellow;
+}
+
+.client-ADVENTURE {
+  background-color: gold;
+}
+
+.client-ARCADE {
+  background-color: lightsalmon;
+}
+
+.client-TEST {
+  background-color: teal;
 }

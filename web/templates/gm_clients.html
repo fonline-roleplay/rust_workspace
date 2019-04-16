@@ -1,15 +1,94 @@
 {% extends "base.html" %}
 {% block title %}Clients{% endblock title %}
 {% block content %}
+<script>
+var hiding_dead = false;
+var hiding_offline = false;
+function hide_dead(checkbox) {
+    hiding_dead = checkbox.checked;
+    update_rows();
+}
+function hide_offline(checkbox) {
+    hiding_offline = checkbox.checked;
+    update_rows();
+}
+function update_rows() {
+    var rows = document.getElementsByClassName('client-row');
+    for (var i = 0; i < rows.length; i++) {
+        var el = rows[i];
+        var cl = el.classList;
+        if (
+            (hiding_offline && cl.contains('client-offline')) ||
+            (hiding_dead && cl.contains('client-dead'))
+        ) {
+            el.style.visibility = "collapse";
+        } else {
+            el.style.visibility = "visible";
+        }
+    }
+}
+</script>
 <table class="clients-table">
-    <tr>
+<tr>
+<td colspan="6"></td>
+<td colspan="2">
+    <input type="checkbox" id="hide_dead" onchange="hide_dead(this)"><label for="hide_dead">Hide dead</label>
+</td>
+<td>
+    <input type="checkbox" id="hide_offline" onchange="hide_offline(this)"><label for="hide_offline">Hide offline</label>
+</td>
+</tr>
+    <tr>        
         <th>Nickname</th>
         <th>File</th>
+        <th>Id</th>
+        <th>LVL</th>
+        <th>Game mode</th>
+        <th>MapId</th>
+        <th>MapPid</th>
+        <th>Status</th>
+        <th>Last seen</th>
     </tr>
     {% for client in clients %}
-        <tr>
+        <tr
+            class = "client-row
+                {% if client.info.map_pid == 170 %}
+                    client-dead
+                {% endif %}
+                {% if not client.last_seen or not client.last_seen.1 %}
+                    client-offline
+                {% endif %}
+            "
+        >
             <td><a href="client/{{client.name|safe|urlencode}}">{{client.name}}</a></td>
             <td>{{client.file}}</td>
+            {% if client.info %}
+                <td>{{client.info.id}}</td>
+                <td>{{client.info.lvl}}</td>
+                <td class="client-{{client.info.gamemode}}">{{client.info.gamemode}}</td>
+                <td>{{client.info.map_id}}</td>
+                <td>{{client.info.map_pid}}</td>
+                {% if client.info.map_pid != 170 %}
+                    <td class="bg-green">ALIVE</td>
+                {% else %}
+                    <td class="bg-grey">DEAD</td>
+                {% endif %}
+            {% else %}
+                <td colspan="5">NOT LOADED</td>
+            {% endif %}
+            {% if client.last_seen %}
+                <td
+                    {% if client.last_seen.1 %}
+                        class="bg-green"
+                    {% else %}
+                        class="bg-grey"
+                    {% endif %}
+                >
+                    {{client.last_seen.0}}
+                </td>
+            {% else %}
+                <td>?</td>
+            {% endif %}
         </tr>
     {% endfor %}
 </table>

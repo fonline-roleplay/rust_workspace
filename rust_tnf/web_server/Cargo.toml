@@ -1,12 +1,11 @@
 [package]
-name = "tnf_server"
+name = "tnf_web_server"
 version = "0.1.0"
 authors = ["qthree <qthree3@gmail.com>"]
 edition = "2018"
 publish = false
 
 [dependencies]
-winapi = { version = "0.3.6", features = ["consoleapi"] }
 tnf_common = { path = "../common", features = ["server"] }
 actix-web = "0.7.19"
 actix = "0.7.9"
@@ -18,6 +17,3 @@ serde = "1.0.90"
 rsass = "0.9.8"
 custom_error = "1.6.0"
 percent-encoding = "1.0.1"
-
-[lib]
-crate-type = ["cdylib"]

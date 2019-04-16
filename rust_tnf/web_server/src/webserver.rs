@@ -8,8 +8,12 @@ use tnf_common::engine_types::critter::Critter;
 
 use crate::{
     critter_info::CritterInfo,
-    critters_db::{CrittersDb, GetClientInfo, GetCritterInfo, ListClients, UpdateCritterInfo, ClientRecord},
+    critters_db::{
+        ClientRecord, CrittersDb, GetClientInfo, GetCritterInfo, ListClients, UpdateCritterInfo,
+    },
 };
+
+const STATIC_PATH: &'static str = "./static/";
 
 mod stats;
 
@@ -26,10 +30,10 @@ fn nope(_req: &HttpRequest<AppState>) -> impl Responder {
     format!("Hello there and go to hell!")
 }
 
+use crate::templates;
 use serde::Serialize;
-use crate::{templates};
 #[derive(Debug, Serialize)]
-struct ClientsList<'a>{
+struct ClientsList<'a> {
     clients: Vec<ClientRow<'a>>,
 }
 #[derive(Debug, Serialize)]
@@ -38,14 +42,14 @@ struct ClientRow<'a> {
     file: &'a str,
 }
 impl<'a> ClientsList<'a> {
-    fn new<I: Iterator<Item=(&'a String, &'a ClientRecord)>>(clients: I) -> Self {
+    fn new<I: Iterator<Item = (&'a String, &'a ClientRecord)>>(clients: I) -> Self {
         Self {
-            clients: clients.map(|(name, record)|{
-                ClientRow {
+            clients: clients
+                .map(|(name, record)| ClientRow {
                     name: &name,
                     file: record.filename.to_str().unwrap_or(""),
-                }
-            }).collect()
+                })
+                .collect(),
         }
     }
     fn render(&self) -> Result<String, templates::TemplatesError> {
@@ -59,15 +63,11 @@ fn gm_clients(req: &HttpRequest<AppState>) -> impl Future<Item = HttpResponse, E
         .send(ListClients)
         .from_err()
         .and_then(|res| match res {
-            Ok(clients) => {
-                match ClientsList::new(clients.iter()).render() {
-                    Ok(body) =>  {
-                        Ok(HttpResponse::Ok().content_type("text/html").body(body))
-                    },
-                    Err(err) => {
-                        eprintln!("GM Clients error: {:#?}", err);
-                        Ok(HttpResponse::InternalServerError().into())
-                    },
+            Ok(clients) => match ClientsList::new(clients.iter()).render() {
+                Ok(body) => Ok(HttpResponse::Ok().content_type("text/html").body(body)),
+                Err(err) => {
+                    eprintln!("GM Clients error: {:#?}", err);
+                    Ok(HttpResponse::InternalServerError().into())
                 }
             },
             Err(_) => Ok(HttpResponse::InternalServerError().into()),
@@ -107,49 +107,36 @@ impl AppState {
     }
 }
 
-pub fn run() -> Mailbox {
+pub fn run() {
     println!("Starting actix-web server...");
 
-    let (sender, receiver) = channel();
+    let sys = actix::System::new("charsheet");
 
-    std::thread::spawn(move || {
-        let sys = actix::System::new("charsheet");
+    crate::templates::init();
 
-        crate::templates::init();
+    //let addr = CrittersDb::start_default();
+    let addr = SyncArbiter::start(1, || CrittersDb::new());
 
-        //let addr = CrittersDb::start_default();
-        let addr = SyncArbiter::start(1, || CrittersDb::new());
+    let state = AppState::new(addr.clone());
+    server::HttpServer::new(move || {
+        App::with_state(state.clone())
+            .resource("/", |r| r.method(http::Method::GET).f(nope))
+            .resource("/gm/clients", |r| r.method(http::Method::GET).a(gm_clients))
+            .resource("/gm/client/{client}", |r| {
+                r.method(http::Method::GET).a(stats::gm_stats)
+            })
+            .resource("/{crid}", |r| r.method(http::Method::GET).a(stats::stats))
+            .handler(
+                "/static",
+                fs::StaticFiles::new(STATIC_PATH)
+                    .unwrap()
+                    .show_files_listing(),
+            )
+    })
+    .bind("127.0.0.1:8000")
+    .expect("Can not bind to port 8000")
+    .start(); //.expect("Can't start server!");
 
-        let state = AppState::new(addr.clone());
-        server::HttpServer::new(move || {
-            App::with_state(state.clone())
-                .resource("/", |r| r.method(http::Method::GET).f(nope))
-                .resource("/gm/clients", |r| r.method(http::Method::GET).a(gm_clients))
-                .resource("/gm/client/{client}", |r| {
-                    r.method(http::Method::GET).a(stats::gm_stats)
-                })
-                .resource("/{crid}", |r| r.method(http::Method::GET).a(stats::stats))
-                .handler(
-                    "/static",
-                    fs::StaticFiles::new("./web/static/")
-                        .unwrap()
-                        .show_files_listing(),
-                )
-        })
-        .bind("127.0.0.1:8000")
-        .expect("Can not bind to port 8000")
-        .start(); //.expect("Can't start server!");
-
-        sender
-            .send(addr)
-            .expect("Can't send CrittersDb address to engine's thread.");
-
-        println!("Server started!");
-        let _ = sys.run();
-    });
-    Mailbox(
-        receiver
-            .recv()
-            .expect("Can't receive CrittersDb address from webserver thread."),
-    )
+    println!("Server started!");
+    let _ = sys.run();
 }

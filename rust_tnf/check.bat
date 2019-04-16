@@ -1,8 +1,8 @@
 clear
 clear
 cls
-cd client
+cd client_dll
 cargo check --target=i686-pc-windows-msvc --color=always
-cd ../server
+cd ../server_dll
 cargo check --target=i686-pc-windows-msvc --color=always
 cd ..

@@ -2,9 +2,11 @@ use crate::critter_info::CritterInfo;
 use actix::prelude::*;
 use actix_web::Error;
 use fo_client_format::ClientSaveData;
-use std::collections::{HashMap, BTreeMap};
-use std::sync::Arc;
+use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsStr;
+use std::sync::Arc;
+
+const CLIENTS_PATH: &'static str = "../save/clients/";
 
 type InnerCritter = Arc<CritterInfo>;
 type InnerClients = Arc<BTreeMap<String, ClientRecord>>;
@@ -25,12 +27,23 @@ impl CrittersDb {
             clients: Arc::new(BTreeMap::new()),
         }
     }
-    fn update_clients(&mut self) -> std::io::Result<()>{
-        let clients: BTreeMap<String, ClientRecord> = std::fs::read_dir("./save/clients/")?
+    fn update_clients(&mut self) -> std::io::Result<()> {
+        let clients: BTreeMap<String, ClientRecord> = std::fs::read_dir(CLIENTS_PATH)?
             .filter_map(Result::ok)
             .map(|entry| entry.path())
             .filter(|path| path.is_file() && path.extension() == Some("client".as_ref()))
-            .filter_map(|path| path.file_stem().and_then(|stem| decode_filename(stem).map(|nickname| (nickname, ClientRecord{filename: stem.into()}))))
+            .filter_map(|path| {
+                path.file_stem().and_then(|stem| {
+                    decode_filename(stem).map(|nickname| {
+                        (
+                            nickname,
+                            ClientRecord {
+                                filename: stem.into(),
+                            },
+                        )
+                    })
+                })
+            })
             .collect();
         self.clients = Arc::new(clients);
         Ok(())
@@ -122,13 +135,13 @@ fn from_ascii(string: &OsStr) -> Option<String> {
     use std::convert::TryInto;
     use std::os::windows::ffi::OsStrExt;
     //let mut vec = Vec::with_capacity(string.len()*2);
-    let mut new_string = String::with_capacity(string.len()*2);
+    let mut new_string = String::with_capacity(string.len() * 2);
     for wide in string.encode_wide() {
         let code = wide.to_ne_bytes()[0];
         if code >= 0x80 {
             let cp1251 = FORWARD_TABLE[(code - 0x80) as usize] as u32;
             new_string.push(cp1251.try_into().ok()?);
-        } else if code!=0 {
+        } else if code != 0 {
             new_string.push(code as char);
         }
     }
@@ -136,7 +149,7 @@ fn from_ascii(string: &OsStr) -> Option<String> {
 }
 
 #[cfg(windows)]
-fn decode_filename(filename: &OsStr) -> Option<String>{
+fn decode_filename(filename: &OsStr) -> Option<String> {
     use std::os::windows::ffi::OsStrExt;
     if is_ascii(filename) {
         from_ascii(filename)
@@ -146,7 +159,7 @@ fn decode_filename(filename: &OsStr) -> Option<String>{
 }
 
 #[cfg(not(windows))]
-fn decode_filename(filename: &OsStr) -> Option<String>{
+fn decode_filename(filename: &OsStr) -> Option<String> {
     filename.to_str().map(String::from)
 }
 
@@ -174,7 +187,7 @@ impl Handler<GetClientInfo> for CrittersDb {
         //Ok(self.hashmap.get(&msg.id).cloned())
         if let Some(record) = self.clients.get(&msg.name) {
             let mut pathbuf = std::path::PathBuf::new();
-            pathbuf.push("./save/clients/");
+            pathbuf.push(CLIENTS_PATH);
             pathbuf.push(&*record.filename);
             pathbuf.set_extension("client");
             let data = std::fs::read(&pathbuf)?;

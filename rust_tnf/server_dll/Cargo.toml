@@ -1,5 +1,5 @@
 [package]
-name = "tnf_client"
+name = "tnf_server_dll"
 version = "0.1.0"
 authors = ["qthree <qthree3@gmail.com>"]
 edition = "2018"
@@ -7,8 +7,10 @@ publish = false
 
 [dependencies]
 winapi = { version = "0.3.6", features = ["consoleapi"] }
-tnf_common = { path = "../common", features = ["client"] }
-webbrowser = "0.5.1"
+tnf_common = { path = "../common", features = ["server"] }
+lazy_static = "1.3.0"
+serde = "1.0.90"
+custom_error = "1.6.0"
 
 [lib]
 crate-type = ["cdylib"]

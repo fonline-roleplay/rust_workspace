@@ -1,5 +1,5 @@
 [workspace]
-members = ["client", "server", "common"]
+members = ["client_dll", "server_dll", "common", "web_server"]
 
 [profile.release]
 lto = true

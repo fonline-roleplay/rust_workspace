@@ -1,0 +1,14 @@
+[package]
+name = "tnf_client_dll"
+version = "0.1.0"
+authors = ["qthree <qthree3@gmail.com>"]
+edition = "2018"
+publish = false
+
+[dependencies]
+winapi = { version = "0.3.6", features = ["consoleapi"] }
+tnf_common = { path = "../common", features = ["client"] }
+webbrowser = "0.5.1"
+
+[lib]
+crate-type = ["cdylib"]

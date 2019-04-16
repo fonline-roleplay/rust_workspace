@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Clients{% endblock title %}
+{% block content %}
+<table class="clients-table">
+    <tr><th>Nickname</th></tr>
+    {% for client in clients %}
+        <tr>
+            <td><a href="client/{{client}}">{{client}}</a></td>
+        </tr>
+    {% endfor %}
+</table>
+{% endblock content %}

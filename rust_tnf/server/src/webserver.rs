@@ -26,13 +26,38 @@ fn nope(_req: &HttpRequest<AppState>) -> impl Responder {
     format!("Hello there and go to hell!")
 }
 
+use serde::Serialize;
+use crate::{templates};
+#[derive(Debug, Serialize)]
+struct ClientsList<'a>{
+    clients: &'a [String],
+}
+impl<'a> ClientsList<'a> {
+    fn new(clients: &'a [String]) -> Self {
+        Self{ clients }
+    }
+    fn render(&self) -> Result<String, templates::TemplatesError> {
+        templates::render("gm_clients.html", self)
+    }
+}
+
 fn gm_clients(req: &HttpRequest<AppState>) -> impl Future<Item = HttpResponse, Error = Error> {
     req.state()
         .critters_db
         .send(ListClients)
         .from_err()
         .and_then(|res| match res {
-            Ok(clients) => Ok(format!("Clients: {:#?}", clients).into()),
+            Ok(clients) => {
+                match ClientsList::new(&clients).render() {
+                    Ok(body) =>  {
+                        Ok(HttpResponse::Ok().content_type("text/html").body(body))
+                    },
+                    Err(err) => {
+                        eprintln!("GM Clients error: {:#?}", err);
+                        Ok(HttpResponse::InternalServerError().into())
+                    },
+                }
+            },
             Err(_) => Ok(HttpResponse::InternalServerError().into()),
         })
 }

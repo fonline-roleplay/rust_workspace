@@ -158,12 +158,13 @@ pub fn gm_stats(req: &HttpRequest<AppState>) -> impl Future<Item = HttpResponse,
     let name = req
         .match_info()
         .get("client")
-        .and_then(|crid| crid.parse().ok());
+        .and_then(|client| percent_encoding::percent_decode(client.as_bytes()).decode_utf8().ok());
     if let Some(name) = name {
+        println!("gm_stats: {:?}", name);
         Either::A(
             req.state()
                 .critters_db
-                .send(GetClientInfo { name })
+                .send(GetClientInfo { name: name.to_string() })
                 .from_err()
                 .and_then(|res| {
                     match res {

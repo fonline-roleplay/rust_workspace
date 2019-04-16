@@ -8,7 +8,7 @@ use tnf_common::engine_types::critter::Critter;
 
 use crate::{
     critter_info::CritterInfo,
-    critters_db::{CrittersDb, GetClientInfo, GetCritterInfo, ListClients, UpdateCritterInfo},
+    critters_db::{CrittersDb, GetClientInfo, GetCritterInfo, ListClients, UpdateCritterInfo, ClientRecord},
 };
 
 mod stats;
@@ -30,11 +30,23 @@ use serde::Serialize;
 use crate::{templates};
 #[derive(Debug, Serialize)]
 struct ClientsList<'a>{
-    clients: &'a [String],
+    clients: Vec<ClientRow<'a>>,
+}
+#[derive(Debug, Serialize)]
+struct ClientRow<'a> {
+    name: &'a str,
+    file: &'a str,
 }
 impl<'a> ClientsList<'a> {
-    fn new(clients: &'a [String]) -> Self {
-        Self{ clients }
+    fn new<I: Iterator<Item=(&'a String, &'a ClientRecord)>>(clients: I) -> Self {
+        Self {
+            clients: clients.map(|(name, record)|{
+                ClientRow {
+                    name: &name,
+                    file: record.filename.to_str().unwrap_or(""),
+                }
+            }).collect()
+        }
     }
     fn render(&self) -> Result<String, templates::TemplatesError> {
         templates::render("gm_clients.html", self)
@@ -48,7 +60,7 @@ fn gm_clients(req: &HttpRequest<AppState>) -> impl Future<Item = HttpResponse, E
         .from_err()
         .and_then(|res| match res {
             Ok(clients) => {
-                match ClientsList::new(&clients).render() {
+                match ClientsList::new(clients.iter()).render() {
                     Ok(body) =>  {
                         Ok(HttpResponse::Ok().content_type("text/html").body(body))
                     },

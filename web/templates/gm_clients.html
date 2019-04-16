@@ -2,10 +2,14 @@
 {% block title %}Clients{% endblock title %}
 {% block content %}
 <table class="clients-table">
-    <tr><th>Nickname</th></tr>
+    <tr>
+        <th>Nickname</th>
+        <th>File</th>
+    </tr>
     {% for client in clients %}
         <tr>
-            <td><a href="client/{{client}}">{{client}}</a></td>
+            <td><a href="client/{{client.name|safe|urlencode}}">{{client.name}}</a></td>
+            <td>{{client.file}}</td>
         </tr>
     {% endfor %}
 </table>

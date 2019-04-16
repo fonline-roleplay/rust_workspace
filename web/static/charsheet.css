@@ -50,6 +50,7 @@ img {
 .cell {
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: Gothic821, 'Comic Sans MS', cursive;
   font-size: 22px;
   line-height: 20px;

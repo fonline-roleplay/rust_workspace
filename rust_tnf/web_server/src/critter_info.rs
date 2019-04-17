@@ -1,4 +1,4 @@
-use fo_client_format::ClientSaveData;
+use fo_save_format::ClientSaveData;
 use tnf_common::{
     defines::{fos, param::CritterParam},
     engine_types::critter::Critter,

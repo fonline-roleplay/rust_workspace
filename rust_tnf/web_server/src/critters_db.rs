@@ -1,7 +1,7 @@
 use crate::critter_info::CritterInfo;
 use actix::prelude::*;
 use actix_web::Error;
-use fo_client_format::ClientSaveData;
+use fo_save_format::ClientSaveData;
 use std::{
     io,
     collections::{BTreeMap, HashMap},

@@ -277,11 +277,19 @@ span {
   padding: 3px;
 }
 
-.bg-green {
+.client-cell-ALIVE {
   background-color: lightgreen;
 }
 
-.bg-grey {
+.client-cell-KO {
+  background-color: thistle;
+}
+
+.client-cell-DYING {
+  background-color: tomato;
+}
+
+.client-cell-DEAD {
   background-color: grey;
 }
 
@@ -303,4 +311,12 @@ span {
 
 .client-TEST {
   background-color: teal;
+}
+
+.bg-green {
+  background-color: lightgreen;
+}
+
+.bg-grey {
+  background-color: grey;
 }

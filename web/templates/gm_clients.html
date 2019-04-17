@@ -43,6 +43,7 @@ function update_rows() {
         <th>File</th>
         <th>Id</th>
         <th>LVL</th>
+        <th>HP</th>
         <th>Game mode</th>
         <th>MapId</th>
         <th>MapPid</th>
@@ -52,7 +53,7 @@ function update_rows() {
     {% for client in clients %}
         <tr
             class = "client-row
-                {% if client.info.map_pid == 170 %}
+                {% if client.info.cond == 'DEAD' %}
                     client-dead
                 {% endif %}
                 {% if not client.last_seen or not client.last_seen.1 %}
@@ -65,14 +66,11 @@ function update_rows() {
             {% if client.info %}
                 <td>{{client.info.id}}</td>
                 <td>{{client.info.lvl}}</td>
+                <td>{{client.info.hp}}</td>
                 <td class="client-{{client.info.gamemode}}">{{client.info.gamemode}}</td>
                 <td>{{client.info.map_id}}</td>
                 <td>{{client.info.map_pid}}</td>
-                {% if client.info.map_pid != 170 %}
-                    <td class="bg-green">ALIVE</td>
-                {% else %}
-                    <td class="bg-grey">DEAD</td>
-                {% endif %}
+                <td class="client-cell-{{client.info.cond}}">{{client.info.cond}}</td>
             {% else %}
                 <td colspan="5">NOT LOADED</td>
             {% endif %}

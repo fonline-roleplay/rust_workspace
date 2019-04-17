@@ -56,8 +56,10 @@ struct ClientRow<'a> {
 struct ClientRowInfo {
     id: u32,
     lvl: i32,
+    hp: i32,
     map_id: u32,
     map_pid: u16,
+    cond: &'static str,
     gamemode: &'static str,
 }
 
@@ -88,8 +90,10 @@ impl<'a> ClientsList<'a> {
                         ClientRowInfo{
                             id: info.id,
                             lvl: info.param(Param::ST_LEVEL),
+                            hp: info.param(Param::ST_CURRENT_HP),
                             map_id: info.map_id,
                             map_pid: info.map_pid,
+                            cond: info.cond(),
                             gamemode: GAMEMODS[info.uparam(Param::QST_GAMEMODE).min(fos::GAME_MAX-1) as usize]
                         }
                     });

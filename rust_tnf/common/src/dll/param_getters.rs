@@ -1,10 +1,7 @@
 use crate::{
     defines::param::{CritterParam, Param as PAR},
-    engine_types::{
-        game_options::game_state,
-        mutual::CritterMutual,
-        primitives::{int, uint},
-    },
+    engine_types::{game_options::game_state, mutual::CritterMutual},
+    primitives::*,
 };
 
 #[no_mangle]

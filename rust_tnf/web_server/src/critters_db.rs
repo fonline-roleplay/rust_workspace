@@ -1,11 +1,13 @@
 use crate::critter_info::CritterInfo;
+use crate::fix_encoding::{decode_filename, os_str_debug};
 use actix::prelude::*;
 use actix_web::Error;
 use fo_save_format::ClientSaveData;
 use std::{
+    collections::{btree_map::Entry, BTreeMap, HashMap},
+    ffi::{OsStr, OsString},
     io,
-    collections::{BTreeMap, HashMap},
-    ffi::OsStr,
+    path::PathBuf,
     sync::Arc,
     time::SystemTime,
 };
@@ -23,17 +25,14 @@ pub struct ClientRecord {
 
 impl ClientRecord {
     fn new(filename: &OsStr) -> Self {
-        Self{
+        Self {
             filename: filename.into(),
             modified: None,
             info: None,
         }
     }
-    fn update_info(&mut self, name: String) -> io::Result<()>{
-        let mut pathbuf = std::path::PathBuf::new();
-        pathbuf.push(CLIENTS_PATH);
-        pathbuf.push(&*self.filename);
-        pathbuf.set_extension("client");
+    fn update_info(&mut self, name: String) -> io::Result<()> {
+        let pathbuf = self.file_path();
         self.modified = pathbuf.metadata().and_then(|md| md.modified()).ok();
         let data = std::fs::read(&pathbuf)?;
         let client_data = ClientSaveData::read_bincode(&mut &data[..])?;
@@ -47,6 +46,21 @@ impl ClientRecord {
         let info = self.info.as_ref().ok_or_else(not_found)?;
         Ok(Arc::clone(info))
     }
+    fn rename_file(&mut self, name: String) -> io::Result<()> {
+        let from = self.file_path();
+        let mut to = from.with_file_name(&name);
+        to.set_extension("client");
+        std::fs::rename(from, to)?;
+        self.filename = OsString::from(name).into_boxed_os_str();
+        Ok(())
+    }
+    fn file_path(&self) -> PathBuf {
+        let mut pathbuf = PathBuf::new();
+        pathbuf.push(CLIENTS_PATH);
+        pathbuf.push(&*self.filename);
+        pathbuf.set_extension("client");
+        pathbuf
+    }
 }
 
 pub struct CrittersDb {
@@ -56,15 +70,46 @@ pub struct CrittersDb {
 
 impl CrittersDb {
     pub fn new() -> Self {
-        let mut db = Self {
-            hashmap: HashMap::new(),
-            clients: Arc::new(BTreeMap::new()),
-        };
-        db.update_clients().expect("Can't load clients");
+        let mut db = Self::default();
+        db.update_clients(true).expect("Can't load clients");
         db
     }
-    fn update_clients(&mut self) -> io::Result<()> {
-        let clients: BTreeMap<String, ClientRecord> = std::fs::read_dir(CLIENTS_PATH)?
+    pub fn fix_clients(dry_ran: bool) {
+        let mut db = Self::default();
+        db.update_clients(false).expect("Can't fix clients");
+        let clients = if let Ok(clients) = Arc::try_unwrap(db.clients) {
+            clients
+        } else {
+            unreachable!();
+        };
+        print!("Fixing clients...");
+        for (name, mut record) in clients {
+            match record.filename.to_str() {
+                Some(string) if string == name => {
+                    println!("{:?} == {:?}, skipping", name, string);
+                }
+                _ => {
+                    print!(
+                        "{:?} != {:?}, fixing... ",
+                        name,
+                        os_str_debug(&record.filename)
+                    );
+                    if dry_ran {
+                        println!("dry run");
+                    } else {
+                        match record.rename_file(name) {
+                            Ok(()) => println!("OK"),
+                            Err(err) => println!("ERROR: {:?}", err),
+                        }
+                    }
+                }
+            }
+        }
+    }
+    fn update_clients(&mut self, load_clients_info: bool) -> io::Result<()> {
+        let mut clients: BTreeMap<String, ClientRecord> = BTreeMap::new();
+
+        for (key, value) in std::fs::read_dir(CLIENTS_PATH)?
             .filter_map(Result::ok)
             .map(|entry| entry.path())
             .filter(|path| path.is_file() && path.extension() == Some("client".as_ref()))
@@ -72,15 +117,29 @@ impl CrittersDb {
                 path.file_stem().and_then(|stem| {
                     decode_filename(stem).map(|nickname| {
                         let mut record = ClientRecord::new(stem);
-                        let _ = record.update_info(nickname.clone());
-                        (
-                            nickname,
-                            record,
-                        )
+                        if load_clients_info {
+                            let _ = record.update_info(nickname.clone());
+                        }
+                        (nickname, record)
                     })
                 })
             })
-            .collect();
+        {
+            match clients.entry(key) {
+                Entry::Vacant(entry) => {
+                    entry.insert(value);
+                }
+                Entry::Occupied(entry) => {
+                    let (old_key, old_value) = entry.remove_entry();
+                    eprintln!(
+                        "Two clients with the same name {:?}, ignoring both: {:?} == {:?}",
+                        old_key,
+                        os_str_debug(&value.filename),
+                        os_str_debug(&old_value.filename),
+                    );
+                }
+            };
+        }
         self.clients = Arc::new(clients);
         Ok(())
     }
@@ -136,7 +195,10 @@ impl Handler<UpdateCritterInfo> for CrittersDb {
 
 impl Default for CrittersDb {
     fn default() -> Self {
-        CrittersDb::new()
+        Self {
+            hashmap: HashMap::new(),
+            clients: Arc::new(BTreeMap::new()),
+        }
     }
 }
 
@@ -146,71 +208,11 @@ impl Message for ListClients {
     type Result = Result<InnerClients, Error>;
 }
 
-// CP1251 to UTF
-const FORWARD_TABLE: &'static [u16] = &[
-    1026, 1027, 8218, 1107, 8222, 8230, 8224, 8225, 8364, 8240, 1033, 8249, 1034, 1036, 1035, 1039,
-    1106, 8216, 8217, 8220, 8221, 8226, 8211, 8212, 152, 8482, 1113, 8250, 1114, 1116, 1115, 1119,
-    160, 1038, 1118, 1032, 164, 1168, 166, 167, 1025, 169, 1028, 171, 172, 173, 174, 1031, 176,
-    177, 1030, 1110, 1169, 181, 182, 183, 1105, 8470, 1108, 187, 1112, 1029, 1109, 1111, 1040,
-    1041, 1042, 1043, 1044, 1045, 1046, 1047, 1048, 1049, 1050, 1051, 1052, 1053, 1054, 1055, 1056,
-    1057, 1058, 1059, 1060, 1061, 1062, 1063, 1064, 1065, 1066, 1067, 1068, 1069, 1070, 1071, 1072,
-    1073, 1074, 1075, 1076, 1077, 1078, 1079, 1080, 1081, 1082, 1083, 1084, 1085, 1086, 1087, 1088,
-    1089, 1090, 1091, 1092, 1093, 1094, 1095, 1096, 1097, 1098, 1099, 1100, 1101, 1102, 1103,
-]; // 128 entries
-
-#[cfg(windows)]
-fn is_ascii(string: &OsStr) -> bool {
-    use std::os::windows::ffi::OsStrExt;
-    let mut maybe_ascii = false;
-    for wide in string.encode_wide() {
-        if wide < 0x20 || wide > 0xFF {
-            return false;
-        }
-        if wide >= 0x80 {
-            maybe_ascii = true;
-        }
-    }
-    maybe_ascii
-}
-
-#[cfg(windows)]
-fn from_ascii(string: &OsStr) -> Option<String> {
-    use std::convert::TryInto;
-    use std::os::windows::ffi::OsStrExt;
-    //let mut vec = Vec::with_capacity(string.len()*2);
-    let mut new_string = String::with_capacity(string.len() * 2);
-    for wide in string.encode_wide() {
-        let code = wide.to_ne_bytes()[0];
-        if code >= 0x80 {
-            let cp1251 = FORWARD_TABLE[(code - 0x80) as usize] as u32;
-            new_string.push(cp1251.try_into().ok()?);
-        } else if code != 0 {
-            new_string.push(code as char);
-        }
-    }
-    Some(new_string)
-}
-
-#[cfg(windows)]
-fn decode_filename(filename: &OsStr) -> Option<String> {
-    use std::os::windows::ffi::OsStrExt;
-    if is_ascii(filename) {
-        from_ascii(filename)
-    } else {
-        filename.to_str().map(String::from)
-    }
-}
-
-#[cfg(not(windows))]
-fn decode_filename(filename: &OsStr) -> Option<String> {
-    filename.to_str().map(String::from)
-}
-
 impl Handler<ListClients> for CrittersDb {
     type Result = Result<InnerClients, Error>;
 
     fn handle(&mut self, _msg: ListClients, _: &mut Self::Context) -> Self::Result {
-        self.update_clients()?;
+        self.update_clients(true)?;
         Ok(Arc::clone(&self.clients))
     }
 }

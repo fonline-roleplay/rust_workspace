@@ -1,5 +1,5 @@
 #[allow(non_snake_case, non_camel_case_types, unused_variables, dead_code)]
-pub mod primitives;
+pub mod stl;
 
 #[allow(non_camel_case_types, non_snake_case)] //, dead_code
 mod string;

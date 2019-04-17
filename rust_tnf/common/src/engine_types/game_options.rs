@@ -2,9 +2,8 @@ use crate::engine_types::{
     critter::{CrClVec, Critter, CritterCl},
     item::{Item, ItemVec},
     mutual::CritterMutual,
-    primitives::{
-        int16, int64, int8, stlp_std_allocator, stlp_std_vector, uint, uint16, uint64, uint8,
-    },
+    primitives::*,
+    stl::{stlp_std_allocator, stlp_std_vector},
     ScriptString,
 };
 

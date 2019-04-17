@@ -1,9 +1,16 @@
 pub mod defines;
+#[cfg(windows)]
 pub mod engine_types;
-mod param_getters;
+#[allow(non_camel_case_types)]
+pub mod primitives;
 
-mod dll;
-pub use dll::console_init;
+#[cfg(windows)]
+mod dll {
+    mod init;
+    mod param_getters;
+}
+#[cfg(windows)]
+pub use dll::init::console_init;
 
 #[no_mangle]
 #[allow(non_snake_case)]

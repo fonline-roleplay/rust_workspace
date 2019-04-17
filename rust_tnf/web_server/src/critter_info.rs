@@ -1,8 +1,8 @@
 use fo_save_format::ClientSaveData;
-use tnf_common::{
-    defines::{fos, param::CritterParam},
-    engine_types::critter::Critter,
-};
+use tnf_common::defines::{fos, param::CritterParam};
+
+#[cfg(windows)]
+use tnf_common::engine_types::critter::Critter;
 
 pub struct CritterInfo {
     pub id: u32,
@@ -15,7 +15,7 @@ pub struct CritterInfo {
     pub params: [i32; 1000],
     pub name: String,
 }
-
+#[cfg(windows)]
 impl From<&Critter> for CritterInfo {
     fn from(cr: &Critter) -> Self {
         CritterInfo {

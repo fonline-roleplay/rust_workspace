@@ -1,18 +1,12 @@
-use std::{
-    sync::mpsc::channel,
-    time::Duration,
-};
+use std::{borrow::Cow, sync::mpsc::channel, time::Duration};
 
 use actix::prelude::{Actor, Addr, SendError, SyncArbiter};
 use actix_web::{fs, http, server, App, Error, HttpRequest, HttpResponse, Responder};
 use futures::{future::ok as fut_ok, future::Either, Future};
 
-use tnf_common::{
-    engine_types::critter::Critter,
-    defines::{
-        param::{Param, CritterParam},
-        fos,
-    }
+use tnf_common::defines::{
+    fos,
+    param::{CritterParam, Param},
 };
 
 use crate::{
@@ -20,12 +14,14 @@ use crate::{
     critters_db::{
         ClientRecord, CrittersDb, GetClientInfo, GetCritterInfo, ListClients, UpdateCritterInfo,
     },
+    fix_encoding::os_str_debug,
 };
 
 const STATIC_PATH: &'static str = "./static/";
 
 mod stats;
 
+/*
 pub struct Mailbox(actix::Addr<CrittersDb>);
 impl Mailbox {
     pub fn update_critter(&self, cr: &Critter) -> Result<(), SendError<UpdateCritterInfo>> {
@@ -33,6 +29,7 @@ impl Mailbox {
             .try_send(UpdateCritterInfo::from(CritterInfo::from(cr)))
     }
 }
+*/
 
 fn nope(_req: &HttpRequest<AppState>) -> impl Responder {
     //let to = req.match_info().get("name").unwrap_or("World");
@@ -48,7 +45,7 @@ struct ClientsList<'a> {
 #[derive(Debug, Serialize)]
 struct ClientRow<'a> {
     name: &'a str,
-    file: &'a str,
+    file: Cow<'a, str>,
     info: Option<ClientRowInfo>,
     last_seen: Option<(String, bool)>,
 }
@@ -63,21 +60,22 @@ struct ClientRowInfo {
     gamemode: &'static str,
 }
 
-const GAMEMODS: [&'static str; fos::GAME_MAX as usize] = ["START", "ADVENTURE", "SURVIVAL", "ARCADE", "TEST"];
+const GAMEMODS: [&'static str; fos::GAME_MAX as usize] =
+    ["START", "ADVENTURE", "SURVIVAL", "ARCADE", "TEST"];
 
 fn ago(duration: &Duration) -> (String, bool) {
     let secs = duration.as_secs();
     (
-        if secs<60 {
+        if secs < 60 {
             format!("{}s ago", secs)
-        } else if secs < 60*60 {
-            format!("{}m ago", secs/60)
-        } else if secs < 24*60*60 {
-            format!("{}h ago", secs/60/60)
+        } else if secs < 60 * 60 {
+            format!("{}m ago", secs / 60)
+        } else if secs < 24 * 60 * 60 {
+            format!("{}h ago", secs / 60 / 60)
         } else {
-            format!("{}d ago", secs/60/60/24)
+            format!("{}d ago", secs / 60 / 60 / 24)
         },
-        secs < 60*5
+        secs < 60 * 5,
     )
 }
 
@@ -86,22 +84,25 @@ impl<'a> ClientsList<'a> {
         Self {
             clients: clients
                 .map(|(name, record)| {
-                    let info = record.info.as_ref().map(|info| {
-                        ClientRowInfo{
-                            id: info.id,
-                            lvl: info.param(Param::ST_LEVEL),
-                            hp: info.param(Param::ST_CURRENT_HP),
-                            map_id: info.map_id,
-                            map_pid: info.map_pid,
-                            cond: info.cond(),
-                            gamemode: GAMEMODS[info.uparam(Param::QST_GAMEMODE).min(fos::GAME_MAX-1) as usize]
-                        }
+                    let info = record.info.as_ref().map(|info| ClientRowInfo {
+                        id: info.id,
+                        lvl: info.param(Param::ST_LEVEL),
+                        hp: info.param(Param::ST_CURRENT_HP),
+                        map_id: info.map_id,
+                        map_pid: info.map_pid,
+                        cond: info.cond(),
+                        gamemode: GAMEMODS
+                            [info.uparam(Param::QST_GAMEMODE).min(fos::GAME_MAX - 1) as usize],
                     });
                     ClientRow {
                         info,
                         name: &name,
-                        file: record.filename.to_str().unwrap_or(""),
-                        last_seen: record.modified.and_then(|time| time.elapsed().ok()).as_ref().map(ago)
+                        file: os_str_debug(&record.filename),
+                        last_seen: record
+                            .modified
+                            .and_then(|time| time.elapsed().ok())
+                            .as_ref()
+                            .map(ago),
                     }
                 })
                 .collect(),

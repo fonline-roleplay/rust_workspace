@@ -1,4 +1,4 @@
-use crate::engine_types::primitives::{stlp_std_allocator, stlp_std_priv__STLP_alloc_proxy};
+use crate::engine_types::stl::{stlp_std_allocator, stlp_std_priv__STLP_alloc_proxy};
 
 #[repr(C)]
 union stlp_std_priv__String_base__Buffers<_Tp: Copy> {

@@ -2,12 +2,13 @@ use crate::{
     defines::param::CritterParam,
     engine_types::{
         item::{Item, ItemVec},
-        primitives::{
-            int16, stlp_std_allocator, stlp_std_vector, uint, uint16, uint8, IntVec, Spinlock,
-            SyncObj, Uint16PairVec, Uint16Vec, UintSet,
+        stl::{
+            stlp_std_allocator, stlp_std_vector, IntVec, Spinlock, SyncObj, Uint16PairVec,
+            Uint16Vec, UintSet,
         },
         ScriptString,
     },
+    primitives::*,
 };
 
 impl CritterParam for Critter {

@@ -1,8 +1,8 @@
-use std::{borrow::Cow, sync::mpsc::channel, time::Duration};
-
 use actix::prelude::{Actor, Addr, SendError, SyncArbiter};
 use actix_web::{fs, http, server, App, Error, HttpRequest, HttpResponse, Responder};
 use futures::{future::ok as fut_ok, future::Either, Future};
+use std::net::Ipv4Addr;
+use std::{borrow::Cow, sync::mpsc::channel, time::Duration};
 
 use tnf_common::defines::{
     fos,
@@ -46,11 +46,11 @@ struct ClientsList<'a> {
 struct ClientRow<'a> {
     name: &'a str,
     file: Cow<'a, str>,
-    info: Option<ClientRowInfo>,
+    info: Option<ClientRowInfo<'a>>,
     last_seen: Option<(String, bool)>,
 }
 #[derive(Debug, Serialize)]
-struct ClientRowInfo {
+struct ClientRowInfo<'a> {
     id: u32,
     lvl: i32,
     hp: i32,
@@ -58,6 +58,7 @@ struct ClientRowInfo {
     map_pid: u16,
     cond: &'static str,
     gamemode: &'static str,
+    ip: &'a [Ipv4Addr],
 }
 
 const GAMEMODS: [&'static str; fos::GAME_MAX as usize] =
@@ -67,13 +68,13 @@ fn ago(duration: &Duration) -> (String, bool) {
     let secs = duration.as_secs();
     (
         if secs < 60 {
-            format!("{}s ago", secs)
+            format!("{}s", secs)
         } else if secs < 60 * 60 {
-            format!("{}m ago", secs / 60)
+            format!("{}m", secs / 60)
         } else if secs < 24 * 60 * 60 {
-            format!("{}h ago", secs / 60 / 60)
+            format!("{}h", secs / 60 / 60)
         } else {
-            format!("{}d ago", secs / 60 / 60 / 24)
+            format!("{}d", secs / 60 / 60 / 24)
         },
         secs < 60 * 5,
     )
@@ -93,6 +94,7 @@ impl<'a> ClientsList<'a> {
                         cond: info.cond(),
                         gamemode: GAMEMODS
                             [info.uparam(Param::QST_GAMEMODE).min(fos::GAME_MAX - 1) as usize],
+                        ip: &info.ip[..],
                     });
                     ClientRow {
                         info,
@@ -189,7 +191,7 @@ pub fn run() {
                     .show_files_listing(),
             )
     })
-    .bind("127.0.0.1:8000")
+    .bind("0.0.0.0:8000")
     .expect("Can not bind to port 8000")
     .start(); //.expect("Can't start server!");
 

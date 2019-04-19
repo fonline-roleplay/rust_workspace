@@ -48,7 +48,7 @@ img {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: Gothic821, 'Comic Sans MS', cursive;
+  font-family: Gothic821, "Comic Sans MS", cursive;
   font-size: 22px;
   line-height: 20px;
   color: #c4a028;
@@ -132,12 +132,11 @@ span {
   letter-spacing: 3px;
   width: 25px;
   left: 63px;
-  top: 1px;
 }
 
 .stat-row div:nth-child(3) {
   position: absolute;
-  color: #48fc00;
+  color: #48fc00f0;
   font-family: FoDisplay, Terminus, sans-serif;
   font-size: 8px;
   width: 56px;
@@ -155,7 +154,8 @@ span {
 
 .skill-row {
   position: absolute;
-  color: #48fc00;
+  color: #48fc00f0;
+  font-family: FoDisplay, Terminus, sans-serif;
 }
 
 .skill-row:nth-child(1) {
@@ -232,7 +232,6 @@ span {
 
 .skill-row div:nth-child(1) {
   position: absolute;
-  font-family: FoDisplay, Terminus, sans-serif;
   font-size: 8px;
   width: 200px;
   left: 375px;
@@ -240,7 +239,6 @@ span {
 
 .skill-row div:nth-child(2) {
   position: absolute;
-  font-family: FoDisplay, Terminus, sans-serif;
   font-size: 8px;
   width: 30px;
   left: 585px;
@@ -254,7 +252,7 @@ span {
   position: absolute;
   font-family: FoDisplay, Terminus, sans-serif;
   font-size: 8px;
-  color: #48fc00;
+  color: #48fc00f0;
   text-align: left;
   left: 30px;
   top: 279px;
@@ -264,59 +262,106 @@ span {
   margin: 1px;
 }
 
+.clients-body {
+  background-color: #383020;
+  background-image: url("bg.png");
+}
+
 .clients-table {
-  border: 1px solid black;
-  margin: 5px;
-  padding: 3px;
+  font-family: FoDisplay, Terminus, sans-serif;
+  font-size: 11px;
+  color: #48fc00A0;
+  padding: 5px;
   empty-cells: hide;
+  border-spacing: 5px;
+}
+
+.clients-table th {
+  color: #c4a028;
+  font-family: Gothic821, "Comic Sans MS", cursive;
+  font-size: 20px;
 }
 
 .clients-table td {
+  background-color: #040c00;
   border: 1px solid black;
-  margin: 5px;
-  padding: 3px;
+  padding: 5px 5px 3px 5px;
+  white-space: nowrap;
+  text-align: center;
+  border: 3px solid #bc9054;
+  vertical-align: bottom;
+  border-image: linear-gradient(190deg, #1c1c1cFF 0%, #201800FF 10%, #483804C0 50%, #947c6080 70%, #ac8044B0 90%, #f8d4a480 100%) 1;
+}
+
+.client-cell-name {
+  text-align: left !important;
+}
+.client-cell-name a {
+  text-decoration: none !important;
+  color: #48fc00f0;
 }
 
 .client-cell-ALIVE {
-  background-color: lightgreen;
+  color: #48fc00f0;
 }
 
 .client-cell-KO {
-  background-color: thistle;
+  color: thistle;
 }
 
 .client-cell-DYING {
-  background-color: tomato;
+  color: tomato;
 }
 
 .client-cell-DEAD {
-  background-color: grey;
+  color: grey;
 }
 
 .client-START {
-  background-color: lightgrey;
+  color: darkgrey;
 }
 
 .client-SURVIVAL {
-  background-color: lightyellow;
+  color: darkseagreen;
 }
 
 .client-ADVENTURE {
-  background-color: gold;
+  color: gold;
 }
 
 .client-ARCADE {
-  background-color: lightsalmon;
+  color: lightsalmon;
 }
 
 .client-TEST {
-  background-color: teal;
+  color: teal;
+}
+
+.client-ONLINE {
+  color: #48fc00f0;
+}
+
+.client-OFFLINE {
+  color: grey;
 }
 
 .bg-green {
-  background-color: lightgreen;
+  color: lightgreen;
 }
 
 .bg-grey {
-  background-color: grey;
+  color: grey;
+}
+
+.enabler {
+  display: none;
+}
+
+.enabler_label {
+  color: grey;
+  cursor: pointer;
+}
+
+.enabler:checked + .enabler_label {
+  color: #48fc00f0;
 }

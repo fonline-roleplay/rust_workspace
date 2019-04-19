@@ -4,6 +4,9 @@ use tnf_common::defines::{fos, param::CritterParam};
 #[cfg(windows)]
 use tnf_common::engine_types::critter::Critter;
 
+use arrayvec::ArrayVec;
+use std::net::Ipv4Addr;
+
 pub struct CritterInfo {
     pub id: u32,
     pub hex_x: u16,
@@ -14,7 +17,17 @@ pub struct CritterInfo {
     pub map_pid: u16,
     pub params: [i32; 1000],
     pub name: String,
+    pub ip: ArrayVec<[Ipv4Addr; 20]>,
 }
+
+fn u32_to_ipv4(raw_slice: &[u32; 20]) -> ArrayVec<[Ipv4Addr; 20]> {
+    raw_slice
+        .into_iter()
+        .filter(|&&raw| raw != 0)
+        .map(|&raw| raw.into())
+        .collect()
+}
+
 #[cfg(windows)]
 impl From<&Critter> for CritterInfo {
     fn from(cr: &Critter) -> Self {
@@ -28,6 +41,7 @@ impl From<&Critter> for CritterInfo {
             map_pid: cr.MapPid,
             params: cr.Params.clone(),
             name: cr.NameStr.string(),
+            ip: u32_to_ipv4(&cr.DataExt.PlayIp),
         }
     }
 }
@@ -44,6 +58,7 @@ impl From<&ClientSaveData> for CritterInfo {
             map_pid: cr.data.MapPid,
             params: cr.data.Params.clone(),
             name: Default::default(),
+            ip: u32_to_ipv4(&cr.data_ext.PlayIp),
         }
     }
 }

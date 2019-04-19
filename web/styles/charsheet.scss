@@ -21,6 +21,15 @@ body{
     src: url(fonts/Crasng.ttf);
 }
 
+$font-small:    FoDisplay, Terminus, sans-serif;
+$color-small: #48fc00f0;//rgb(72, 252, 0);
+$color-small2: #48fc00A0;
+$font-big: Gothic821, 'Comic Sans MS', cursive;
+$color-big:  #c4a028;
+
+$bg-black:      #040c00;
+$bg-rust:       #383020;
+
 label {
     
 }
@@ -51,10 +60,10 @@ img {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-family: Gothic821, 'Comic Sans MS', cursive;
+    font-family: $font-big;
     font-size: 22px;
     line-height: 20px;
-    color: #c4a028;
+    color: $color-big;
     position: absolute;
     text-align: center;
 }
@@ -109,12 +118,11 @@ span {
     letter-spacing: 3px;    
     width: 25px;
     left: 63px;
-    top: 1px;
 }
 .stat-row div:nth-child(3){
     position: absolute;
-    color: rgb(72, 252, 0);
-    font-family: FoDisplay, Terminus, sans-serif;
+    color: $color-small;
+    font-family: $font-small;
     font-size: 8px;
     
     width: 56px;
@@ -131,7 +139,8 @@ span {
 }
 .skill-row {
     position: absolute;
-    color: rgb(72, 252, 0);
+    color: $color-small;
+    font-family: $font-small
 }
 
 @for $i from 0 through 17 {
@@ -141,7 +150,6 @@ span {
 
 .skill-row div:nth-child(1){
     position: absolute;
-    font-family: FoDisplay, Terminus, sans-serif;
     font-size: 8px;
     
     width: 200px;
@@ -149,7 +157,6 @@ span {
 }
 .skill-row div:nth-child(2){
     position: absolute;
-    font-family: FoDisplay, Terminus, sans-serif;
     font-size: 8px;
     
     width: 30px;
@@ -161,9 +168,9 @@ span {
 
 .tab-level {
     position: absolute;
-    font-family: FoDisplay, Terminus, sans-serif;
+    font-family: $font-small;
     font-size: 8px;
-    color: rgb(72, 252, 0);
+    color: $color-small;
     text-align: left;
     left: 30px;
     top: 279px;
@@ -171,51 +178,108 @@ span {
 .tab-level p{
     margin: 1px;
 }
-
+.clients-body {
+    background-color: $bg-rust;
+    background-image: url("bg.png");
+}
 .clients-table{
-    border: 1px solid black;
-    margin: 5px;
-    padding: 3px;
+    font-family: $font-small;
+    font-size: 11px;
+    color: $color-small2;
+    //border: 1px solid black;
+    //margin: 5px;
+    padding: 5px;
     empty-cells: hide;
+    border-spacing: 5px;
+}
+.clients-table th{
+    color: $color-big;
+    font-family: $font-big;
+    font-size: 20px;
 }
 .clients-table td{
+    background-color: $bg-black;
     border: 1px solid black;
-    margin: 5px;
-    padding: 3px;
+    //margin: 5px;
+    padding: 5px 5px 3px 5px;
+    white-space: nowrap;
+    text-align: center;
+    border: 3px solid #bc9054;
+    //line-height: 20px;
+    vertical-align: bottom;
+
+    border-image: 
+    linear-gradient(
+      190deg, 
+      #1c1c1cFF 0%,
+      #201800FF 10%,
+      #483804C0 50%,
+      #947c6080 70%,
+      #ac8044B0 90%,
+      #f8d4a480 100%
+    ) 1;
+}
+
+.client-cell-name {
+    text-align: left !important;
+    
+    a {
+        text-decoration: none !important;
+        color: $color-small;
+    }
+    //background-color: snow;
 }
 
 .client-cell-ALIVE {
-    background-color: lightgreen;
+    color: $color-small;
 }
 .client-cell-KO {
-    background-color: thistle;
+    color: thistle;
 }
 .client-cell-DYING {
-    background-color: tomato;
+    color: tomato;
 }
 .client-cell-DEAD {
-    background-color: grey;
+    color: grey;
 }
 
 .client-START {
-    background-color: lightgrey;
+    color: darkgrey;
 }
 .client-SURVIVAL {
-    background-color: lightyellow;
+    color: darkseagreen;
 }
 .client-ADVENTURE {
-    background-color: gold;
+    color: gold;
 }
 .client-ARCADE {
-    background-color: lightsalmon;
+    color: lightsalmon;
 }
 .client-TEST {
-    background-color: teal;
+    color: teal;
+}
+
+.client-ONLINE {
+    color: $color-small;
+}
+.client-OFFLINE {
+    color: grey;
 }
 
 .bg-green {
-    background-color: lightgreen;
+    color: lightgreen;
 }
 .bg-grey {
-    background-color: grey;
+    color: grey;
+}
+
+.enabler {
+    display: none;
+}
+.enabler_label {
+    color: grey;
+    cursor: pointer;
+}
+.enabler:checked + .enabler_label {
+    color: $color-small;
 }

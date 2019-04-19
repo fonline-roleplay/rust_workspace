@@ -17,6 +17,7 @@ serde = "1.0.90"
 rsass = "0.9.8"
 custom_error = "1.6.0"
 percent-encoding = "1.0.1"
+arrayvec = "0.4.10"
 
 
 [[bin]]

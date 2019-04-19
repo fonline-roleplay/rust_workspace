@@ -6,12 +6,12 @@ edition = "2018"
 publish = false
 
 [dependencies]
-winapi = { version = "0.3.6", features = ["consoleapi"] }
+winapi = { optional=true, version = "0.3.6", features = ["consoleapi"] }
 
 [features]
 default = []
-client = []
-server = []
+client = ["winapi"]
+server = ["winapi"]
 
 #[lib]
 #crate-type = ["cdylib"]

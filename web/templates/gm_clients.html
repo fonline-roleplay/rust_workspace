@@ -73,7 +73,7 @@ function update_rows() {
     {% for client in clients %}
         <tr
             class = "client-row
-                {% if client.info.cond == 'DEAD' %}
+                {% if client.info and client.info.cond == 'DEAD' %}
                     client-dead
                 {% endif %}
                 {% if not client.last_seen or not client.last_seen.1 %}

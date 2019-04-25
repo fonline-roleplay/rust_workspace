@@ -24,7 +24,7 @@ fn u32_to_ipv4(raw_slice: &[u32; 20]) -> ArrayVec<[Ipv4Addr; 20]> {
     raw_slice
         .into_iter()
         .filter(|&&raw| raw != 0)
-        .map(|&raw| raw.into())
+        .map(|&raw| raw.to_ne_bytes().into())
         .collect()
 }
 

@@ -2,6 +2,7 @@ use actix::prelude::{Actor, Addr, SendError, SyncArbiter};
 use actix_web::{fs, http, server, App, Error, HttpRequest, HttpResponse, Responder};
 use futures::{future::ok as fut_ok, future::Either, Future};
 use std::net::Ipv4Addr;
+use std::path::PathBuf;
 use std::{borrow::Cow, sync::mpsc::channel, time::Duration};
 
 use tnf_common::defines::{
@@ -165,7 +166,7 @@ impl AppState {
     }
 }
 
-pub fn run() {
+pub fn run(clients: PathBuf) {
     println!("Starting actix-web server...");
 
     let sys = actix::System::new("charsheet");
@@ -173,7 +174,7 @@ pub fn run() {
     crate::templates::init();
 
     //let addr = CrittersDb::start_default();
-    let addr = SyncArbiter::start(1, || CrittersDb::new());
+    let addr = SyncArbiter::start(1, move || CrittersDb::new(clients.clone()));
 
     let state = AppState::new(addr.clone());
     server::HttpServer::new(move || {

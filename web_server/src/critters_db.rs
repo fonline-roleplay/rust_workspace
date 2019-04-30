@@ -12,8 +12,6 @@ use std::{
     time::SystemTime,
 };
 
-const CLIENTS_PATH: &'static str = "../save/clients/";
-
 type InnerCritter = Arc<CritterInfo>;
 type InnerClients = Arc<BTreeMap<String, ClientRecord>>;
 
@@ -31,8 +29,8 @@ impl ClientRecord {
             info: None,
         }
     }
-    fn update_info(&mut self, name: String) -> io::Result<()> {
-        let pathbuf = self.file_path();
+    fn update_info(&mut self, path: PathBuf, name: String) -> io::Result<()> {
+        let pathbuf = self.file_path(path);
         self.modified = pathbuf.metadata().and_then(|md| md.modified()).ok();
         let data = std::fs::read(&pathbuf)?;
         let client_data = ClientSaveData::read_bincode(&mut &data[..])?;
@@ -46,17 +44,16 @@ impl ClientRecord {
         let info = self.info.as_ref().ok_or_else(not_found)?;
         Ok(Arc::clone(info))
     }
-    fn rename_file(&mut self, name: String) -> io::Result<()> {
-        let from = self.file_path();
-        let mut to = from.with_file_name(&name);
+    fn rename_file(&mut self, path: PathBuf, name: String) -> io::Result<()> {
+        let from = self.file_path(path.clone());
+        let mut to = path;
+        to.push(&name);
         to.set_extension("client");
         std::fs::rename(from, to)?;
         self.filename = OsString::from(name).into_boxed_os_str();
         Ok(())
     }
-    fn file_path(&self) -> PathBuf {
-        let mut pathbuf = PathBuf::new();
-        pathbuf.push(CLIENTS_PATH);
+    fn file_path(&self, mut pathbuf: PathBuf) -> PathBuf {
         pathbuf.push(&*self.filename);
         pathbuf.set_extension("client");
         pathbuf
@@ -66,16 +63,23 @@ impl ClientRecord {
 pub struct CrittersDb {
     hashmap: HashMap<u32, InnerCritter>,
     clients: InnerClients,
+    path: PathBuf,
 }
 
 impl CrittersDb {
-    pub fn new() -> Self {
-        let mut db = Self::default();
+    pub fn new(path: PathBuf) -> Self {
+        let mut db = CrittersDb {
+            path,
+            ..Default::default()
+        };
         db.update_clients(true).expect("Can't load clients");
         db
     }
-    pub fn fix_clients(dry_ran: bool) {
-        let mut db = Self::default();
+    pub fn fix_clients(path: PathBuf, dry_ran: bool) {
+        let mut db = CrittersDb {
+            path,
+            ..Default::default()
+        };
         db.update_clients(false).expect("Can't fix clients");
         let clients = if let Ok(clients) = Arc::try_unwrap(db.clients) {
             clients
@@ -97,7 +101,7 @@ impl CrittersDb {
                     if dry_ran {
                         println!("dry run");
                     } else {
-                        match record.rename_file(name) {
+                        match record.rename_file(db.path.clone(), name) {
                             Ok(()) => println!("OK"),
                             Err(err) => println!("ERROR: {:?}", err),
                         }
@@ -109,7 +113,7 @@ impl CrittersDb {
     fn update_clients(&mut self, load_clients_info: bool) -> io::Result<()> {
         let mut clients: BTreeMap<String, ClientRecord> = BTreeMap::new();
 
-        for (key, value) in std::fs::read_dir(CLIENTS_PATH)?
+        for (key, value) in std::fs::read_dir(&self.path)?
             .filter_map(Result::ok)
             .map(|entry| entry.path())
             .filter(|path| path.is_file() && path.extension() == Some("client".as_ref()))
@@ -118,7 +122,7 @@ impl CrittersDb {
                     decode_filename(stem).map(|nickname| {
                         let mut record = ClientRecord::new(stem);
                         if load_clients_info {
-                            let _ = record.update_info(nickname.clone());
+                            let _ = record.update_info(self.path.clone(), nickname.clone());
                         }
                         (nickname, record)
                     })
@@ -198,6 +202,7 @@ impl Default for CrittersDb {
         Self {
             hashmap: HashMap::new(),
             clients: Arc::new(BTreeMap::new()),
+            path: PathBuf::new(),
         }
     }
 }

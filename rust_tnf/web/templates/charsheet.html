@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Stat list - {{nickname}}{% endblock title %}
+{% block content %}
+<body>
+<img class="bg" src="/static/character.png"/>
+<!---<div class="row1">
+    <div class="lb name"><label>QTHREE</label></div>
+    <div class="lb age"><label>28</label></div>
+    <div class="lb sex"><label>M</label></div>
+</div>-->
+<div class="row1">
+    <div class="cell name"><span>{{nickname}}</span></div>
+    <div class="cell age"><span>{{age}}</span></div>
+    <div class="cell sex"><span>{{sex}}</span></div>
+</div>
+<div class="tab-level">
+    <span>
+        <p>Уровень: {{level}}</p>
+        <p>Опыт: {{exp}}</p>
+        <p>След. ур.: {{levelup_exp}}</p>
+    </span>
+</div>
+<div class="stats">
+    {% for field in stat_fields %}
+        <div class="stat-row">
+            <div class="stat-cell"><span>{{field.name}}</span></div>
+            <div class="stat-cell"><span>{{field.value.0}}{{field.value.1}}</span></div>
+            <div class="stat-cell"><span>{{field.title}}</span></div>
+        </div>
+    {% endfor %}
+</div>
+<div class="skills">
+    {% for field in skill_fields %}
+        <div class="skill-row {%
+            if field.tagged -%}
+            skill-tagged
+            {% endif -%}
+        ">
+            <div class="skill-cell"><span>{{field.name}}</span></div>
+            <div class="skill-cell"><span>{{field.value}}%</span></div>
+        </div>
+    {% endfor %}
+</div>
+</body>
+{% endblock content %}

@@ -6,7 +6,7 @@ pub mod primitives;
 
 #[cfg(windows)]
 mod dll {
-    mod init;
+    pub mod init;
     mod param_getters;
 }
 #[cfg(windows)]

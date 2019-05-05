@@ -1,10 +1,12 @@
-use crate::engine_types::{
-    critter::{CrClVec, Critter, CritterCl},
-    item::{Item, ItemVec},
-    mutual::CritterMutual,
+use crate::{
+    engine_types::{
+        critter::{CrClVec, Critter, CritterCl},
+        item::{Item, ItemVec},
+        mutual::CritterMutual,
+        stl::{stlp_std_allocator, stlp_std_vector},
+        ScriptString,
+    },
     primitives::*,
-    stl::{stlp_std_allocator, stlp_std_vector},
-    ScriptString,
 };
 
 #[no_mangle]

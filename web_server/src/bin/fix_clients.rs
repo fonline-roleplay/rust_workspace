@@ -1,9 +1,4 @@
-mod critter_info;
-mod critters_db;
-//mod templates;
-//mod webserver;
-mod env;
-mod fix_encoding;
+use tnf_web_server::*;
 
 fn main() -> std::io::Result<()> {
     let clients = env::expect_clients();

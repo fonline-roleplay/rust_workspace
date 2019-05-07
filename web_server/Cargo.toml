@@ -18,12 +18,3 @@ rsass = "0.9.8"
 custom_error = "1.6.0"
 percent-encoding = "1.0.1"
 arrayvec = "0.4.10"
-
-
-[[bin]]
-name = "main"
-path = "src/main.rs"
-
-[[bin]]
-name = "fixer"
-path = "src/fix_clients.rs"

@@ -48,7 +48,7 @@ impl From<&Critter> for CritterInfo {
             map_pid: cr.MapPid,
             params: cr.Params.clone(),
             name: cr.NameStr.string(),
-            ip: u32_to_ipv4(&cr.DataExt.PlayIp),
+            ip: u32_to_ipv4(& unsafe{&*cr.DataExt}.PlayIp),
         }
     }
 }

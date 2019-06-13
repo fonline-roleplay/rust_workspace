@@ -47,6 +47,7 @@ fn from_ascii(string: &OsStr) -> Option<String> {
 
 #[cfg(windows)]
 pub fn decode_filename(filename: &OsStr) -> Option<String> {
+    println!("{:?} -> {}", filename, os_str_debug_inner(filename));
     if is_ascii(filename) {
         from_ascii(filename)
     } else {
@@ -176,6 +177,6 @@ fn os_str_debug_inner(os_str: &OsStr) -> String {
 fn os_str_debug_inner(os_str: &OsStr) -> String {
     use std::os::windows::ffi::OsStrExt;
     let mut vec = Vec::with_capacity(os_str.len());
-    vec.extend(string.encode_wide());
+    vec.extend(os_str.encode_wide());
     format!("{:X?}", &vec[..])
 }

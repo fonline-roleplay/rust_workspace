@@ -47,11 +47,11 @@ pub struct GetCritterInfo {
 }
 
 impl Message for GetCritterInfo {
-    type Result = Result<Option<InnerCritter>, Error>;
+    type Result = Result<Option<InnerCritter>, ()>;
 }
 
 impl Handler<GetCritterInfo> for CrittersDb {
-    type Result = Result<Option<InnerCritter>, Error>;
+    type Result = <GetCritterInfo as Message>::Result;
 
     fn handle(&mut self, msg: GetCritterInfo, _: &mut Self::Context) -> Self::Result {
         Ok(self.hashmap.get(&msg.id).cloned())
@@ -67,11 +67,11 @@ impl From<CritterInfo> for UpdateCritterInfo {
 }
 
 impl Message for UpdateCritterInfo {
-    type Result = Result<(), Error>;
+    type Result = Result<(), ()>;
 }
 
 impl Handler<UpdateCritterInfo> for CrittersDb {
-    type Result = Result<(), Error>;
+    type Result = <UpdateCritterInfo as Message>::Result;
 
     fn handle(&mut self, msg: UpdateCritterInfo, _: &mut Self::Context) -> Self::Result {
         self.hashmap.insert(msg.0.id, msg.0);
@@ -82,11 +82,11 @@ impl Handler<UpdateCritterInfo> for CrittersDb {
 pub struct ListClients;
 
 impl Message for ListClients {
-    type Result = Result<InnerClients, Error>;
+    type Result = Result<InnerClients, ()>;
 }
 
 impl Handler<ListClients> for CrittersDb {
-    type Result = Result<InnerClients, Error>;
+    type Result = <ListClients as Message>::Result;
 
     fn handle(&mut self, _msg: ListClients, _: &mut Self::Context) -> Self::Result {
         //self.clients.update_clients(&self.path, true)?;
@@ -100,11 +100,11 @@ pub struct GetClientInfo {
 }
 
 impl Message for GetClientInfo {
-    type Result = Result<InnerCritter, Error>;
+    type Result = Result<InnerCritter, io::Error>;
 }
 
 impl Handler<GetClientInfo> for CrittersDb {
-    type Result = Result<InnerCritter, Error>;
+    type Result = <GetClientInfo as Message>::Result;
 
     fn handle(&mut self, msg: GetClientInfo, _: &mut Self::Context) -> Self::Result {
         //Ok(self.hashmap.get(&msg.id).cloned())

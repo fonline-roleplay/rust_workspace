@@ -1,5 +1,4 @@
-use actix::prelude::{Actor, Addr, SendError, SyncArbiter};
-use actix_web::{fs, http, server, App, Error, HttpRequest, HttpResponse, Responder};
+
 use futures::{future::ok as fut_ok, future::Either, Future};
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
@@ -32,7 +31,7 @@ impl Mailbox {
 }
 */
 
-fn nope(_req: &HttpRequest<AppState>) -> impl Responder {
+fn nope(_req: HttpRequest) -> impl Responder {
     //let to = req.match_info().get("name").unwrap_or("World");
     format!("Hello there and go to hell!")
 }
@@ -116,8 +115,8 @@ impl<'a> ClientsList<'a> {
     }
 }
 
-fn gm_clients(req: &HttpRequest<AppState>) -> impl Future<Item = HttpResponse, Error = Error> {
-    req.state()
+fn gm_clients(data: web::Data<AppState>) -> impl Future<Item = HttpResponse, Error = Error> {
+    data.get_ref()
         .critters_db
         .send(ListClients)
         .from_err()
@@ -133,14 +132,15 @@ fn gm_clients(req: &HttpRequest<AppState>) -> impl Future<Item = HttpResponse, E
         })
 }
 
-fn _info(req: &HttpRequest<AppState>) -> impl Future<Item = HttpResponse, Error = Error> {
+fn _info(req: HttpRequest, data: web::Data<AppState>) -> impl Future<Item = HttpResponse, Error = Error> {
     let crid = req
         .match_info()
         .get("crid")
         .and_then(|crid| crid.parse().ok());
+
     if let Some(crid) = crid {
         Either::A(
-            req.state()
+            data.get_ref()
                 .critters_db
                 .send(GetCritterInfo { id: crid })
                 .from_err()
@@ -166,6 +166,9 @@ impl AppState {
     }
 }
 
+use actix::prelude::{Actor, Addr, SendError, SyncArbiter};
+use actix_web::{web, http, HttpServer, App, Error, HttpRequest, HttpResponse, Responder};
+
 pub fn run(clients: PathBuf) {
     println!("Starting actix-web server...");
 
@@ -177,8 +180,25 @@ pub fn run(clients: PathBuf) {
     let addr = SyncArbiter::start(1, move || CrittersDb::new(clients.clone()));
 
     let state = AppState::new(addr.clone());
-    server::HttpServer::new(move || {
-        App::with_state(state.clone())
+    HttpServer::new(move || {
+        App::new()
+            .data(state.clone())
+            .service(
+                web::resource("/").route(web::get().to(nope))
+            )
+            .service(
+                web::scope("/gm")
+                    .service(web::resource("/clients").route(web::get().to_async(gm_clients)))
+                    .service(web::resource("/client/{client}").route(web::get().to_async(stats::gm_stats)))
+            )
+            .service(
+                actix_files::Files::new("/static", STATIC_PATH)
+            )
+            .service(
+                web::resource("/{crid}").route(web::get().to_async(stats::gm_stats))
+            )
+
+        /*App::with_state(state.clone())
             .resource("/", |r| r.method(http::Method::GET).f(nope))
             .resource("/gm/clients", |r| r.method(http::Method::GET).a(gm_clients))
             .resource("/gm/client/{client}", |r| {
@@ -190,7 +210,7 @@ pub fn run(clients: PathBuf) {
                 fs::StaticFiles::new(STATIC_PATH)
                     .unwrap()
                     .show_files_listing(),
-            )
+            )*/
     })
     .bind("0.0.0.0:8000")
     .expect("Can not bind to port 8000")

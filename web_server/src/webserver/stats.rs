@@ -1,7 +1,7 @@
 use super::{AppState, GetClientInfo, GetCritterInfo};
 use clients_db::{CritterInfo};
 use crate::{templates};
-use actix_web::{Error, HttpRequest, HttpResponse};
+use actix_web::{Error, HttpRequest, HttpResponse, web};
 use futures::{future::ok as fut_ok, future::Either, Future};
 use serde::Serialize;
 use tnf_common::defines::param::{CritterParam, Param};
@@ -124,14 +124,14 @@ impl<'a> Stats<'a> {
     }
 }
 
-pub fn stats(req: &HttpRequest<AppState>) -> impl Future<Item = HttpResponse, Error = Error> {
+pub fn stats(req: HttpRequest, data: web::Data<AppState>) -> impl Future<Item = HttpResponse, Error = Error> {
     let crid = req
         .match_info()
         .get("crid")
         .and_then(|crid| crid.parse().ok());
     if let Some(crid) = crid {
         Either::A(
-            req.state()
+            data.get_ref()
                 .critters_db
                 .send(GetCritterInfo { id: crid })
                 .from_err()
@@ -155,7 +155,7 @@ pub fn stats(req: &HttpRequest<AppState>) -> impl Future<Item = HttpResponse, Er
     }
 }
 
-pub fn gm_stats(req: &HttpRequest<AppState>) -> impl Future<Item = HttpResponse, Error = Error> {
+pub fn gm_stats(req: HttpRequest, data: web::Data<AppState>) -> impl Future<Item = HttpResponse, Error = Error> {
     let name = req.match_info().get("client").and_then(|client| {
         percent_encoding::percent_decode(client.as_bytes())
             .decode_utf8()
@@ -164,7 +164,7 @@ pub fn gm_stats(req: &HttpRequest<AppState>) -> impl Future<Item = HttpResponse,
     if let Some(name) = name {
         println!("gm_stats: {:?}", name);
         Either::A(
-            req.state()
+            data.get_ref()
                 .critters_db
                 .send(GetClientInfo {
                     name: name.to_string(),

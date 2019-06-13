@@ -47,7 +47,6 @@ fn from_ascii(string: &OsStr) -> Option<String> {
 
 #[cfg(windows)]
 pub fn decode_filename(filename: &OsStr) -> Option<String> {
-    println!("{:?} -> {}", filename, os_str_debug_inner(filename));
     if is_ascii(filename) {
         from_ascii(filename)
     } else {

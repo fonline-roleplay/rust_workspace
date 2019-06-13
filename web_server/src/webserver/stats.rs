@@ -1,5 +1,6 @@
 use super::{AppState, GetClientInfo, GetCritterInfo};
-use crate::{critter_info::CritterInfo, templates};
+use clients_db::{CritterInfo};
+use crate::{templates};
 use actix_web::{Error, HttpRequest, HttpResponse};
 use futures::{future::ok as fut_ok, future::Either, Future};
 use serde::Serialize;

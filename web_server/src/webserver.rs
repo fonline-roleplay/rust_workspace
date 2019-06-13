@@ -10,12 +10,12 @@ use tnf_common::defines::{
     param::{CritterParam, Param},
 };
 
+use clients_db::{CritterInfo, ClientRecord, fix_encoding::{os_str_debug}};
+
 use crate::{
-    critter_info::CritterInfo,
     critters_db::{
-        ClientRecord, CrittersDb, GetClientInfo, GetCritterInfo, ListClients, UpdateCritterInfo,
+        CrittersDb, GetClientInfo, GetCritterInfo, ListClients, UpdateCritterInfo,
     },
-    fix_encoding::os_str_debug,
 };
 
 const STATIC_PATH: &'static str = "./static/";
@@ -122,7 +122,7 @@ fn gm_clients(req: &HttpRequest<AppState>) -> impl Future<Item = HttpResponse, E
         .send(ListClients)
         .from_err()
         .and_then(|res| match res {
-            Ok(clients) => match ClientsList::new(clients.iter()).render() {
+            Ok(clients) => match ClientsList::new(clients.clients().iter()).render() {
                 Ok(body) => Ok(HttpResponse::Ok().content_type("text/html").body(body)),
                 Err(err) => {
                     eprintln!("GM Clients error: {:#?}", err);

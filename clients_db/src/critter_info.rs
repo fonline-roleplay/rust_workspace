@@ -20,6 +20,13 @@ pub struct CritterInfo {
     pub ip: ArrayVec<[Ipv4Addr; 20]>,
 }
 
+use std::fmt;
+impl fmt::Debug for CritterInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "CritterInfo {{ id: {}, ... }}", self.id)
+    }
+}
+
 fn u32_to_ipv4(raw_slice: &[u32; 20]) -> ArrayVec<[Ipv4Addr; 20]> {
     raw_slice
         .into_iter()

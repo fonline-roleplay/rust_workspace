@@ -35,9 +35,9 @@ pub struct stlp_std_vector<_Tp, _Alloc> {
     //pub _base: stlp_std_priv__Vector_base<_Tp, _Alloc>,
     //pub _phantom_0: ::std::marker::PhantomData<::std::cell::UnsafeCell<_Tp>>,
     //pub _phantom_1: ::std::marker::PhantomData<::std::cell::UnsafeCell<_Alloc>>,
-    start: usize,
-    end: usize,
-    reserved: usize,
+    start: *mut _Tp,
+    end: *mut _Tp,
+    reserved: *mut _Tp,
     _phantom_0: ::std::marker::PhantomData<_Tp>,
     _phantom_1: ::std::marker::PhantomData<_Alloc>,
 }

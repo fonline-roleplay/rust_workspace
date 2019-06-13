@@ -5,6 +5,10 @@ pub mod stl;
 mod string;
 pub use self::string::ScriptString;
 
+#[allow(non_camel_case_types, non_snake_case)] //, dead_code
+mod array;
+pub use self::array::ScriptArray;
+
 #[allow(non_snake_case)]
 pub mod item;
 

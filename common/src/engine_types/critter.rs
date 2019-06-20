@@ -1,5 +1,5 @@
 use crate::{
-    defines::param::CritterParam,
+    defines::param::{CritterParam, CritterParamMut},
     engine_types::{
         item::{Item, ItemVec},
         stl::{
@@ -14,6 +14,12 @@ use crate::{
 impl CritterParam for Critter {
     fn params_all(&self) -> &[i32] {
         &self.Params
+    }
+}
+#[cfg(feature = "server")]
+impl CritterParamMut for Critter {
+    fn params_all_mut(&mut self) -> &mut [i32] {
+        &mut self.Params
     }
 }
 impl CritterParam for CritterCl {

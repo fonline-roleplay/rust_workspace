@@ -1,4 +1,5 @@
 use crate::engine_types::stl::{stlp_std_allocator, stlp_std_priv__STLP_alloc_proxy};
+use std::mem::ManuallyDrop;
 
 #[repr(C)]
 union stlp_std_priv__String_base__Buffers<_Tp: Copy> {
@@ -54,17 +55,22 @@ struct stlp_std_basic_string<_CharT: Copy, _Alloc> {
 type stlp_std_string = stlp_std_basic_string<::std::os::raw::c_char, stlp_std_allocator>;
 
 #[repr(C)]
-pub struct ScriptString__bindgen_vtable(::std::os::raw::c_void);
+struct ScriptString__bindgen_vtable(::std::os::raw::c_void);
 #[repr(C)]
-pub struct ScriptString {
+pub struct ScriptStringInner {
     vtable_: *const ScriptString__bindgen_vtable,
     buffer: stlp_std_string,
     refCount: ::std::os::raw::c_int,
 }
 
+#[repr(C)]
+pub struct ScriptString {
+    inner: ManuallyDrop<ScriptStringInner>,
+}
+
 impl ScriptString {
     pub fn string(&self) -> String {
-        cp1251_to_utf8(self.buffer._base._M_start_of_storage._M_data)
+        cp1251_to_utf8(self.inner.buffer._base._M_start_of_storage._M_data)
     }
 }
 

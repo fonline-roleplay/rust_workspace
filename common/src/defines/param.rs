@@ -14,6 +14,17 @@ pub trait CritterParam {
     fn params_all(&self) -> &[i32];
 }
 
+#[cfg(feature = "server")]
+pub trait CritterParamMut {
+    fn param_mut(&mut self, p: Param) -> &mut i32 {
+        &mut self.params_all_mut()[p as usize]
+    }
+    fn set_uparam(&mut self, p: Param, val: u32) {
+        *self.param_mut(p) = val as i32;
+    }
+    fn params_all_mut(&mut self) -> &mut [i32];
+}
+
 #[derive(PartialOrd, Ord, PartialEq, Eq, Clone, Copy)]
 pub enum Param {
     //STAT_BEGIN = 0,
@@ -476,6 +487,7 @@ pub enum Param {
     CR_AUTO_AIM = 732,
     P_CRITTER_ID = 760,
     P_BODYSWAPPED = 761,
+    QST_AVATAR = 790,
     //MERC_BEGIN = 800,
     //MERC_END = 810,
     MERC_MASTER_ID = 800,

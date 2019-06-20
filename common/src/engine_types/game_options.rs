@@ -16,10 +16,20 @@ pub static mut FOnline: *const GameOptions = 0usize as *const GameOptions;
 pub fn game_state<'a>() -> Option<&'a GameOptions> {
     let state = unsafe { FOnline };
     if state as usize == 0usize {
-        println!("GameOptions is null!");
+        eprintln!("GameOptions is null!");
         None
     } else {
         unsafe { Some(&*state) }
+    }
+}
+
+#[cfg(feature = "server")]
+pub fn critter_change_param(state: &GameOptions, cr: &mut Critter, param: u32) -> bool {
+    if let Some(func) = state.CritterChangeParameter {
+        unsafe { func(cr as *mut Critter, param) };
+        true
+    } else {
+        false
     }
 }
 

@@ -30,6 +30,27 @@ $color-big:  #c4a028;
 $bg-black:      #040c00;
 $bg-rust:       #383020;
 
+@mixin green-text {
+    color: $color-small;
+    font-family: $font-small;
+    font-size: 8px;
+}
+
+@mixin border3d {
+    border: 3px solid #bc9054;
+    border-image:
+    linear-gradient(
+      190deg,
+      #1c1c1cFF 0%,
+      #201800FF 10%,
+      #483804C0 50%,
+      #947c6080 70%,
+      #ac8044B0 90%,
+      #f8d4a480 100%
+    ) 1;
+}
+
+
 label {
     
 }
@@ -204,20 +225,10 @@ span {
     padding: 5px 5px 3px 5px;
     white-space: nowrap;
     text-align: center;
-    border: 3px solid #bc9054;
     //line-height: 20px;
     vertical-align: bottom;
 
-    border-image: 
-    linear-gradient(
-      190deg, 
-      #1c1c1cFF 0%,
-      #201800FF 10%,
-      #483804C0 50%,
-      #947c6080 70%,
-      #ac8044B0 90%,
-      #f8d4a480 100%
-    ) 1;
+    @include border3d;
 }
 
 .client-cell-name {
@@ -282,4 +293,124 @@ span {
 }
 .enabler:checked + .enabler_label {
     color: $color-small;
+}
+
+#avatar-preview {
+    image-rendering: pixelated;
+    position: absolute;
+    left: 0px;
+    width: 128px;
+    height: 128px;
+}
+#canvas-small {
+    image-rendering: pixelated;
+    display: block;
+    position: relative;
+    width: 128px;
+    height: 128px;
+}
+$description-padding:  10px;
+
+#char-description {
+    background-color: transparent;
+    width: 512px - 2*$description-padding;
+    height: 128px - 2*$description-padding;
+    padding: $description-padding;
+    resize: none;
+
+    border: none;
+
+    @include green-text;
+}
+
+.charsheet-cell {
+    display: inline-block;
+
+    background-color: $bg-black;
+    height: 128px;
+    min-width: 128px;
+    vertical-align: top;
+    margin: 10px;
+
+    @include border3d;
+
+    @include green-text;
+
+    text-align: center;
+    position: relative;
+}
+
+.charsheet-cell .cell-middle {
+    display: block;
+    position: absolute;
+    width: 128px;
+    height: 128px;
+    line-height: 128px;
+    top: 0px;
+}
+
+.charsheet-cell .cell-middle span{
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.charsheet-cell p{
+    margin: 3px 0px 0px 0px;
+}
+
+.green-button {
+    text-align: center;
+    display: block;
+    margin: 5px 10px;
+    padding-bottom: 2px;
+    border: 1px solid $color-small;
+    user-select: none;
+    cursor: pointer;
+}
+.green-button-mini + label {
+    text-align: center;
+    display: inline-block;
+    margin: 5px 3px;
+    padding: 5px 7px;
+    border: 1px solid $color-small;
+    user-select: none;
+    cursor: pointer;
+}
+
+.green-button-mini {
+    display: none;
+}
+
+.green-button-mini:disabled + label{
+    color: grey;
+    border-color: grey;
+}
+
+.charsheet-radio-form input{
+    display: none;
+}
+
+.charsheet-radio-form input:not(:checked) + label{
+    border-color: grey;
+}
+.charsheet-radio-form input:not(:checked) + label{
+    color: grey;
+}
+
+.height-x4 {
+    height: auto;
+}
+
+#canvas-big {
+    width: 512px;
+    height: 512px;
+    image-rendering: pixelated;
+}
+
+.hidden {
+    display: none;
+}
+
+.grey {
+    color: grey;
 }

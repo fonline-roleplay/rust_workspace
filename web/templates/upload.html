@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+{% block title %}Upload{% endblock title %}
+{% block content %}
+<body onload="init()" class="clients-body">
+<script>
+    const SIZE = 128;
+    let SCALE = 1;
+    let PRE_SMOOTH = false;
+    let POST_SMOOTH = false;
+
+    let canvas = null;
+    let canvas_small = null;
+    let canvas_big = null;
+    let button_send_image = null;
+
+    let uploaded_img = null;
+    let avatar_updated = false;
+
+    let crop = null;
+
+    function init() {
+        canvas = document.getElementById("avatar-preview");
+        canvas.width = SIZE;
+        canvas.height = SIZE;
+        canvas_big = document.getElementById("canvas-big");
+        canvas_big.width = SIZE*4;
+        canvas_big.height = SIZE*4;
+        canvas_small = document.getElementById("canvas-small");
+        button_send_image = document.getElementById("button-send-image");
+    }
+    function settings() {
+
+    }
+
+    function update_big_canvas(img) {
+        let size;
+        let width = img.width;
+        let height = img.height;
+
+        if( width > height ) {
+            size = width+50;
+        } else {
+            size = height+50;
+        }
+
+        canvas_big.width = size;
+        canvas_big.height = size;
+
+        let offset_x = (size-width)/2;
+        let offset_y = (size-height)/2;
+
+        let ctx = canvas_big.getContext("2d");
+        ctx.imageSmoothingEnabled = false;
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, size, size);
+
+        ctx.drawImage(img, offset_x, offset_y, width, height);
+
+        if( crop ) {
+            const rect = canvas_big.getBoundingClientRect();
+            ctx.strokeStyle = "#48fc00f0";
+            let scale = size/SIZE/4;
+            crop.img_x = Math.round((crop.x-rect.x)*scale);
+            crop.img_y = Math.round((crop.y-rect.y)*scale);
+            crop.img_width = Math.round(crop.width*scale);
+            crop.img_height = Math.round(crop.height*scale);
+            ctx.strokeRect(crop.img_x, crop.img_y, crop.img_width, crop.img_height);
+            crop.img_x -= offset_x;
+            crop.img_y -= offset_y;
+        }
+    }
+
+    function crop_start(event) {
+        if(!uploaded_img) {
+            return;
+        }
+        crop = {
+            x0: event.clientX,
+            y0: event.clientY,
+            width: 0,
+            height: 0,
+            finished: false,
+        };
+        crop.x1 = crop.x0;
+        crop.y1 = crop.y0;
+        crop.x = crop.x0;
+        crop.y = crop.y0;
+
+        update_big_canvas(uploaded_img);
+    }
+
+    function round_to(value, div) {
+        return Math.floor(value/div)*div;
+    }
+
+    function crop_move(event) {
+        if(!crop || crop.finished) {
+            return;
+        }
+
+        const round = 16;
+
+        if(event.altKey) {
+            let dx = event.clientX-crop.x1;
+            let dy = event.clientY-crop.y1;
+            if(event.shiftKey) {
+                dx = round_to(Math.abs(dx), round) * Math.sign(dx);
+                dy = round_to(Math.abs(dy), round) * Math.sign(dy);
+            }
+            crop.x0 += dx;
+            crop.y0 += dy;
+            crop.x1 += dx;
+            crop.y1 += dy;
+        } else {
+            let dx = event.clientX-crop.x0;
+            let dy = event.clientY-crop.y0;
+            let abs_x = Math.abs(dx);
+            let abs_y = Math.abs(dy);
+            if(event.ctrlKey) {
+                abs_x = Math.min(abs_x, abs_y);
+                abs_y = abs_x;
+            }
+            if(event.shiftKey) {
+                abs_x = round_to(abs_x, round);
+                abs_y = round_to(abs_y, round);
+            }
+            crop.x1 = crop.x0+abs_x*Math.sign(dx);
+            crop.y1 = crop.y0+abs_y*Math.sign(dy);
+        }
+        crop.x = Math.min(crop.x0, crop.x1);
+        crop.y = Math.min(crop.y0, crop.y1);
+        crop.width = Math.abs(crop.x1 - crop.x0);
+        crop.height = Math.abs(crop.y1 - crop.y0);
+
+        update_big_canvas(uploaded_img);
+    }
+
+    function crop_finish(event) {
+        if(!crop) {
+            return;
+        }
+
+        if(!uploaded_img || crop.width<16 || crop.height<16) {
+            crop = null;
+        } else {
+            crop.finished = true;
+        }
+        update_big_canvas(uploaded_img);
+        update_canvas(uploaded_img);
+    }
+
+    function update_canvas(img) {
+        update_big_canvas(img);
+
+        let x = 0;
+        let y = 0;
+        let width = img.width;
+        let height = img.height;
+
+        if(crop && crop.finished) {
+            x = crop.img_x;
+            y = crop.img_y;
+            width = crop.img_width;
+            height = crop.img_height;
+        }
+
+        let dst_width = width;
+        let dst_height = height;
+
+        if( width > height ) {
+            dst_height = SIZE * height/width;
+            dst_width = SIZE
+        } else {
+            dst_width = SIZE * width/height
+            dst_height = SIZE
+        }
+        let scaled_width = dst_width/SCALE;
+        let scaled_height = dst_height/SCALE;
+
+        canvas_small.width = scaled_width;
+        canvas_small.height = scaled_height;
+        canvas_small.style.width = dst_width+"px";
+        canvas_small.style.height = dst_height+"px";
+        canvas_small.style.left = Math.floor((SIZE-dst_width)/2)+"px";
+        canvas_small.style.top = Math.floor((SIZE-dst_height)/2)+"px";
+
+        let ctx_small = canvas_small.getContext("2d");
+        ctx_small.imageSmoothingEnabled = PRE_SMOOTH;
+        ctx_small.fillStyle = "#000000";
+        ctx_small.fillRect(0, 0, SIZE, SIZE);
+
+
+        ctx_small.drawImage(img, x, y, width, height, 0, 0, scaled_width, scaled_height);
+
+        let ctx = canvas.getContext("2d");
+        ctx.imageSmoothingEnabled = POST_SMOOTH;
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, SIZE, SIZE);
+
+        let offset_x = (SIZE-dst_width)/2;
+        let offset_y = (SIZE-dst_height)/2;
+        ctx.drawImage(canvas_small, offset_x, offset_y, dst_width, dst_height);
+
+        //ctx.drawImage(img, offset_x, offset_y, scaled_width, scaled_height);
+
+        //ctx.drawImage(canvas, offset_x, offset_y, scaled_width, scaled_height, offset_x, offset_y, dst_width, dst_height, );
+
+        avatar_updated = true;
+        button_send_image.disabled = false;
+    }
+    function select_image(input) {
+        if(!input) {
+            return;
+        }
+        if(uploaded_img) {
+            uploaded_img.remove();
+        }
+        uploaded_img = null;
+        crop = null;
+        let img = document.createElement("img");
+        let file = input.files[0];
+        if (!file.type.match(/image.*/)) {
+            alert("Неподдерживаемый формат изображения.");
+            return;
+        };
+        img.src = window.URL.createObjectURL(file);
+        img.onload = function() {
+            if( img.width < 16 || img.height < 16 ) {
+                alert("Изображение слишком маленькое.");
+                return;
+            }
+            let ratio = img.width/img.height;
+            if( ratio < 0.2 || ratio > 5.0 ) {
+                alert("Неподдерживаемый размер изображения.");
+                return;
+            }
+            uploaded_img = img;
+            update_canvas(uploaded_img)
+        }
+    }
+    function pixelate(input) {
+        SCALE = input;
+        if(uploaded_img) {
+            update_canvas(uploaded_img);
+        }
+    }
+    function smooth_pre(checked) {
+        PRE_SMOOTH = checked;
+        if(uploaded_img) {
+            update_canvas(uploaded_img);
+        }
+    }
+    function smooth_post(checked) {
+        POST_SMOOTH = checked;
+        if(uploaded_img) {
+            update_canvas(uploaded_img);
+        }
+    }
+    function send_image() {
+        console.log("sending");
+        let data = canvas.toDataURL();
+
+        //var form_data = new FormData();
+        //form_data.append("nickname", "Foooobar");
+        //form_data.append("avatar", data);
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "/charsheet/upload");
+        //xhr.send(form_data);
+        xhr.send(data);
+        console.log("sended");
+    }
+</script>
+<div>
+    <div>
+        <div class="charsheet-cell hidden">
+            <canvas id="canvas-small"></canvas>
+        </div>
+        <div class="charsheet-cell">
+            <p>Аватар</p>
+            <input id="button-select-image" class="green-button-mini" type="file" onchange="select_image(this)">
+            <label for="button-select-image">Выбрать</label>
+            <div>Пикселяция</div>
+            <div class="charsheet-radio-form">
+                {% for level in [1,2,3,4] %}
+                    <input id="pixelation-{{level}}" name="pixelation"
+                           class="green-button-mini"
+                           onchange="pixelate({{level}})"
+                           type="radio" {%if level==1 %} checked {% endif %}>
+                    <label for="pixelation-{{level}}">{{level}}</label>
+                {% endfor %}
+            </div>
+            <div>Сглаживание</div>
+            <div class="charsheet-radio-form">
+                <input id="smoothing-pre" name="smoothing"
+                       class="green-button-mini"
+                       onchange="smooth_pre(this.checked)"
+                       type="checkbox">
+                <label for="smoothing-pre">До</label>
+                <input id="smoothing-post" name="smoothing"
+                       class="green-button-mini"
+                       onchange="smooth_post(this.checked)"
+                       type="checkbox">
+                <label for="smoothing-post">После</label>
+            </div>
+        </div>
+        <div class="charsheet-cell">
+            <div class="cell-middle grey"><span>Нет изображения</span></div>
+            <canvas id="avatar-preview"></canvas>
+        </div>
+        <div class="charsheet-cell">
+            <p></p>
+            <input id="button-send-image" class="green-button-mini" type="button" disabled onclick="send_image()">
+            <label for="button-send-image">Отправить</label>
+        </div>
+    </div>
+    <div>
+        <div class="charsheet-cell height-x4">
+            <canvas id="canvas-big"
+                    onmousedown="crop_start(event)"
+                    onmousemove="crop_move(event)"
+                    onmouseup="crop_finish(event)"
+                    onmouseout="crop_finish(event)"
+            ></canvas>
+        </div>
+    </div>
+    <div class="charsheet-cell">
+        <textarea id="char-description"></textarea>
+    </div>
+</div>
+</body>
+{% endblock content %}

@@ -288,9 +288,9 @@ span {
   padding: 5px 5px 3px 5px;
   white-space: nowrap;
   text-align: center;
-  border: 3px solid #bc9054;
   vertical-align: bottom;
-  border-image: linear-gradient(190deg, #1c1c1cFF 0%, #201800FF 10%, #483804C0 50%, #947c6080 70%, #ac8044B0 90%, #f8d4a480 100%) 1;
+  border: 3px solid #bc9054;
+  border-image: linear-gradient( 190deg, #1c1c1cFF 0%, #201800FF 10%, #483804C0 50%, #947c6080 70%, #ac8044B0 90%, #f8d4a480 100%) 1;
 }
 
 .client-cell-name {
@@ -364,4 +364,125 @@ span {
 
 .enabler:checked + .enabler_label {
   color: #48fc00f0;
+}
+
+#avatar-preview {
+  image-rendering: pixelated;
+  position: absolute;
+  left: 0px;
+  width: 128px;
+  height: 128px;
+}
+
+#canvas-small {
+  image-rendering: pixelated;
+  display: block;
+  position: relative;
+  width: 128px;
+  height: 128px;
+}
+
+#char-description {
+  background-color: transparent;
+  width: 492px;
+  height: 108px;
+  padding: 10px;
+  resize: none;
+  border: none;
+  color: #48fc00f0;
+  font-family: FoDisplay, Terminus, sans-serif;
+  font-size: 8px;
+}
+
+.charsheet-cell {
+  display: inline-block;
+  background-color: #040c00;
+  height: 128px;
+  min-width: 128px;
+  vertical-align: top;
+  margin: 10px;
+  border: 3px solid #bc9054;
+  border-image: linear-gradient( 190deg, #1c1c1cFF 0%, #201800FF 10%, #483804C0 50%, #947c6080 70%, #ac8044B0 90%, #f8d4a480 100%) 1;
+  color: #48fc00f0;
+  font-family: FoDisplay, Terminus, sans-serif;
+  font-size: 8px;
+  text-align: center;
+  position: relative;
+}
+
+.charsheet-cell .cell-middle {
+  display: block;
+  position: absolute;
+  width: 128px;
+  height: 128px;
+  line-height: 128px;
+  top: 0px;
+}
+
+.charsheet-cell .cell-middle span {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.charsheet-cell p {
+  margin: 3px 0px 0px 0px;
+}
+
+.green-button {
+  text-align: center;
+  display: block;
+  margin: 5px 10px;
+  padding-bottom: 2px;
+  border: 1px solid #48fc00f0;
+  user-select: none;
+  cursor: pointer;
+}
+
+.green-button-mini + label {
+  text-align: center;
+  display: inline-block;
+  margin: 5px 3px;
+  padding: 5px 7px;
+  border: 1px solid #48fc00f0;
+  user-select: none;
+  cursor: pointer;
+}
+
+.green-button-mini {
+  display: none;
+}
+
+.green-button-mini:disabled + label {
+  color: grey;
+  border-color: grey;
+}
+
+.charsheet-radio-form input {
+  display: none;
+}
+
+.charsheet-radio-form input:not(:checked) + label {
+  border-color: grey;
+}
+
+.charsheet-radio-form input:not(:checked) + label {
+  color: grey;
+}
+
+.height-x4 {
+  height: auto;
+}
+
+#canvas-big {
+  width: 512px;
+  height: 512px;
+  image-rendering: pixelated;
+}
+
+.hidden {
+  display: none;
+}
+
+.grey {
+  color: grey;
 }

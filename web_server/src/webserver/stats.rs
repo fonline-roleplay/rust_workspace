@@ -1,7 +1,7 @@
 use super::{AppState, GetClientInfo, GetCritterInfo};
-use clients_db::{CritterInfo};
-use crate::{templates};
-use actix_web::{Error, HttpRequest, HttpResponse, web};
+use crate::templates;
+use actix_web::{web, Error, HttpRequest, HttpResponse};
+use clients_db::CritterInfo;
 use futures::{future::ok as fut_ok, future::Either, Future};
 use serde::Serialize;
 use tnf_common::defines::param::{CritterParam, Param};
@@ -124,7 +124,10 @@ impl<'a> Stats<'a> {
     }
 }
 
-pub fn stats(req: HttpRequest, data: web::Data<AppState>) -> impl Future<Item = HttpResponse, Error = Error> {
+pub fn stats(
+    req: HttpRequest,
+    data: web::Data<AppState>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
     let crid = req
         .match_info()
         .get("crid")
@@ -155,7 +158,10 @@ pub fn stats(req: HttpRequest, data: web::Data<AppState>) -> impl Future<Item = 
     }
 }
 
-pub fn gm_stats(req: HttpRequest, data: web::Data<AppState>) -> impl Future<Item = HttpResponse, Error = Error> {
+pub fn gm_stats(
+    req: HttpRequest,
+    data: web::Data<AppState>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
     let name = req.match_info().get("client").and_then(|client| {
         percent_encoding::percent_decode(client.as_bytes())
             .decode_utf8()

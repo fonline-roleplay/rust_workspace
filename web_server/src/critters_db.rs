@@ -10,7 +10,10 @@ use std::{
     time::SystemTime,
 };
 
-use clients_db::{ClientsDb, ClientRecord, CritterInfo, fix_encoding::{decode_filename, os_str_debug}};
+use clients_db::{
+    fix_encoding::{decode_filename, os_str_debug},
+    ClientRecord, ClientsDb, CritterInfo,
+};
 
 type InnerCritter = Arc<CritterInfo>;
 type InnerClients = Arc<ClientsDb>;
@@ -34,7 +37,7 @@ impl CrittersDb {
 
     }*/
     pub fn client_info(&self, name: &str) -> io::Result<InnerCritter> {
-       self.clients.client_info(name)
+        self.clients.client_info(name)
     }
 }
 

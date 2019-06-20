@@ -1,7 +1,7 @@
-use tnf_web_server::*;
 use log::LevelFilter;
 use sled::Db;
 use std::path::PathBuf;
+use tnf_web_server::*;
 
 fn main() -> std::io::Result<()> {
     env_logger::builder()

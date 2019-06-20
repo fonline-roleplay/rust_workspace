@@ -1,30 +1,28 @@
-
-use futures::{future::{ok as fut_ok, Either}, Future};
+use futures::{
+    future::{ok as fut_ok, Either},
+    Future,
+};
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
-use std::{borrow::Cow, sync::mpsc::channel, time::Duration};
 use std::sync::Arc;
+use std::{borrow::Cow, sync::mpsc::channel, time::Duration};
 
 use tnf_common::defines::{
     fos,
     param::{CritterParam, Param},
 };
 
-use clients_db::{CritterInfo, ClientRecord, fix_encoding::{os_str_debug}};
+use clients_db::{fix_encoding::os_str_debug, ClientRecord, CritterInfo};
 
 use crate::{
-    critters_db::{
-        CrittersDb, GetClientInfo, GetCritterInfo, ListClients, UpdateCritterInfo,
-    },
-    database::{
-        SledDb,
-    }
+    critters_db::{CrittersDb, GetClientInfo, GetCritterInfo, ListClients, UpdateCritterInfo},
+    database::SledDb,
 };
 
 const STATIC_PATH: &'static str = "./static/";
 
-mod stats;
 mod avatar;
+mod stats;
 
 /*
 pub struct Mailbox(actix::Addr<CrittersDb>);
@@ -137,7 +135,10 @@ fn gm_clients(data: web::Data<AppState>) -> impl Future<Item = HttpResponse, Err
         })
 }
 
-fn _info(req: HttpRequest, data: web::Data<AppState>) -> impl Future<Item = HttpResponse, Error = Error> {
+fn _info(
+    req: HttpRequest,
+    data: web::Data<AppState>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
     let crid = req
         .match_info()
         .get("crid")
@@ -169,13 +170,18 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(critters_db: Addr<CrittersDb>, sled_db: Addr<SledDb>, root: SledDb) -> Self {
-        Self { critters_db, sled_db, root }
+        Self {
+            critters_db,
+            sled_db,
+            root,
+        }
     }
 }
 
 use actix::prelude::{Actor, Addr, SendError, SyncArbiter};
-use actix_web::{web, http, middleware, HttpServer, App, Error, HttpRequest, HttpResponse, Responder};
-
+use actix_web::{
+    http, middleware, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder,
+};
 
 pub fn run(clients: PathBuf, db: sled::Db) {
     println!("Starting actix-web server...");
@@ -197,43 +203,41 @@ pub fn run(clients: PathBuf, db: sled::Db) {
             .data(state.clone())
             .wrap(middleware::Compress::default())
             .wrap(middleware::Logger::default())
-            .service(
-                web::resource("/").route(web::get().to(nope))
-            )
+            .service(web::resource("/").route(web::get().to(nope)))
             .service(
                 web::scope("/gm")
                     .service(web::resource("/clients").route(web::get().to_async(gm_clients)))
-                    .service(web::resource("/client/{client}").route(web::get().to_async(stats::gm_stats)))
+                    .service(
+                        web::resource("/client/{client}")
+                            .route(web::get().to_async(stats::gm_stats)),
+                    ),
             )
-            .service(
-                actix_files::Files::new("/static", STATIC_PATH)
-            )
+            .service(actix_files::Files::new("/static", STATIC_PATH))
             .service(
                 web::resource("/charsheet/upload")
                     .route(web::get().to(avatar::edit))
-                    .route(web::post().to_async(avatar::upload))
+                    .route(web::post().to_async(avatar::upload)),
             )
             .service(
-                web::resource("/charsheet/avatar/{id}")
-                    .route(web::get().to_async(avatar::show))
+                web::resource("/charsheet/avatar/{id}").route(web::get().to_async(avatar::show)),
             )
-            //.service(
-            //    web::resource("/{crid}").route(web::get().to_async(stats::gm_stats))
-            //)
+        //.service(
+        //    web::resource("/{crid}").route(web::get().to_async(stats::gm_stats))
+        //)
 
         /*App::with_state(state.clone())
-            .resource("/", |r| r.method(http::Method::GET).f(nope))
-            .resource("/gm/clients", |r| r.method(http::Method::GET).a(gm_clients))
-            .resource("/gm/client/{client}", |r| {
-                r.method(http::Method::GET).a(stats::gm_stats)
-            })
-            .resource("/{crid}", |r| r.method(http::Method::GET).a(stats::stats))
-            .handler(
-                "/static",
-                fs::StaticFiles::new(STATIC_PATH)
-                    .unwrap()
-                    .show_files_listing(),
-            )*/
+        .resource("/", |r| r.method(http::Method::GET).f(nope))
+        .resource("/gm/clients", |r| r.method(http::Method::GET).a(gm_clients))
+        .resource("/gm/client/{client}", |r| {
+            r.method(http::Method::GET).a(stats::gm_stats)
+        })
+        .resource("/{crid}", |r| r.method(http::Method::GET).a(stats::stats))
+        .handler(
+            "/static",
+            fs::StaticFiles::new(STATIC_PATH)
+                .unwrap()
+                .show_files_listing(),
+        )*/
     })
     .bind("0.0.0.0:8000")
     .expect("Can not bind to port 8000")

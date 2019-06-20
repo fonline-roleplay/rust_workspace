@@ -1,8 +1,11 @@
-use actix_web::{web, HttpRequest, HttpResponse, Responder, error::BlockingError};
+use crate::{database::GetImage, templates};
 use actix_web::body::Body;
-use futures::{future::{err as fut_err, ok as fut_ok, Either}, Future};
-use crate::{templates, database::GetImage};
-use serde::{Serialize, Deserialize};
+use actix_web::{error::BlockingError, web, HttpRequest, HttpResponse, Responder};
+use futures::{
+    future::{err as fut_err, ok as fut_ok, Either},
+    Future,
+};
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -12,13 +15,13 @@ use std::sync::Arc;
 const IMAGE_SIZE: u32 = 128;
 
 #[derive(Debug, Serialize)]
-struct Charsheet{}
+struct Charsheet {}
 
 pub fn edit(_req: HttpRequest) -> impl Responder {
     //let to = req.match_info().get("name").unwrap_or("World");
     //format!("Hello there and go to hell!")
 
-    match templates::render("upload.html", &Charsheet{}) {
+    match templates::render("upload.html", &Charsheet {}) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(body),
         Err(err) => {
             eprintln!("Charsheet upload error: {:#?}", err);
@@ -45,35 +48,40 @@ pub struct VersionKey {
     key: Option<u32>,
 }
 
-pub fn show(path: web::Path<u32>, query: web::Query<VersionKey>, data: web::Data<super::AppState>) -> impl Future<Item = HttpResponse, Error = actix_web::Error> {
-    let VersionKey{ver, key} = *query;
+pub fn show(
+    path: web::Path<u32>,
+    query: web::Query<VersionKey>,
+    data: web::Data<super::AppState>,
+) -> impl Future<Item = HttpResponse, Error = actix_web::Error> {
+    let VersionKey { ver, key } = *query;
 
     if key.is_none() {
         return Either::A(fut_ok(HttpResponse::Forbidden().finish()));
     }
 
     Either::B(
-        data.sled_db.send(GetImage{id: *path, ver, key})
-            .then(|res| {
-                match res {
-                    Ok(Ok(Some(image))) => {
-                        HttpResponse::Ok().content_type("image/png").body(image)
-                    },
-                    Ok(Ok(None)) => {
-                        HttpResponse::NotFound().finish()
-                    },
-                    Ok(Err(err) )=> {
-                        HttpResponse::InternalServerError().body(format!("Error: {:?}", err))
-                    },
-                    Err(err) => {
-                        HttpResponse::InternalServerError().body(format!("Error: {:?}", err))
-                    }
-                }
+        data.sled_db
+            .send(GetImage {
+                id: *path,
+                ver,
+                key,
             })
+            .then(|res| match res {
+                Ok(Ok(Some(image))) => HttpResponse::Ok().content_type("image/png").body(image),
+                Ok(Ok(None)) => HttpResponse::NotFound().finish(),
+                Ok(Err(err)) => {
+                    HttpResponse::InternalServerError().body(format!("Error: {:?}", err))
+                }
+                Err(err) => HttpResponse::InternalServerError().body(format!("Error: {:?}", err)),
+            }),
     )
 }
 
-pub fn upload(req: HttpRequest, payload: web::Bytes, data: web::Data<super::AppState>) -> impl Future<Item = HttpResponse, Error = AvatarUploadError> {
+pub fn upload(
+    req: HttpRequest,
+    payload: web::Bytes,
+    data: web::Data<super::AppState>,
+) -> impl Future<Item = HttpResponse, Error = AvatarUploadError> {
     //println!("{:?}", req);
     //println!("{:?}", payload);
     //let payload = std::str::from_utf8(payload.as_ref()).unwrap();
@@ -100,9 +108,11 @@ pub fn upload(req: HttpRequest, payload: web::Bytes, data: web::Data<super::AppS
     Either::B(
         web::block(move || {
             let data = &payload[PREFIX_LEN..];
-            let decoded = base64::decode_config(&data, base64::STANDARD).map_err(AvatarUploadError::Base64)?;
+            let decoded = base64::decode_config(&data, base64::STANDARD)
+                .map_err(AvatarUploadError::Base64)?;
             //std::fs::write("test.png", &decoded).map_err(|_| ())
-            let image = image::load_from_memory_with_format(&decoded, image::PNG).map_err(AvatarUploadError::ImageLoad)?;
+            let image = image::load_from_memory_with_format(&decoded, image::PNG)
+                .map_err(AvatarUploadError::ImageLoad)?;
 
             use image::GenericImageView;
             //println!("Width: {}, Height: {}", image.width(), image.height());
@@ -112,19 +122,24 @@ pub fn upload(req: HttpRequest, payload: web::Bytes, data: web::Data<super::AppS
             //image.save(&path).map_err(AvatarUploadError::ImageSave)
             let mut buffer = decoded;
             buffer.clear();
-            image.write_to(&mut buffer, image::PNG).map_err(AvatarUploadError::ImageWrite)?;
+            image
+                .write_to(&mut buffer, image::PNG)
+                .map_err(AvatarUploadError::ImageWrite)?;
 
-            tree.set(format!("avatar/{:08X}/secret/{:08X}", 7, 8), &9u32.to_be_bytes()).map_err(AvatarUploadError::SledSet)?;
-            tree.set(format!("avatar/{:08X}/image/{:08X}", 7, 8), buffer).map_err(AvatarUploadError::SledSet)?;
+            tree.set(
+                format!("avatar/{:08X}/secret/{:08X}", 7, 8),
+                &9u32.to_be_bytes(),
+            )
+            .map_err(AvatarUploadError::SledSet)?;
+            tree.set(format!("avatar/{:08X}/image/{:08X}", 7, 8), buffer)
+                .map_err(AvatarUploadError::SledSet)?;
             Ok(())
         })
-            .map_err(|err: BlockingError<AvatarUploadError>| {
-                match err {
-                    BlockingError::Error(err) => err,
-                    BlockingError::Canceled => AvatarUploadError::Blocking,
-                }
-            })
-            .map(|_| HttpResponse::Ok().finish())
+        .map_err(|err: BlockingError<AvatarUploadError>| match err {
+            BlockingError::Error(err) => err,
+            BlockingError::Canceled => AvatarUploadError::Blocking,
+        })
+        .map(|_| HttpResponse::Ok().finish()),
     )
 }
 
@@ -154,7 +169,7 @@ impl actix_web::error::ResponseError for AvatarUploadError {
         use actix_web::http::StatusCode;
         HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)
     }
-/*
+    /*
     /// Constructs an error response
     fn render_response(&self) -> HttpResponse {
 

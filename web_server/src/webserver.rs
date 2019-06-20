@@ -1,8 +1,9 @@
 
-use futures::{future::ok as fut_ok, future::Either, Future};
+use futures::{future::{ok as fut_ok, Either}, Future};
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
 use std::{borrow::Cow, sync::mpsc::channel, time::Duration};
+use std::sync::Arc;
 
 use tnf_common::defines::{
     fos,
@@ -15,11 +16,15 @@ use crate::{
     critters_db::{
         CrittersDb, GetClientInfo, GetCritterInfo, ListClients, UpdateCritterInfo,
     },
+    database::{
+        SledDb,
+    }
 };
 
 const STATIC_PATH: &'static str = "./static/";
 
 mod stats;
+mod avatar;
 
 /*
 pub struct Mailbox(actix::Addr<CrittersDb>);
@@ -158,18 +163,21 @@ fn _info(req: HttpRequest, data: web::Data<AppState>) -> impl Future<Item = Http
 #[derive(Clone)]
 pub struct AppState {
     critters_db: Addr<CrittersDb>,
+    sled_db: Addr<SledDb>,
+    root: SledDb,
 }
 
 impl AppState {
-    pub fn new(critters_db: Addr<CrittersDb>) -> Self {
-        Self { critters_db }
+    pub fn new(critters_db: Addr<CrittersDb>, sled_db: Addr<SledDb>, root: SledDb) -> Self {
+        Self { critters_db, sled_db, root }
     }
 }
 
 use actix::prelude::{Actor, Addr, SendError, SyncArbiter};
-use actix_web::{web, http, HttpServer, App, Error, HttpRequest, HttpResponse, Responder};
+use actix_web::{web, http, middleware, HttpServer, App, Error, HttpRequest, HttpResponse, Responder};
 
-pub fn run(clients: PathBuf) {
+
+pub fn run(clients: PathBuf, db: sled::Db) {
     println!("Starting actix-web server...");
 
     let sys = actix::System::new("charsheet");
@@ -179,10 +187,16 @@ pub fn run(clients: PathBuf) {
     //let addr = CrittersDb::start_default();
     let addr = SyncArbiter::start(1, move || CrittersDb::new(clients.clone()));
 
-    let state = AppState::new(addr.clone());
+    let sled_db = SledDb::new(db);
+    let sled_clone = sled_db.clone();
+    let database_addr = SyncArbiter::start(1, move || sled_db.clone());
+
+    let state = AppState::new(addr.clone(), database_addr, sled_clone);
     HttpServer::new(move || {
         App::new()
             .data(state.clone())
+            .wrap(middleware::Compress::default())
+            .wrap(middleware::Logger::default())
             .service(
                 web::resource("/").route(web::get().to(nope))
             )
@@ -195,8 +209,17 @@ pub fn run(clients: PathBuf) {
                 actix_files::Files::new("/static", STATIC_PATH)
             )
             .service(
-                web::resource("/{crid}").route(web::get().to_async(stats::gm_stats))
+                web::resource("/charsheet/upload")
+                    .route(web::get().to(avatar::edit))
+                    .route(web::post().to_async(avatar::upload))
             )
+            .service(
+                web::resource("/charsheet/avatar/{id}")
+                    .route(web::get().to_async(avatar::show))
+            )
+            //.service(
+            //    web::resource("/{crid}").route(web::get().to_async(stats::gm_stats))
+            //)
 
         /*App::with_state(state.clone())
             .resource("/", |r| r.method(http::Method::GET).f(nope))
@@ -215,6 +238,8 @@ pub fn run(clients: PathBuf) {
     .bind("0.0.0.0:8000")
     .expect("Can not bind to port 8000")
     .start(); //.expect("Can't start server!");
+
+    crate::bridge::start();
 
     println!("Server started!");
     let _ = sys.run();

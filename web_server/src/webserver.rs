@@ -15,6 +15,7 @@ use tnf_common::defines::{
 use clients_db::{fix_encoding::os_str_debug, ClientRecord, CritterInfo};
 
 use crate::{
+    bridge,
     critters_db::{CrittersDb, GetClientInfo, GetCritterInfo, ListClients, UpdateCritterInfo},
     database::SledDb,
 };
@@ -164,14 +165,16 @@ fn _info(
 #[derive(Clone)]
 pub struct AppState {
     critters_db: Addr<CrittersDb>,
-    sled_db: Addr<SledDb>,
+    sled_db: SledDb,
+    bridge: bridge::Bridge,
 }
 
 impl AppState {
-    pub fn new(critters_db: Addr<CrittersDb>, sled_db: Addr<SledDb>) -> Self {
+    pub fn new(critters_db: Addr<CrittersDb>, sled_db: SledDb, bridge: bridge::Bridge) -> Self {
         Self {
             critters_db,
             sled_db,
+            bridge,
         }
     }
 }
@@ -192,9 +195,9 @@ pub fn run(clients: PathBuf, db: sled::Db) {
     let addr = SyncArbiter::start(1, move || CrittersDb::new(clients.clone()));
 
     let sled_db = SledDb::new(db);
-    let database_addr = SyncArbiter::start(1, move || sled_db.clone());
+    let bridge = bridge::start();
 
-    let state = AppState::new(addr.clone(), database_addr.clone());
+    let state = AppState::new(addr.clone(), sled_db, bridge);
     HttpServer::new(move || {
         App::new()
             .data(state.clone())
@@ -211,36 +214,23 @@ pub fn run(clients: PathBuf, db: sled::Db) {
             )
             .service(actix_files::Files::new("/static", STATIC_PATH))
             .service(
-                web::resource("/charsheet/upload")
-                    .route(web::get().to(avatar::edit))
-                    .route(web::post().to_async(avatar::upload)),
-            )
-            .service(
-                web::resource("/charsheet/avatar/{id}").route(web::get().to_async(avatar::show)),
+                web::scope("/char/{id}")
+                    .service(
+                        web::scope("/edit").service(
+                            web::resource("/avatar")
+                                .route(web::get().to(avatar::edit))
+                                .route(web::post().to_async(avatar::upload)),
+                        ),
+                    )
+                    .service(web::resource("/avatar").route(web::get().to_async(avatar::show))),
             )
         //.service(
         //    web::resource("/{crid}").route(web::get().to_async(stats::gm_stats))
         //)
-
-        /*App::with_state(state.clone())
-        .resource("/", |r| r.method(http::Method::GET).f(nope))
-        .resource("/gm/clients", |r| r.method(http::Method::GET).a(gm_clients))
-        .resource("/gm/client/{client}", |r| {
-            r.method(http::Method::GET).a(stats::gm_stats)
-        })
-        .resource("/{crid}", |r| r.method(http::Method::GET).a(stats::stats))
-        .handler(
-            "/static",
-            fs::StaticFiles::new(STATIC_PATH)
-                .unwrap()
-                .show_files_listing(),
-        )*/
     })
     .bind("0.0.0.0:8000")
     .expect("Can not bind to port 8000")
     .start(); //.expect("Can't start server!");
-
-    crate::bridge::start(database_addr);
 
     println!("Server started!");
     let _ = sys.run();

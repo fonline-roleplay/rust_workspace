@@ -1,10 +1,13 @@
-use super::tools::{increment, slice_to_u32};
+use super::{
+    tools::{increment, slice_to_u32},
+    TreeRoot,
+};
+use actix_web::error::BlockingError;
 use arrayvec::{Array, ArrayVec};
 use bytes::Bytes;
 use std::{
     fmt::Write,
     ops::{Bound, RangeBounds},
-    sync::Arc,
 };
 
 #[derive(Debug)]
@@ -18,6 +21,17 @@ pub enum VersionedError {
     AccessDenied,
     CounterInvalid,
     UnexpectedOldValue,
+    NotFound,
+    Blocking,
+}
+
+impl From<BlockingError<VersionedError>> for VersionedError {
+    fn from(err: BlockingError<VersionedError>) -> Self {
+        match err {
+            BlockingError::Error(err) => err,
+            BlockingError::Canceled => VersionedError::Blocking,
+        }
+    }
 }
 
 //const MIN_U32: &str = "0000000000";
@@ -26,16 +40,16 @@ const MIN_U32: &str = "00000000";
 const MAX_U32: &str = "FFFFFFFF";
 
 pub fn get_value<T, R: RangeBounds<u32>, F: Fn(&[u8]) -> Option<T>>(
-    tree: &Arc<sled::Tree>,
-    branch: &str,
+    tree: &TreeRoot,
+    trunk: &str,
     id: u32,
-    leaf: &str,
+    branch: &str,
     ver: R,
     parse: F,
 ) -> Result<Option<(u32, T)>, VersionedError> {
     let mut from = String::with_capacity(32);
 
-    write!(from, "{}/{:08X}/{}/", branch, id, leaf).map_err(VersionedError::WriteFmt)?;
+    write!(from, "{}/{:08X}/{}/", trunk, id, branch).map_err(VersionedError::WriteFmt)?;
     let base_len = from.len();
 
     let mut to = from.clone();
@@ -72,7 +86,7 @@ pub fn get_value<T, R: RangeBounds<u32>, F: Fn(&[u8]) -> Option<T>>(
 
     println!("from: {:?}, to: {:?}", &hi, &lo);
 
-    for pair in tree.range((lo, hi)).rev() {
+    for pair in tree.root().range((lo, hi)).rev() {
         let (full_key, value) = pair.map_err(VersionedError::Sled)?;
         println!("full_key: {:?}", std::str::from_utf8(&full_key));
         let key = full_key
@@ -91,38 +105,39 @@ pub fn get_value<T, R: RangeBounds<u32>, F: Fn(&[u8]) -> Option<T>>(
 }
 
 pub fn update_value<V, F: Fn(Option<&[u8]>) -> Option<V>>(
-    tree: &Arc<sled::Tree>,
-    branch: &str,
+    tree: &TreeRoot,
+    trunk: &str,
     id: u32,
-    leaf: &str,
+    branch: &str,
     func: F,
 ) -> Result<Option<sled::IVec>, VersionedError>
 where
     sled::IVec: From<V>,
 {
     let mut key = String::with_capacity(32);
-    write!(key, "{}/{:08X}/{}", branch, id, leaf).map_err(VersionedError::WriteFmt)?;
-    tree.update_and_fetch(key, func)
+    write!(key, "{}/{:08X}/{}", trunk, id, branch).map_err(VersionedError::WriteFmt)?;
+    tree.root()
+        .update_and_fetch(key, func)
         .map_err(VersionedError::Sled)
 }
 
 pub fn inc_counter(
-    tree: &Arc<sled::Tree>,
-    branch: &str,
+    tree: &TreeRoot,
+    trunk: &str,
     id: u32,
-    leaf: &str,
+    branch: &str,
 ) -> Result<u32, VersionedError> {
-    update_value(tree, branch, id, leaf, increment).and_then(|opt| {
+    update_value(tree, trunk, id, branch, increment).and_then(|opt| {
         opt.and_then(|ivec| slice_to_u32(ivec.as_ref()))
             .ok_or(VersionedError::CounterInvalid)
     })
 }
 
 pub fn set_value<V>(
-    tree: &Arc<sled::Tree>,
-    branch: &str,
+    tree: &TreeRoot,
+    trunk: &str,
     id: u32,
-    leaf: &str,
+    branch: &str,
     ver: u32,
     value: V,
 ) -> Result<Option<sled::IVec>, VersionedError>
@@ -130,27 +145,27 @@ where
     sled::IVec: From<V>,
 {
     let mut key = String::with_capacity(32);
-    write!(key, "{}/{:08X}/{}/{:08X}", branch, id, leaf, ver).map_err(VersionedError::WriteFmt)?;
+    write!(key, "{}/{:08X}/{}/{:08X}", trunk, id, branch, ver).map_err(VersionedError::WriteFmt)?;
 
-    tree.set(key, value).map_err(VersionedError::Sled)
+    tree.root().set(key, value).map_err(VersionedError::Sled)
 }
 
-pub fn new_version<'a, V, A: Array<Item = (&'a str, V)>>(
-    tree: &Arc<sled::Tree>,
-    branch: &str,
+pub fn new_leaf<'a, V, A: Array<Item = (&'a str, V)>>(
+    tree: &TreeRoot,
+    trunk: &str,
     id: u32,
     counter: &str,
-    leaf_values: A,
+    branch_values: A,
 ) -> Result<u32, VersionedError>
 where
     sled::IVec: From<V>,
 {
-    let ver = inc_counter(tree, branch, id, counter)?;
-    let leaf_values = ArrayVec::from(leaf_values);
-    for (leaf, value) in leaf_values {
-        let old_value = set_value(tree, branch, id, leaf, ver, value)?;
+    let ver = inc_counter(tree, trunk, id, counter)?;
+    let branch_values = ArrayVec::from(branch_values);
+    for (branch, value) in branch_values {
+        let old_value = set_value(tree, trunk, id, branch, ver, value)?;
         if old_value.is_some() {
-            eprintln!("Unexpected old value: {}/{}/{}/{}", branch, id, leaf, ver);
+            eprintln!("Unexpected old value: {}/{}/{}/{}", trunk, id, branch, ver);
             //return Err(VersionedError::UnexpectedOldValue)
         }
     }

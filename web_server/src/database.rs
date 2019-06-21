@@ -1,30 +1,33 @@
-use actix::prelude::{Actor, Handler, Message, SyncContext};
 use std::sync::Arc;
 
 mod versioned;
 pub use self::versioned::VersionedError;
 
-mod image;
-pub use self::image::{GetImage, SetImage};
+mod trunk;
+pub use trunk::{CharTrunk, Leaf};
 
 mod tools;
 
 #[derive(Clone)]
 pub struct SledDb {
-    root: Arc<sled::Db>,
-    pub fo4rp: Arc<sled::Tree>,
+    db: sled::Db,
+    pub root: TreeRoot,
 }
 
-impl SledDb {
-    pub fn new(root: sled::Db) -> Self {
-        let fo4rp = root.open_tree("fo4rp").expect("Can't open 'fo4rp' Tree");
-        SledDb {
-            root: Arc::new(root),
-            fo4rp,
-        }
+#[derive(Clone)]
+pub struct TreeRoot {
+    inner: Arc<sled::Tree>,
+}
+impl TreeRoot {
+    fn root(&self) -> &Arc<sled::Tree> {
+        &self.inner
     }
 }
 
-impl Actor for SledDb {
-    type Context = SyncContext<Self>;
+impl SledDb {
+    pub fn new(db: sled::Db) -> Self {
+        let root = db.open_tree("fo4rp").expect("Can't open 'fo4rp' Tree");
+        let root = TreeRoot { inner: root };
+        SledDb { db, root }
+    }
 }

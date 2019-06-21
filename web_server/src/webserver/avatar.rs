@@ -1,4 +1,8 @@
-use crate::{database::{GetImage, SetImage}, templates};
+use crate::{
+    bridge,
+    database::{CharTrunk, Leaf, TreeRoot, VersionedError},
+    templates,
+};
 use actix_web::body::Body;
 use actix_web::{error::BlockingError, web, HttpRequest, HttpResponse, Responder};
 use futures::{
@@ -10,75 +14,70 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-//use futures::stream::Stream;
-
+// size of square image in pixels, 128 means 128x128
 const IMAGE_SIZE: u32 = 128;
 
+#[derive(Deserialize)]
+pub struct VersionSecret {
+    ver: Option<u32>,
+    secret: Option<u32>,
+}
+
+// ===== Avatar editor =====
+
 #[derive(Debug, Serialize)]
-struct Charsheet {}
+struct AvatarEditor {
+    char_id: u32,
+}
 
-pub fn edit(_req: HttpRequest) -> impl Responder {
-    //let to = req.match_info().get("name").unwrap_or("World");
-    //format!("Hello there and go to hell!")
-
-    match templates::render("upload.html", &Charsheet {}) {
+pub fn edit(path: web::Path<u32>) -> impl Responder {
+    match templates::render("edit_avatar.html", &AvatarEditor { char_id: *path }) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(body),
         Err(err) => {
-            eprintln!("Charsheet upload error: {:#?}", err);
+            eprintln!("AvatarEditor error: {:#?}", err);
             HttpResponse::InternalServerError().into()
         }
     }
 }
-/*
-fn avatar_upload(multipart: actix_multipart::Multipart) -> impl Future<Item = HttpResponse, Error = Error> {
-    use futures::{Future, Stream};
-    println!("Multipart");
-    multipart
-        .map_err(actix_web::error::ErrorInternalServerError)
-        .map(|field| println!("Field: {:?}", &field))
-        //.flatten()
-        .collect()
-        .map(|_| HttpResponse::Ok().finish())
-}
-*/
 
-#[derive(Deserialize)]
-pub struct VersionKey {
-    ver: Option<u32>,
-    key: Option<u32>,
-}
+// ===== Show avatar =====
 
 pub fn show(
     path: web::Path<u32>,
-    query: web::Query<VersionKey>,
+    query: web::Query<VersionSecret>,
     data: web::Data<super::AppState>,
 ) -> impl Future<Item = HttpResponse, Error = actix_web::Error> {
-    let VersionKey { ver, key } = *query;
+    let VersionSecret { ver, secret } = *query;
 
-    if key.is_none() {
+    if secret.is_none() {
         return Either::A(fut_ok(HttpResponse::Forbidden().finish()));
     }
 
+    let root = data.sled_db.root.clone();
     Either::B(
-        data.sled_db
-            .send(GetImage {
-                id: *path,
-                ver,
-                key,
-            })
-            .then(|res| match res {
-                Ok(Ok(Some(image))) => HttpResponse::Ok().content_type("image/png").body(image),
-                Ok(Ok(None)) => HttpResponse::NotFound().finish(),
-                Ok(Err(err)) => {
-                    HttpResponse::InternalServerError().body(format!("Error: {:?}", err))
-                }
-                Err(err) => HttpResponse::InternalServerError().body(format!("Error: {:?}", err)),
-            }),
+        web::block(move || {
+            let instant = std::time::Instant::now();
+            let leaf = CharTrunk::new(*path, ver).get_image(&root, secret)?;
+            println!("Getting image, completed in {:?}", instant.elapsed());
+            Ok(leaf)
+        })
+        .from_err()
+        .then(|res| match res {
+            Ok(image) => HttpResponse::Ok()
+                .header("Q-ver", image.ver.to_string())
+                .content_type("image/png")
+                .body(image.data),
+            Err(VersionedError::NotFound) => HttpResponse::NotFound().finish(),
+            Err(err) => HttpResponse::InternalServerError().body(format!("Error: {:?}", err)),
+        }),
     )
 }
 
+// ===== Upload avatar =====
+
 pub fn upload(
-    req: HttpRequest,
+    path: web::Path<u32>,
+    _req: HttpRequest,
     payload: web::Bytes,
     data: web::Data<super::AppState>,
 ) -> impl Future<Item = HttpResponse, Error = AvatarUploadError> {
@@ -97,53 +96,75 @@ pub fn upload(
         return Either::A(fut_err(AvatarUploadError::DataLength(data_len)));
     }
 
-    let addr = data.sled_db.clone();
-
+    let char_id = *path;
+    let root = data.sled_db.root.clone();
+    let sender = data.bridge.get_sender();
     Either::B(
         web::block(move || {
-            let instant = std::time::Instant::now();
             let data = &payload[PREFIX_LEN..];
-            let decoded = base64::decode_config(&data, base64::STANDARD)
-                .map_err(AvatarUploadError::Base64)?;
-            println!("Decoded in {:?}", instant.elapsed());
-            let instant2 = std::time::Instant::now();
-            //std::fs::write("test.png", &decoded).map_err(|_| ())
-            let image = image::load_from_memory_with_format(&decoded, image::PNG)
-                .map_err(AvatarUploadError::ImageLoad)?;
-            println!("Loaded in {:?}", instant2.elapsed());
-            let instant2 = std::time::Instant::now();
-            use image::GenericImageView;
-            //println!("Width: {}, Height: {}", image.width(), image.height());
-            if image.width() != IMAGE_SIZE || image.height() != IMAGE_SIZE {
-                return Err(AvatarUploadError::ImageSize(image.width(), image.height()));
-            }
-            let mut buffer = decoded;
-            buffer.clear();
-            image
-                .write_to(&mut buffer, image::PNG)
-                .map_err(AvatarUploadError::ImageWrite)?;
-            println!("Writed in {:?}", instant2.elapsed());
-            println!("Fully loaded in {:?}", instant.elapsed());
-
-            Ok(buffer)
+            save_image(&root, char_id, data)
         })
-        .map_err(|err: BlockingError<AvatarUploadError>| match err {
-            BlockingError::Error(err) => err,
-            BlockingError::Canceled => AvatarUploadError::Blocking,
-        })
-        .and_then(move |buffer| {
-            let set_image = SetImage{
-                id: 1,
-                data: buffer,
-            };
-            addr.send(set_image).then(|res| match res {
-                Ok(ok) => ok.map_err(AvatarUploadError::SledVersioned),
-                Err(err) => Err(AvatarUploadError::Mailbox(err)),
-            })
-        })
+        .from_err()
+        .and_then(move |leaf| update_char_leaf(sender, char_id, leaf))
         .map(|_| HttpResponse::Ok().finish()),
     )
 }
+
+fn save_image(tree: &TreeRoot, char_id: u32, data: &[u8]) -> Result<Leaf<()>, AvatarUploadError> {
+    let instant = std::time::Instant::now();
+    let decoded =
+        base64::decode_config(&data, base64::STANDARD).map_err(AvatarUploadError::Base64)?;
+    println!("Decoded in {:?}", instant.elapsed());
+    let instant2 = std::time::Instant::now();
+    //std::fs::write("test.png", &decoded).map_err(|_| ())
+    let image = image::load_from_memory_with_format(&decoded, image::PNG)
+        .map_err(AvatarUploadError::ImageLoad)?;
+    println!("Loaded in {:?}", instant2.elapsed());
+    let instant2 = std::time::Instant::now();
+    use image::GenericImageView;
+    //println!("Width: {}, Height: {}", image.width(), image.height());
+    if image.width() != IMAGE_SIZE || image.height() != IMAGE_SIZE {
+        return Err(AvatarUploadError::ImageSize(image.width(), image.height()));
+    }
+    let mut buffer = decoded;
+    buffer.clear();
+    image
+        .write_to(&mut buffer, image::PNG)
+        .map_err(AvatarUploadError::ImageWrite)?;
+    println!("Writed in {:?}", instant2.elapsed());
+    let instant2 = std::time::Instant::now();
+
+    let leaf = CharTrunk::new(char_id, None)
+        .set_image(tree, buffer)
+        .map_err(AvatarUploadError::SledVersioned)?;
+    println!("Saved to db in {:?}", instant2.elapsed());
+
+    println!("Fully saved in {:?}", instant.elapsed());
+
+    Ok(leaf)
+}
+
+fn update_char_leaf(
+    sender: Option<bridge::MsgOutSender>,
+    id: u32,
+    leaf: Leaf<()>,
+) -> Result<(), AvatarUploadError> {
+    match (sender, leaf) {
+        (
+            Some(mut sender),
+            Leaf {
+                ver,
+                secret: Some(secret),
+                ..
+            },
+        ) => sender
+            .try_send(bridge::MsgOut::UpdateCharLeaf { id, ver, secret })
+            .map_err(|_| AvatarUploadError::FuturesSyncSend),
+        _ => Ok(()),
+    }
+}
+
+// ===== AvatarUploadError =====
 
 #[derive(Debug)]
 pub enum AvatarUploadError {
@@ -157,7 +178,17 @@ pub enum AvatarUploadError {
     ImageWrite(image::ImageError),
     //SledSet(sled::Error),
     Mailbox(actix::MailboxError),
-    SledVersioned(crate::database::VersionedError),
+    SledVersioned(VersionedError),
+    FuturesSyncSend,
+}
+
+impl From<BlockingError<AvatarUploadError>> for AvatarUploadError {
+    fn from(err: BlockingError<AvatarUploadError>) -> Self {
+        match err {
+            BlockingError::Error(err) => err,
+            BlockingError::Canceled => AvatarUploadError::Blocking,
+        }
+    }
 }
 
 impl std::fmt::Display for AvatarUploadError {
@@ -190,7 +221,7 @@ impl actix_web::error::ResponseError for AvatarUploadError {
         resp.set_body(Body::from(buf))
     }*/
 }
-
+/*
 pub(crate) struct Writer<'a>(pub &'a mut web::BytesMut);
 
 impl<'a> std::io::Write for Writer<'a> {
@@ -201,20 +232,5 @@ impl<'a> std::io::Write for Writer<'a> {
     fn flush(&mut self) -> std::io::Result<()> {
         Ok(())
     }
-}
-
-/*
-fn avatar_upload(multipart: actix_multipart::Multipart) -> impl Future<Item = HttpResponse, Error = Error> {
-    use futures::{Future, Stream};
-    use actix_form_data::Form;
-    let form = Form::new()
-
-    println!("Multipart");
-    multipart
-        .map_err(actix_web::error::ErrorInternalServerError)
-        .map(|field| println!("Field: {:?}", &field))
-        //.flatten()
-        .collect()
-        .map(|_| HttpResponse::Ok().finish())
 }
 */

@@ -264,10 +264,12 @@
         //form_data.append("nickname", "Foooobar");
         //form_data.append("avatar", data);
         var xhr = new XMLHttpRequest();
-        xhr.open("POST", "/charsheet/upload");
+        xhr.open("POST", "/char/upload");
         //xhr.send(form_data);
         xhr.send(data);
         console.log("sended");
+        avatar_updated = false;
+        button_send_image.disabled = true;
     }
 </script>
 <div>

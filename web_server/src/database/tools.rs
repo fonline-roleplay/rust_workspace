@@ -15,7 +15,7 @@ pub fn increment(old: Option<&[u8]>) -> Option<Vec<u8>> {
                 return Some(slice.to_vec());
             }
         }
-        None => 0,
+        None => 1,
     };
     Some(number.to_be_bytes().to_vec())
 }

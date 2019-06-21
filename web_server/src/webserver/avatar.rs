@@ -1,4 +1,4 @@
-use crate::{database::GetImage, templates};
+use crate::{database::{GetImage, SetImage}, templates};
 use actix_web::body::Body;
 use actix_web::{error::BlockingError, web, HttpRequest, HttpResponse, Responder};
 use futures::{
@@ -82,12 +82,6 @@ pub fn upload(
     payload: web::Bytes,
     data: web::Data<super::AppState>,
 ) -> impl Future<Item = HttpResponse, Error = AvatarUploadError> {
-    //println!("{:?}", req);
-    //println!("{:?}", payload);
-    //let payload = std::str::from_utf8(payload.as_ref()).unwrap();
-    //let url = url::Url::parse(payload);
-    //println!("{:?}", url);
-
     const MIN_LEN: usize = 16;
     const MAX_LEN: usize = 128 * 1024;
 
@@ -103,41 +97,49 @@ pub fn upload(
         return Either::A(fut_err(AvatarUploadError::DataLength(data_len)));
     }
 
-    let tree = Arc::clone(&data.get_ref().root.fo4rp);
+    let addr = data.sled_db.clone();
 
     Either::B(
         web::block(move || {
+            let instant = std::time::Instant::now();
             let data = &payload[PREFIX_LEN..];
             let decoded = base64::decode_config(&data, base64::STANDARD)
                 .map_err(AvatarUploadError::Base64)?;
+            println!("Decoded in {:?}", instant.elapsed());
+            let instant2 = std::time::Instant::now();
             //std::fs::write("test.png", &decoded).map_err(|_| ())
             let image = image::load_from_memory_with_format(&decoded, image::PNG)
                 .map_err(AvatarUploadError::ImageLoad)?;
-
+            println!("Loaded in {:?}", instant2.elapsed());
+            let instant2 = std::time::Instant::now();
             use image::GenericImageView;
             //println!("Width: {}, Height: {}", image.width(), image.height());
             if image.width() != IMAGE_SIZE || image.height() != IMAGE_SIZE {
                 return Err(AvatarUploadError::ImageSize(image.width(), image.height()));
             }
-            //image.save(&path).map_err(AvatarUploadError::ImageSave)
             let mut buffer = decoded;
             buffer.clear();
             image
                 .write_to(&mut buffer, image::PNG)
                 .map_err(AvatarUploadError::ImageWrite)?;
+            println!("Writed in {:?}", instant2.elapsed());
+            println!("Fully loaded in {:?}", instant.elapsed());
 
-            tree.set(
-                format!("avatar/{:08X}/secret/{:08X}", 7, 8),
-                &9u32.to_be_bytes(),
-            )
-            .map_err(AvatarUploadError::SledSet)?;
-            tree.set(format!("avatar/{:08X}/image/{:08X}", 7, 8), buffer)
-                .map_err(AvatarUploadError::SledSet)?;
-            Ok(())
+            Ok(buffer)
         })
         .map_err(|err: BlockingError<AvatarUploadError>| match err {
             BlockingError::Error(err) => err,
             BlockingError::Canceled => AvatarUploadError::Blocking,
+        })
+        .and_then(move |buffer| {
+            let set_image = SetImage{
+                id: 1,
+                data: buffer,
+            };
+            addr.send(set_image).then(|res| match res {
+                Ok(ok) => ok.map_err(AvatarUploadError::SledVersioned),
+                Err(err) => Err(AvatarUploadError::Mailbox(err)),
+            })
         })
         .map(|_| HttpResponse::Ok().finish()),
     )
@@ -153,7 +155,9 @@ pub enum AvatarUploadError {
     ImageSize(u32, u32),
     //ImageSave(std::io::Error),
     ImageWrite(image::ImageError),
-    SledSet(sled::Error),
+    //SledSet(sled::Error),
+    Mailbox(actix::MailboxError),
+    SledVersioned(crate::database::VersionedError),
 }
 
 impl std::fmt::Display for AvatarUploadError {

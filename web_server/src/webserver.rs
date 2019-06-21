@@ -165,15 +165,13 @@ fn _info(
 pub struct AppState {
     critters_db: Addr<CrittersDb>,
     sled_db: Addr<SledDb>,
-    root: SledDb,
 }
 
 impl AppState {
-    pub fn new(critters_db: Addr<CrittersDb>, sled_db: Addr<SledDb>, root: SledDb) -> Self {
+    pub fn new(critters_db: Addr<CrittersDb>, sled_db: Addr<SledDb>) -> Self {
         Self {
             critters_db,
             sled_db,
-            root,
         }
     }
 }
@@ -194,10 +192,9 @@ pub fn run(clients: PathBuf, db: sled::Db) {
     let addr = SyncArbiter::start(1, move || CrittersDb::new(clients.clone()));
 
     let sled_db = SledDb::new(db);
-    let sled_clone = sled_db.clone();
     let database_addr = SyncArbiter::start(1, move || sled_db.clone());
 
-    let state = AppState::new(addr.clone(), database_addr, sled_clone);
+    let state = AppState::new(addr.clone(), database_addr.clone());
     HttpServer::new(move || {
         App::new()
             .data(state.clone())
@@ -243,7 +240,7 @@ pub fn run(clients: PathBuf, db: sled::Db) {
     .expect("Can not bind to port 8000")
     .start(); //.expect("Can't start server!");
 
-    crate::bridge::start();
+    crate::bridge::start(database_addr);
 
     println!("Server started!");
     let _ = sys.run();

@@ -11,6 +11,8 @@ use futures::stream::Stream;
 use futures::{future, Future};
 use tokio_codec::{Decoder, Encoder, Framed};
 use tokio_tcp::TcpStream;
+use actix::{Addr};
+use crate::database::{SledDb};
 
 /// Simple logger service, it just prints fact of the new connections
 fn logger<T: AsyncRead + AsyncWrite + std::fmt::Debug>(
@@ -20,7 +22,7 @@ fn logger<T: AsyncRead + AsyncWrite + std::fmt::Debug>(
     future::ok(stream)
 }
 
-pub fn start() {
+pub fn start(database_addr: Addr<SledDb>) {
     let num = Arc::new(AtomicUsize::new(0));
     Server::build()
         .bind(
@@ -38,12 +40,9 @@ pub fn start() {
                     println!("got connection {:?}", num);
                     let framed = Framed::new(stream.into_parts().0, WebSide);
                     let (sink, stream) = framed.split();
-                    stream.map(handle_message).fold(sink, |sink, msg| {
-                        println!("{:?}", msg);
-                        match msg {
-                            Some(msg) => Either::A(sink.send(msg)),
-                            None => Either::B(future::ok(sink)),
-                        }
+                    stream.filter_map(handle_message).fold(sink, |sink, msg| {
+                        println!("Sending: {:?}", msg);
+                        sink.send(msg)
                     })
                 })
 

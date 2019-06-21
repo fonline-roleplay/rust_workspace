@@ -2,9 +2,10 @@ use actix::prelude::{Actor, Handler, Message, SyncContext};
 use std::sync::Arc;
 
 mod versioned;
+pub use self::versioned::VersionedError;
 
 mod image;
-pub use self::image::GetImage;
+pub use self::image::{GetImage, SetImage};
 
 mod tools;
 

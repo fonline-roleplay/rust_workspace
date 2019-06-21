@@ -17,7 +17,7 @@ fn get_image(
     input_key: Option<u32>,
 ) -> Result<Option<Bytes>, VersionedError> {
     let ver = ver
-        .map(|v| (Bound::Included(v), Bound::Unbounded))
+        .map(|v| (Bound::Unbounded, Bound::Included(v)))
         .unwrap_or((Bound::Unbounded, Bound::Unbounded));
     let ver_secret = get_value(tree, "avatar", id, "secret", ver, slice_to_u32)?;
     match (ver_secret, input_key) {
@@ -75,7 +75,7 @@ impl Handler<SetImage> for SledDb {
     type Result = <SetImage as Message>::Result;
 
     fn handle(&mut self, msg: SetImage, _: &mut Self::Context) -> Self::Result {
-        let secret = 777u32;
+        let secret: u32 = rand::random();
         let secret_data = secret.to_be_bytes().to_vec();
         let ver = new_version(
             &self.fo4rp,
@@ -84,6 +84,7 @@ impl Handler<SetImage> for SledDb {
             "ver",
             [("image", msg.data), ("secret", secret_data)],
         )?;
+        println!("new image, id: {}, ver: {}, key: {}", msg.id, ver, secret);
         Ok(SetImageMeta { ver, secret })
     }
 }

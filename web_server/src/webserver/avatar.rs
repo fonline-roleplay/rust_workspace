@@ -5,6 +5,7 @@ use crate::{
 };
 use actix_web::body::Body;
 use actix_web::{error::BlockingError, web, HttpRequest, HttpResponse, Responder};
+use arrayvec::ArrayVec;
 use futures::{
     future::{err as fut_err, ok as fut_ok, Either},
     Future,
@@ -16,6 +17,8 @@ use std::sync::Arc;
 
 // size of square image in pixels, 128 means 128x128
 const IMAGE_SIZE: u32 = 128;
+const AUTH_LEN: usize = 12;
+const AUTH_HEX_LEN: usize = AUTH_LEN * 2;
 
 #[derive(Deserialize)]
 pub struct VersionSecret {
@@ -23,21 +26,77 @@ pub struct VersionSecret {
     secret: Option<u32>,
 }
 
+#[derive(Deserialize)]
+pub struct Auth {
+    auth: Option<String>,
+}
+
 // ===== Avatar editor =====
 
 #[derive(Debug, Serialize)]
 struct AvatarEditor {
     char_id: u32,
+    auth: String,
 }
 
-pub fn edit(path: web::Path<u32>) -> impl Responder {
-    match templates::render("edit_avatar.html", &AvatarEditor { char_id: *path }) {
-        Ok(body) => HttpResponse::Ok().content_type("text/html").body(body),
-        Err(err) => {
-            eprintln!("AvatarEditor error: {:#?}", err);
-            HttpResponse::InternalServerError().into()
-        }
+fn parse_auth(auth: &str) -> Option<ArrayVec<[u8; AUTH_LEN]>> {
+    if auth.len() != AUTH_HEX_LEN {
+        return None;
     }
+    let mut first = true;
+    let res: Result<ArrayVec<[u8; AUTH_LEN]>, _> = auth
+        .split(|_| {
+            first = !first;
+            first
+        })
+        .map(|chunk| u8::from_str_radix(chunk, 16))
+        .collect();
+    res.ok().filter(|arr| arr.is_full())
+}
+
+pub fn edit(
+    path: web::Path<u32>,
+    query: web::Query<Auth>,
+    data: web::Data<super::AppState>,
+) -> impl Future<Item = HttpResponse, Error = actix_web::Error> {
+    let char_id = *path;
+    let auth = query.auth.as_ref().map(String::as_str).and_then(parse_auth);
+
+    let auth = match auth {
+        None => return Either::A(fut_ok(HttpResponse::Forbidden().finish())),
+        Some(auth) => auth,
+    };
+
+    let root = data.sled_db.root.clone();
+    let auth_string = query.auth.clone().unwrap_or_default();
+
+    Either::B(
+        web::block(move || {
+            let authkey = CharTrunk::new(char_id, None)
+                .get_bare_branch(&root, "authkey")
+                .map_err(AvatarUploadError::SledVersioned)?;
+            if authkey.as_ref() != auth.as_slice() {
+                return Err(AvatarUploadError::AccessDenied);
+            }
+            templates::render(
+                "edit_avatar.html",
+                &AvatarEditor {
+                    char_id,
+                    auth: auth_string,
+                },
+            )
+            .map_err(AvatarUploadError::Template)
+        })
+        .from_err()
+        .then(|res| match res {
+            Err(AvatarUploadError::Template(err)) => {
+                eprintln!("AvatarEditor template error: {:#?}", err);
+                HttpResponse::InternalServerError().finish()
+            }
+            Err(_) => HttpResponse::Forbidden().finish(),
+            Ok(body) => HttpResponse::Ok().content_type("text/html").body(body),
+        }),
+    )
 }
 
 // ===== Show avatar =====
@@ -177,9 +236,10 @@ pub enum AvatarUploadError {
     //ImageSave(std::io::Error),
     ImageWrite(image::ImageError),
     //SledSet(sled::Error),
-    Mailbox(actix::MailboxError),
     SledVersioned(VersionedError),
     FuturesSyncSend,
+    AccessDenied,
+    Template(templates::TemplatesError),
 }
 
 impl From<BlockingError<AvatarUploadError>> for AvatarUploadError {

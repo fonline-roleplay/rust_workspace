@@ -23,6 +23,7 @@ pub enum VersionedError {
     UnexpectedOldValue,
     NotFound,
     Blocking,
+    ConcurrentWrites,
 }
 
 impl From<BlockingError<VersionedError>> for VersionedError {
@@ -104,7 +105,7 @@ pub fn get_value<T, R: RangeBounds<u32>, F: Fn(&[u8]) -> Option<T>>(
     Ok(None)
 }
 
-pub fn update_value<V, F: Fn(Option<&[u8]>) -> Option<V>>(
+pub fn update_branch<V, F>(
     tree: &TreeRoot,
     trunk: &str,
     id: u32,
@@ -112,6 +113,7 @@ pub fn update_value<V, F: Fn(Option<&[u8]>) -> Option<V>>(
     func: F,
 ) -> Result<Option<sled::IVec>, VersionedError>
 where
+    F: Fn(Option<&[u8]>) -> Option<V>,
     sled::IVec: From<V>,
 {
     let mut key = String::with_capacity(32);
@@ -127,7 +129,7 @@ pub fn inc_counter(
     id: u32,
     branch: &str,
 ) -> Result<u32, VersionedError> {
-    update_value(tree, trunk, id, branch, increment).and_then(|opt| {
+    update_branch(tree, trunk, id, branch, increment).and_then(|opt| {
         opt.and_then(|ivec| slice_to_u32(ivec.as_ref()))
             .ok_or(VersionedError::CounterInvalid)
     })

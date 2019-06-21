@@ -1,5 +1,3 @@
-
-
 pub type asDWORD = ::std::os::raw::c_ulong;
 pub type asBYTE = ::std::os::raw::c_uchar;
 

@@ -10,4 +10,5 @@ pub enum ServerDllToWeb {
 pub enum ServerWebToDll {
     UpdateCharLeaf { id: u32, ver: u32, secret: u32 },
     SendKeyToPlayer(u32, [u32; 3]),
+    Nop,
 }

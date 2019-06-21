@@ -1,9 +1,11 @@
 use super::{
     tools::slice_to_u32,
-    versioned::{get_value, new_leaf, VersionedError},
+    versioned::{get_value, new_leaf, update_branch, VersionedError},
     SledDb, TreeRoot,
 };
 use bytes::Bytes;
+use std::convert::TryFrom;
+use std::fmt::Write;
 use std::marker::PhantomData;
 use std::ops::Bound;
 
@@ -40,6 +42,22 @@ impl Trunk<Char> {
 }
 
 impl<T> Trunk<T> {
+    fn branch_key(&self, branch: &str) -> Result<String, VersionedError> {
+        let mut key = String::with_capacity(32);
+        write!(key, "{}/{:08X}/{}", self.trunk, self.id, branch)
+            .map_err(VersionedError::WriteFmt)?;
+        Ok(key)
+    }
+    fn _leaf_key(&self, branch: &str, leaf: u32) -> Result<String, VersionedError> {
+        let mut key = String::with_capacity(32);
+        write!(
+            key,
+            "{}/{:08X}/{}/{:08X}",
+            self.trunk, self.id, branch, leaf
+        )
+        .map_err(VersionedError::WriteFmt)?;
+        Ok(key)
+    }
     fn check_secret(
         &self,
         tree: &TreeRoot,
@@ -105,6 +123,76 @@ impl<T> Trunk<T> {
             ver,
             secret: Some(secret),
         })
+    }
+
+    /*pub fn update_branch<V, F>(&self, tree: &TreeRoot, branch: &str, f: F) -> Result<Option<sled::IVec>, VersionedError>
+    where
+        F: Fn(Option<&[u8]>) -> Option<V>>,
+        sled::IVec: From<V>,
+    {
+        update_branch(
+            tree,
+            self.trunk,
+            self.id,
+            branch,
+            f,
+        )
+    }*/
+
+    pub fn get_bare_branch(
+        &self,
+        tree: &TreeRoot,
+        branch: &str,
+    ) -> Result<sled::IVec, VersionedError> {
+        let key = self.branch_key(branch)?;
+        tree.root()
+            .get(&key)
+            .map_err(VersionedError::Sled)?
+            .ok_or(VersionedError::NotFound)
+    }
+
+    pub fn get_bare_branch_or_default<F>(
+        &self,
+        tree: &TreeRoot,
+        branch: &str,
+        default: &[u8],
+        check: F,
+    ) -> Result<Result<sled::IVec, ()>, VersionedError>
+    where
+        F: for<'s> Fn(&'s [u8]) -> bool,
+    {
+        let key = self.branch_key(branch)?;
+        let mut value = tree.root().get(&key).map_err(VersionedError::Sled)?;
+        match &value {
+            Some(value_ref) if check(value_ref.as_ref()) => {
+                return Ok(Ok(value.unwrap()));
+            }
+            _ => {}
+        }
+        for _ in 0..10 {
+            match tree
+                .root()
+                .cas(&key, value, Some(default))
+                .map_err(VersionedError::Sled)?
+            {
+                Ok(()) => {
+                    return Ok(Err(()));
+                }
+                Err(other) => {
+                    eprintln!("Concurrent cas!");
+                    match &other {
+                        Some(other_ref) if check(other_ref.as_ref()) => {
+                            return Ok(Ok(other.unwrap()));
+                        }
+                        _ => {
+                            eprintln!("Concurrent cas with none!");
+                            value = None;
+                        }
+                    }
+                }
+            }
+        }
+        Err(VersionedError::ConcurrentWrites)
     }
 }
 

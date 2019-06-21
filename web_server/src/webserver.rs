@@ -195,7 +195,7 @@ pub fn run(clients: PathBuf, db: sled::Db) {
     let addr = SyncArbiter::start(1, move || CrittersDb::new(clients.clone()));
 
     let sled_db = SledDb::new(db);
-    let bridge = bridge::start();
+    let bridge = bridge::start(sled_db.root.clone());
 
     let state = AppState::new(addr.clone(), sled_db, bridge);
     HttpServer::new(move || {
@@ -218,7 +218,7 @@ pub fn run(clients: PathBuf, db: sled::Db) {
                     .service(
                         web::scope("/edit").service(
                             web::resource("/avatar")
-                                .route(web::get().to(avatar::edit))
+                                .route(web::get().to_async(avatar::edit))
                                 .route(web::post().to_async(avatar::upload)),
                         ),
                     )

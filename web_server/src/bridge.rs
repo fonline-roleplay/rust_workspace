@@ -1,20 +1,23 @@
-use std::sync::{
-    atomic::{AtomicUsize, Ordering},
-    Arc,
-};
-
-use actix::Addr;
 use actix_codec::{AsyncRead, AsyncWrite};
 use actix_server::{Io, Server};
 use actix_service::{service_fn, IntoService, NewService};
+use actix_web::error::BlockingError;
+use actix_web::web;
 use bytes::BytesMut;
 use futures::stream::Stream;
 use futures::sync::mpsc::{channel, Receiver, Sender, TrySendError};
-use futures::{future, Future};
+use futures::{future, future::Either, Future};
+use std::{
+    convert::TryInto,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+};
 use tokio_codec::{Decoder, Encoder, Framed};
 use tokio_tcp::TcpStream;
 //use crossbeam::atomic::AtomicCell;
-use crate::database::SledDb;
+use crate::database::{CharTrunk, TreeRoot, VersionedError};
 use parking_lot::RwLock;
 
 pub use tnf_common::message::ServerDllToWeb as MsgIn;
@@ -59,7 +62,7 @@ impl Bridge {
     }*/
 }
 
-pub fn start() -> Bridge {
+pub fn start(tree: TreeRoot) -> Bridge {
     let num = Arc::new(AtomicUsize::new(0));
     let bridge = Bridge::new();
     let bridge_ret = bridge.clone();
@@ -71,10 +74,13 @@ pub fn start() -> Bridge {
             move || {
                 let num = num.clone();
                 let bridge = bridge.clone();
+                let tree = tree.clone();
                 // service for converting incoming TcpStream to a SslStream<TcpStream>
                 service_fn(move |stream: Io<tokio_tcp::TcpStream>| {
                     use futures::future::Either;
                     use futures::sink::Sink;
+
+                    let tree = tree.clone();
 
                     let (sender, receiver) = channel(128);
                     bridge.set_sender(sender);
@@ -84,8 +90,14 @@ pub fn start() -> Bridge {
                     let framed = Framed::new(stream.into_parts().0, WebSide);
                     let (sink, stream) = framed.split();
                     stream
-                        .filter_map(handle_message)
-                        .select(receiver.map_err(|_| std::io::ErrorKind::BrokenPipe.into()))
+                        .map_err(BridgeError::Io)
+                        //.filter_map(handle_message)
+                        .and_then(move |msg| handle_message_async(msg, &tree))
+                        .filter(drop_nop)
+                        .select(receiver.map_err(|_| BridgeError::SenderDropped))
+                        .map_err(|err| {
+                            std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", err))
+                        })
                         .fold(sink, |sink, msg| {
                             println!("Sending: {:?}", msg);
                             sink.send(msg)
@@ -109,14 +121,44 @@ pub fn start() -> Bridge {
     bridge_ret
 }
 
-fn handle_message(msg_in: MsgIn) -> Option<MsgOut> {
-    Some(match msg_in {
-        //MsgIn::PlayerConnected(cr_id) => MsgOut::UpdateClientAvatar(cr_id, 777),
-        MsgIn::PlayerAuth(cr_id) => MsgOut::SendKeyToPlayer(cr_id, [77, 77, 77]),
-        _ => {
-            return None;
+fn handle_message_async(
+    msg_in: MsgIn,
+    tree: &TreeRoot,
+) -> impl Future<Item = MsgOut, Error = BridgeError> {
+    match msg_in {
+        MsgIn::PlayerAuth(cr_id) => {
+            let tree = tree.clone();
+            let fut = web::block(move || {
+                let default: [u8; 12] = rand::random();
+                let authkey = CharTrunk::new(cr_id, None)
+                    .get_bare_branch_or_default(&tree, "authkey", &default[..], |val| {
+                        val.len() == 12
+                    })
+                    .map_err(BridgeError::Versioned)?;
+                let authkey = match authkey {
+                    Ok(authkey) => {
+                        let slice = authkey.as_ref();
+                        let bytes: [u8; 12] = slice.try_into().map_err(|_| BridgeError::TryInto)?;
+                        bytes
+                    }
+                    Err(()) => default,
+                };
+                let authkey: [u32; 3] = unsafe { std::mem::transmute(authkey) };
+                Ok(authkey)
+            })
+            .from_err()
+            .map(move |authkey| MsgOut::SendKeyToPlayer(cr_id, authkey));
+            Either::A(fut)
         }
-    })
+        _ => Either::B(future::ok(MsgOut::Nop)),
+    }
+}
+
+fn drop_nop(msg_out: &MsgOut) -> bool {
+    match msg_out {
+        MsgOut::Nop => false,
+        _ => true,
+    }
 }
 
 /*
@@ -154,5 +196,23 @@ impl Encoder for WebSide {
         let buf: [u8; LEN] = unsafe { std::mem::transmute(item) };
         dst.extend_from_slice(&buf);
         Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub enum BridgeError {
+    Versioned(VersionedError),
+    Io(std::io::Error),
+    Blocking,
+    TryInto,
+    SenderDropped,
+}
+
+impl From<BlockingError<BridgeError>> for BridgeError {
+    fn from(err: BlockingError<BridgeError>) -> Self {
+        match err {
+            BlockingError::Error(err) => err,
+            BlockingError::Canceled => BridgeError::Blocking,
+        }
     }
 }

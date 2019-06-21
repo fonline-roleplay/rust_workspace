@@ -1,4 +1,4 @@
-use crate::engine_types::stl::{};
+
 
 pub type asDWORD = ::std::os::raw::c_ulong;
 pub type asBYTE = ::std::os::raw::c_uchar;
@@ -28,17 +28,18 @@ impl ScriptArray {
             slice
         }
     }
-    pub fn cast<T: 'static+Copy+Sync>(&self) -> Option<&[T]> {
+    pub fn cast<T: 'static + Copy + Sync>(&self) -> Option<&[T]> {
         let buf = unsafe { &*self.buffer };
         let data = buf.data.as_ptr();
 
         let size = ::std::mem::size_of::<T>();
         let align = ::std::mem::align_of::<T>();
 
-        if size != self.elementSize as usize || (data as usize)%align != 0 {
+        if size != self.elementSize as usize || (data as usize) % align != 0 {
             return None;
         }
-        let array: &[T] = unsafe{ std::slice::from_raw_parts(data as *const T, buf.numElements as usize) };
+        let array: &[T] =
+            unsafe { std::slice::from_raw_parts(data as *const T, buf.numElements as usize) };
         Some(array)
     }
 }

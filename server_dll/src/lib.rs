@@ -1,8 +1,8 @@
 #![cfg(windows)]
 
+mod bridge;
 mod engine_functions;
 mod hooks;
-mod bridge;
 mod param;
 
 use tnf_common::dll_main;

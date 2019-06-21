@@ -1,10 +1,6 @@
 #![cfg(windows)]
 
-use tnf_common::{
-    engine_types::{
-        ScriptString, ScriptArray,
-    }
-};
+use tnf_common::engine_types::{ScriptArray, ScriptString};
 
 //#[cfg(debug_assertions)]
 tnf_common::dll_main!({});
@@ -25,7 +21,10 @@ pub extern "C" fn open_link(link: &ScriptString) {
 
 fn send_avatars(avatars: Vec<u8>) -> std::io::Result<()> {
     use std::io::Write;
-    let mut stream = std::net::TcpStream::connect_timeout(&"127.0.0.1:33741".parse().unwrap(), std::time::Duration::from_micros(50))?;
+    let mut stream = std::net::TcpStream::connect_timeout(
+        &"127.0.0.1:33741".parse().unwrap(),
+        std::time::Duration::from_micros(50),
+    )?;
     stream.write_all(&avatars[..])
 }
 
@@ -34,10 +33,10 @@ pub extern "C" fn update_avatars(array: &ScriptArray) {
     //let points: Option<&[i32]> = array.cast();
     let buffer = array.buffer();
     //if let Some(points) = points {
-        //let vec = points.to_owned();
-        let vec = buffer.to_owned();
-        std::thread::spawn(move || {
-            send_avatars(vec);
-        });
+    //let vec = points.to_owned();
+    let vec = buffer.to_owned();
+    std::thread::spawn(move || {
+        send_avatars(vec);
+    });
     //}
 }

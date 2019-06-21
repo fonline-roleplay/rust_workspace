@@ -2,7 +2,7 @@ use tnf_common::{
     defines::param::{CritterParamMut, Param},
     engine_types::{
         critter::Critter,
-        game_options::{game_state, critter_change_param},
+        game_options::{critter_change_param, game_state},
     },
 };
 

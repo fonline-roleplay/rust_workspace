@@ -1,9 +1,9 @@
 //use crate::webserver;
-use lazy_static::lazy_static;
-use tnf_common::engine_types::critter::Critter;
-use std::io::Write;
-use tnf_common::engine_types::{ScriptString, ScriptArray};
 use crate::bridge;
+use lazy_static::lazy_static;
+use std::io::Write;
+use tnf_common::engine_types::critter::Critter;
+use tnf_common::engine_types::{ScriptArray, ScriptString};
 
 //lazy_static! {
 //    static ref WEBSERVER: webserver::Mailbox = { webserver::run() };
@@ -19,23 +19,32 @@ pub extern "C" fn main_loop() {
     //bridge::init();
     let messages = bridge::receive();
     for message in messages {
-        use bridge::MsgIn;
         use crate::{
             engine_functions::{get_critter, run_client_script},
             param::change_uparam,
         };
+        use bridge::MsgIn;
         use tnf_common::defines::param::Param;
         match message {
-            MsgIn::UpdateClientAvatar(cr_id, key) => {
-                if let Some(cr) = get_critter(cr_id) {
-                    if !change_uparam(cr, Param::QST_AVATAR, key) {
+            MsgIn::UpdateCharLeaf { id, ver, secret } => {
+                if let Some(cr) = get_critter(id) {
+                    if !change_uparam(cr, Param::QST_CHAR_VER, ver) {
+                        eprintln!("Can't notify about parameter change!");
+                    }
+                    if !change_uparam(cr, Param::QST_CHAR_SECRET, secret) {
                         eprintln!("Can't notify about parameter change!");
                     }
                 }
-            },
+            }
             MsgIn::SendKeyToPlayer(cr_id, key) => {
                 if let Some(cr) = get_critter(cr_id) {
-                    run_client_script(cr, "link@OpenWithKey", key[0] as i32, key[1] as i32, key[2] as i32);
+                    run_client_script(
+                        cr,
+                        "link@OpenWithKey",
+                        key[0] as i32,
+                        key[1] as i32,
+                        key[2] as i32,
+                    );
                 }
             }
         }
@@ -78,4 +87,3 @@ pub extern "C" fn rust_check_critter(critter_id: u32) -> u32 {
 }
 */
 //# pragma bindfunc "uint CheckCritter(uint) -> rust_dll/server.dll rust_check_critter"
-

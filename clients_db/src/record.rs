@@ -1,13 +1,13 @@
 use std::{
-    io,
-    sync::Arc,
     ffi::{OsStr, OsString},
-    time::SystemTime,
+    io,
     path::PathBuf,
+    sync::Arc,
+    time::SystemTime,
 };
 
+use crate::{not_found, CritterInfo, InnerCritter};
 use fo_save_format::ClientSaveData;
-use crate::{CritterInfo, InnerCritter, not_found};
 
 #[derive(Debug)]
 pub struct ClientRecord {

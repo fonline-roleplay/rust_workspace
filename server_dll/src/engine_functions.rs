@@ -1,12 +1,19 @@
-use tnf_common::engine_types::critter::Critter;
 use std::io::Write;
-use tnf_common::engine_types::{ScriptString, ScriptArray};
-
+use tnf_common::engine_types::critter::Critter;
+use tnf_common::engine_types::{ScriptArray, ScriptString};
 
 const PTR_OFFSET: usize = 0x00400000;
 
 const CL_RUN_CLIENT_SCRIPT: &[u8] = b"?Cl_RunClientScript@SScriptFunc@FOServer@@SAXPAVCritter@@AAVScriptString@@HHHPAV4@PAVScriptArray@@@Z";
-type FnRunClientScript = unsafe extern "C" fn(&Critter, &ScriptString, i32, i32, i32, *const ScriptString, *const ScriptArray);
+type FnRunClientScript = unsafe extern "C" fn(
+    &Critter,
+    &ScriptString,
+    i32,
+    i32,
+    i32,
+    *const ScriptString,
+    *const ScriptArray,
+);
 
 const GLOBAL_GET_CRITTER: &[u8] = b"?Global_GetCritter@SScriptFunc@FOServer@@SAPAVCritter@@I@Z";
 type FnGetCritter = unsafe extern "C" fn(u32) -> *mut Critter;
@@ -15,7 +22,6 @@ struct FuncPointers {
     get_critter: FnGetCritter,
     run_client_script: FnRunClientScript,
 }
-
 
 static mut FUNC_POINTERS: Option<FuncPointers> = None;
 static mut COMPAT_POINTERS: Option<ASCompat> = None;
@@ -34,19 +40,23 @@ pub struct ScriptStringBox {
 impl ScriptStringBox {
     fn new(str: &str) -> Self {
         let inner = unsafe {
-            let func = COMPAT_POINTERS.as_ref().expect("Compat pointers").new_script_string;
+            let func = COMPAT_POINTERS
+                .as_ref()
+                .expect("Compat pointers")
+                .new_script_string;
             func(str.as_ptr(), str.len())
         };
-        ScriptStringBox{
-            inner
-        }
+        ScriptStringBox { inner }
     }
 }
 
 impl Drop for ScriptStringBox {
     fn drop(&mut self) {
         unsafe {
-            let func = COMPAT_POINTERS.as_ref().expect("Compat pointers").release_script_string;
+            let func = COMPAT_POINTERS
+                .as_ref()
+                .expect("Compat pointers")
+                .release_script_string;
             func(self.inner);
         }
     }
@@ -54,13 +64,17 @@ impl Drop for ScriptStringBox {
 
 impl AsRef<ScriptString> for ScriptStringBox {
     fn as_ref(&self) -> &ScriptString {
-        unsafe{ std::mem::transmute(self.inner) }
+        unsafe { std::mem::transmute(self.inner) }
     }
 }
 
 pub fn init(compat: usize) {
     unsafe {
-        FUNC_POINTERS = Some(load_func_pointers().expect("pdb error").expect("Can't load all function pointers"));
+        FUNC_POINTERS = Some(
+            load_func_pointers()
+                .expect("pdb error")
+                .expect("Can't load all function pointers"),
+        );
 
         let ptr = compat as *const () as *const ASCompat;
         COMPAT_POINTERS = Some((&*ptr).clone());
@@ -71,12 +85,16 @@ pub fn get_critter<'a>(id: u32) -> Option<&'a mut Critter> {
     unsafe { std::mem::transmute((FUNC_POINTERS.as_ref().expect("Func pointers").get_critter)(id)) }
 }
 
-pub fn run_client_script<'a>(cr: &mut Critter, func: &str, p0: i32, p1: i32, p2: i32)  {
+pub fn run_client_script<'a>(cr: &mut Critter, func: &str, p0: i32, p1: i32, p2: i32) {
     use std::ptr::null;
     let string = ScriptStringBox::new(func);
-    unsafe { (FUNC_POINTERS.as_ref().expect("Func pointers").run_client_script)(cr, string.as_ref(), p0, p1, p2, null(), null()) }
+    unsafe {
+        (FUNC_POINTERS
+            .as_ref()
+            .expect("Func pointers")
+            .run_client_script)(cr, string.as_ref(), p0, p1, p2, null(), null())
+    }
 }
-
 
 /*
 #[derive(Debug)]
@@ -108,15 +126,16 @@ fn load_func_pointers() -> pdb::Result<Option<FuncPointers>> {
             }
         };
     }
-    Ok(Some(transmute_fn!{
+    Ok(Some(transmute_fn! {
         get_critter: GLOBAL_GET_CRITTER,
         run_client_script: CL_RUN_CLIENT_SCRIPT
     }))
 }
 
-fn get_ptr(symbol_table: &pdb::SymbolTable,
-           address_map: &pdb::AddressMap,
-           func_name: &[u8]
+fn get_ptr(
+    symbol_table: &pdb::SymbolTable,
+    address_map: &pdb::AddressMap,
+    func_name: &[u8],
 ) -> pdb::Result<Option<u32>> {
     let mut symbols = symbol_table.iter();
     use pdb::FallibleIterator;

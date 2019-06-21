@@ -1,12 +1,13 @@
 use std::{
+    collections::{btree_map::Entry, BTreeMap},
     io,
-    collections::{BTreeMap, btree_map::Entry},
-    sync::Arc,
     path::PathBuf,
+    sync::Arc,
 };
 
 use crate::{
-    ClientRecord, fix_encoding::{os_str_debug, decode_filename}, InnerCritter, not_found,
+    fix_encoding::{decode_filename, os_str_debug},
+    not_found, ClientRecord, InnerCritter,
 };
 
 #[derive(Default, Debug)]
@@ -30,18 +31,25 @@ impl ClientsDb {
             ..Default::default()
         };
         db.update_clients(&path, true).expect("Can't load clients");
-        db.clients.iter().map(|(name, record)| {
-            (record.info.as_ref().expect("client info").id, name.clone())
-        }).collect()
+        db.clients
+            .iter()
+            .map(|(name, record)| (record.info.as_ref().expect("client info").id, name.clone()))
+            .collect()
     }
     pub fn list_ids(path: PathBuf) -> BTreeMap<u32, PathBuf> {
         let mut db = ClientsDb {
             ..Default::default()
         };
         db.update_clients(&path, true).expect("Can't load clients");
-        db.clients.values().map(|record| {
-            (record.info.as_ref().expect("client info").id, record.file_path(path.clone()))
-        }).collect()
+        db.clients
+            .values()
+            .map(|record| {
+                (
+                    record.info.as_ref().expect("client info").id,
+                    record.file_path(path.clone()),
+                )
+            })
+            .collect()
     }
     pub fn fix_clients(path: PathBuf, dry_ran: bool) {
         let mut db = ClientsDb {
@@ -90,22 +98,22 @@ impl ClientsDb {
                     })
                 })
             })
-            {
-                match clients.entry(key) {
-                    Entry::Vacant(entry) => {
-                        entry.insert(value);
-                    }
-                    Entry::Occupied(entry) => {
-                        let (old_key, old_value) = entry.remove_entry();
-                        eprintln!(
-                            "Two clients with the same name {:?}, ignoring both: {:?} == {:?}",
-                            old_key,
-                            os_str_debug(&value.filename),
-                            os_str_debug(&old_value.filename),
-                        );
-                    }
-                };
-            }
+        {
+            match clients.entry(key) {
+                Entry::Vacant(entry) => {
+                    entry.insert(value);
+                }
+                Entry::Occupied(entry) => {
+                    let (old_key, old_value) = entry.remove_entry();
+                    eprintln!(
+                        "Two clients with the same name {:?}, ignoring both: {:?} == {:?}",
+                        old_key,
+                        os_str_debug(&value.filename),
+                        os_str_debug(&old_value.filename),
+                    );
+                }
+            };
+        }
         self.clients = clients;
         Ok(())
     }

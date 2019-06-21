@@ -20,13 +20,13 @@ pub mod game_options;
 
 #[cfg(feature = "server")]
 pub mod mutual {
-/*
-    #[no_mangle]
-    #[allow(non_snake_case)]
-    pub extern "C" fn SERVER() {
-        // FOnline needs this to check if this is correct dll for server
-    }
-*/
+    /*
+        #[no_mangle]
+        #[allow(non_snake_case)]
+        pub extern "C" fn SERVER() {
+            // FOnline needs this to check if this is correct dll for server
+        }
+    */
     pub type CritterMutual = crate::engine_types::critter::Critter;
 }
 

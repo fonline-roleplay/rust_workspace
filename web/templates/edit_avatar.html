@@ -8,6 +8,9 @@
     let PRE_SMOOTH = false;
     let POST_SMOOTH = false;
 
+    const CHAR_ID = {{char_id}};
+    const EDIT_AVATAR_URL = "/char/{{char_id}}/edit/avatar";
+
     let canvas = null;
     let canvas_small = null;
     let canvas_big = null;
@@ -264,7 +267,7 @@
         //form_data.append("nickname", "Foooobar");
         //form_data.append("avatar", data);
         var xhr = new XMLHttpRequest();
-        xhr.open("POST", "/char/upload");
+        xhr.open("POST", EDIT_AVATAR_URL);
         //xhr.send(form_data);
         xhr.send(data);
         console.log("sended");

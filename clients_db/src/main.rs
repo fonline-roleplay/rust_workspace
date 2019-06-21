@@ -1,7 +1,7 @@
 use clients_db::ClientsDb;
 
-use itertools::Itertools;
 use itertools::EitherOrBoth;
+use itertools::Itertools;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 

@@ -1,6 +1,5 @@
 use std::io::Write;
-use tnf_common::engine_types::critter::Critter;
-use tnf_common::engine_types::{ScriptArray, ScriptString};
+use tnf_common::engine_types::{critter::Critter, stl::IntVec, ScriptArray, ScriptString};
 
 const PTR_OFFSET: usize = 0x00400000;
 
@@ -29,8 +28,19 @@ static mut COMPAT_POINTERS: Option<ASCompat> = None;
 #[repr(C)]
 #[derive(Clone)]
 struct ASCompat {
-    new_script_string: fn(*const u8, usize) -> *mut ScriptString,
-    release_script_string: fn(*mut ScriptString),
+    new_script_string: unsafe fn(*const u8, usize) -> *mut ScriptString,
+    release_script_string: unsafe fn(*mut ScriptString),
+    int_vec_push_back: unsafe fn(*mut IntVec, i32),
+}
+
+pub fn inv_vec_push_box(vec: &mut IntVec, val: i32) {
+    unsafe {
+        let func = COMPAT_POINTERS
+            .as_ref()
+            .expect("Compat pointers")
+            .int_vec_push_back;
+        func(vec as *mut IntVec, val);
+    }
 }
 
 pub struct ScriptStringBox {

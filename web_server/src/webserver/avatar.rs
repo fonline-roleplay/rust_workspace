@@ -31,6 +31,41 @@ pub struct Auth {
     auth: Option<String>,
 }
 
+// ===== Check auth =====
+
+fn parse_auth(auth: &Auth) -> Option<(ArrayVec<[u8; AUTH_LEN]>, String)> {
+    let str: &str = auth.auth.as_ref()?.as_str();
+    if str.len() != AUTH_HEX_LEN {
+        return None;
+    }
+    let auth_string = str.to_uppercase();
+    dbg!(&auth_string);
+    let mut arr = ArrayVec::<[u8; AUTH_LEN]>::new();
+    let mut cur = auth_string.as_str();
+    while !cur.is_empty() {
+        let (chunk, rest) = cur.split_at(std::cmp::min(2, cur.len()));
+        let res = u8::from_str_radix(chunk, 16).ok()?;
+        arr.push(res);
+        cur = rest;
+    }
+    if !arr.is_full() {
+        return None;
+    }
+    Some((arr, auth_string))
+}
+
+pub fn check_auth(root: &TreeRoot, char_id: u32, auth: &[u8]) -> Result<(), AvatarUploadError> {
+    let authkey = CharTrunk::new(char_id, None)
+        .get_bare_branch(root, "authkey")
+        .map_err(AvatarUploadError::SledVersioned)?;
+    println!("stored:   {:?}", authkey.as_ref());
+    println!("received: {:?}", auth);
+    if authkey.as_ref() != auth {
+        return Err(AvatarUploadError::AccessDenied);
+    }
+    Ok(())
+}
+
 // ===== Avatar editor =====
 
 #[derive(Debug, Serialize)]
@@ -39,45 +74,23 @@ struct AvatarEditor {
     auth: String,
 }
 
-fn parse_auth(auth: &str) -> Option<ArrayVec<[u8; AUTH_LEN]>> {
-    if auth.len() != AUTH_HEX_LEN {
-        return None;
-    }
-    let mut first = true;
-    let res: Result<ArrayVec<[u8; AUTH_LEN]>, _> = auth
-        .split(|_| {
-            first = !first;
-            first
-        })
-        .map(|chunk| u8::from_str_radix(chunk, 16))
-        .collect();
-    res.ok().filter(|arr| arr.is_full())
-}
-
 pub fn edit(
     path: web::Path<u32>,
     query: web::Query<Auth>,
     data: web::Data<super::AppState>,
 ) -> impl Future<Item = HttpResponse, Error = actix_web::Error> {
     let char_id = *path;
-    let auth = query.auth.as_ref().map(String::as_str).and_then(parse_auth);
 
-    let auth = match auth {
+    let (auth, auth_string) = match parse_auth(&*query) {
         None => return Either::A(fut_ok(HttpResponse::Forbidden().finish())),
         Some(auth) => auth,
     };
 
     let root = data.sled_db.root.clone();
-    let auth_string = query.auth.clone().unwrap_or_default();
 
     Either::B(
         web::block(move || {
-            let authkey = CharTrunk::new(char_id, None)
-                .get_bare_branch(&root, "authkey")
-                .map_err(AvatarUploadError::SledVersioned)?;
-            if authkey.as_ref() != auth.as_slice() {
-                return Err(AvatarUploadError::AccessDenied);
-            }
+            check_auth(&root, char_id, auth.as_slice())?;
             templates::render(
                 "edit_avatar.html",
                 &AvatarEditor {
@@ -99,47 +112,19 @@ pub fn edit(
     )
 }
 
-// ===== Show avatar =====
-
-pub fn show(
-    path: web::Path<u32>,
-    query: web::Query<VersionSecret>,
-    data: web::Data<super::AppState>,
-) -> impl Future<Item = HttpResponse, Error = actix_web::Error> {
-    let VersionSecret { ver, secret } = *query;
-
-    if secret.is_none() {
-        return Either::A(fut_ok(HttpResponse::Forbidden().finish()));
-    }
-
-    let root = data.sled_db.root.clone();
-    Either::B(
-        web::block(move || {
-            let instant = std::time::Instant::now();
-            let leaf = CharTrunk::new(*path, ver).get_image(&root, secret)?;
-            println!("Getting image, completed in {:?}", instant.elapsed());
-            Ok(leaf)
-        })
-        .from_err()
-        .then(|res| match res {
-            Ok(image) => HttpResponse::Ok()
-                .header("Q-ver", image.ver.to_string())
-                .content_type("image/png")
-                .body(image.data),
-            Err(VersionedError::NotFound) => HttpResponse::NotFound().finish(),
-            Err(err) => HttpResponse::InternalServerError().body(format!("Error: {:?}", err)),
-        }),
-    )
-}
-
 // ===== Upload avatar =====
 
 pub fn upload(
     path: web::Path<u32>,
-    _req: HttpRequest,
-    payload: web::Bytes,
+    query: web::Query<Auth>,
     data: web::Data<super::AppState>,
+    payload: web::Bytes,
 ) -> impl Future<Item = HttpResponse, Error = AvatarUploadError> {
+    let (auth, auth_string) = match parse_auth(&*query) {
+        None => return Either::A(fut_ok(HttpResponse::Forbidden().finish())),
+        Some(auth) => auth,
+    };
+
     const MIN_LEN: usize = 16;
     const MAX_LEN: usize = 128 * 1024;
 
@@ -160,6 +145,7 @@ pub fn upload(
     let sender = data.bridge.get_sender();
     Either::B(
         web::block(move || {
+            check_auth(&root, char_id, auth.as_slice())?;
             let data = &payload[PREFIX_LEN..];
             save_image(&root, char_id, data)
         })
@@ -179,15 +165,25 @@ fn save_image(tree: &TreeRoot, char_id: u32, data: &[u8]) -> Result<Leaf<()>, Av
     let image = image::load_from_memory_with_format(&decoded, image::PNG)
         .map_err(AvatarUploadError::ImageLoad)?;
     println!("Loaded in {:?}", instant2.elapsed());
+    use image::DynamicImage;
+    /*match &image {
+        DynamicImage::ImageRgb8(_) => {println!("DynamicImage::ImageRgb8")},
+        DynamicImage::ImageRgba8(_) => {println!("DynamicImage::ImageRgba8")},
+        DynamicImage::ImageBgr8(_) => {println!("DynamicImage::ImageBgr8")},
+        DynamicImage::ImageBgra8(_) => {println!("DynamicImage::ImageBgra8")},
+        _ => {println!("DynamicImage::...")},
+    };*/
     let instant2 = std::time::Instant::now();
     use image::GenericImageView;
     //println!("Width: {}, Height: {}", image.width(), image.height());
     if image.width() != IMAGE_SIZE || image.height() != IMAGE_SIZE {
         return Err(AvatarUploadError::ImageSize(image.width(), image.height()));
     }
+    let new_image = image::ImageRgb8(image.to_rgb());
+
     let mut buffer = decoded;
     buffer.clear();
-    image
+    new_image
         .write_to(&mut buffer, image::PNG)
         .map_err(AvatarUploadError::ImageWrite)?;
     println!("Writed in {:?}", instant2.elapsed());
@@ -221,6 +217,40 @@ fn update_char_leaf(
             .map_err(|_| AvatarUploadError::FuturesSyncSend),
         _ => Ok(()),
     }
+}
+
+// ===== Show avatar =====
+
+pub fn show(
+    path: web::Path<u32>,
+    query: web::Query<VersionSecret>,
+    data: web::Data<super::AppState>,
+) -> impl Future<Item = HttpResponse, Error = actix_web::Error> {
+    let VersionSecret { ver, secret } = *query;
+
+    if secret.is_none() {
+        return Either::A(fut_ok(HttpResponse::Forbidden().finish()));
+    }
+
+    let root = data.sled_db.root.clone();
+    Either::B(
+        web::block(move || {
+            let instant = std::time::Instant::now();
+            let leaf = CharTrunk::new(*path, ver).get_image(&root, secret)?;
+            println!("Getting image, completed in {:?}", instant.elapsed());
+            Ok(leaf)
+        })
+        .from_err()
+        .then(|res| match res {
+            Ok(image) => HttpResponse::Ok()
+                .header("q-ver", image.ver as u64)
+                .header("q-length", image.data.len())
+                .content_type("image/png")
+                .body(image.data),
+            Err(VersionedError::NotFound) => HttpResponse::NotFound().finish(),
+            Err(err) => HttpResponse::InternalServerError().body(format!("Error: {:?}", err)),
+        }),
+    )
 }
 
 // ===== AvatarUploadError =====

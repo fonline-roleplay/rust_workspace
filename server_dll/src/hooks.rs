@@ -21,17 +21,18 @@ pub extern "C" fn main_loop() {
     for message in messages {
         use crate::{
             engine_functions::{get_critter, run_client_script},
-            param::change_uparam,
+            param::change_uparams,
         };
         use bridge::MsgIn;
         use tnf_common::defines::param::Param;
+        println!("{:?}", message);
         match message {
             MsgIn::UpdateCharLeaf { id, ver, secret } => {
                 if let Some(cr) = get_critter(id) {
-                    if !change_uparam(cr, Param::QST_CHAR_VER, ver) {
-                        eprintln!("Can't notify about parameter change!");
-                    }
-                    if !change_uparam(cr, Param::QST_CHAR_SECRET, secret) {
+                    if !change_uparams(
+                        cr,
+                        &[(Param::QST_CHAR_VER, ver), (Param::QST_CHAR_SECRET, secret)],
+                    ) {
                         eprintln!("Can't notify about parameter change!");
                     }
                 }
@@ -46,6 +47,9 @@ pub extern "C" fn main_loop() {
                         key[2] as i32,
                     );
                 }
+            }
+            MsgIn::Nop => {
+                eprintln!("Msg::In received, probably bug");
             }
         }
     }

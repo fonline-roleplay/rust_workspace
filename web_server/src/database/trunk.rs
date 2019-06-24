@@ -104,7 +104,10 @@ impl<T> Trunk<T> {
     }
 
     pub fn set_image(&self, tree: &TreeRoot, data: Vec<u8>) -> Result<Leaf<()>, VersionedError> {
-        let secret: u32 = rand::random();
+        let mut secret = 0u32;
+        while secret == 0 {
+            secret = rand::random();
+        }
         let secret_data = secret.to_be_bytes().to_vec();
 
         let ver = new_leaf(

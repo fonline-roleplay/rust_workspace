@@ -1,0 +1,20 @@
+[package]
+name = "overlay_sdl2"
+version = "0.1.0"
+authors = ["qthree <qthree3@gmail.com>"]
+edition = "2018"
+
+[features]
+default = []
+static-link = ["sdl2/static-link"]
+
+[dependencies]
+#orbtk = { path = "../orbtk" }
+#orbclient = "0.3.22"
+#sdl2 = { path = "../rust-sdl2", features = ["bundled", "use-bindgen"] }
+sdl2 = { version = "0.32" , features = ["bundled", "use-bindgen"] }
+winapi = { version = "0.3.7", features = ["winuser"] }
+crossbeam = "0.7.1"
+reqwest = "0.9.18"
+image = { version = "0.21.2", default-features = false, features = ["png_codec"] }
+tnf_common = { path = "../common", features = ["bridge"] }

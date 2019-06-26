@@ -79,10 +79,15 @@ fn get_winapi_handle(window: &Window) -> (winapi::shared::windef::HWND, winapi::
     }
 }
 
-pub fn update_visibility(game_window: &GameWindow, window: &mut Window) {
+pub fn update_visibility(game_window: &GameWindow, window: &mut Window, hide: bool) {
     use winapi::{
         um::winuser,
     };
+
+    if hide {
+        window.hide();
+        return;
+    }
 
     let game_window = game_window.raw();
     let handle = get_winapi_handle(window).0;
@@ -109,9 +114,10 @@ pub use game_window::GameWindow;
 use sdl2::pixels::PixelFormat;
 
 fn main() {
+    let url = std::env::args().nth(1).expect("Pass web server address as argument."); //.unwrap_or("localhost:8000".into());
     let gui_thread = std::thread::spawn(|| {
         if let Some(game_window) = GameWindow::find() {
-            start(game_window);
+            start(game_window, url);
         }
     });
     gui_thread.join().expect("graceful exit");
@@ -122,6 +128,7 @@ struct Game {
     avatars: Vec<Avatar>,
     //images: BTreeMap<Char, AvatarImage>,
     frame: u64,
+    overlay_hide: bool,
 }
 
 impl Game {
@@ -131,6 +138,7 @@ impl Game {
             avatars: vec![],
             //images: BTreeMap::new(),
             frame: 0,
+            overlay_hide: false,
         }
     }
     fn update(&mut self) {
@@ -153,9 +161,9 @@ enum AvatarImage<'a> {
     Error(downloader::DownloaderError),
 }
 
-fn start(game_window: GameWindow) {
+fn start(game_window: GameWindow, url: String) {
     let mut bridge = bridge::start();
-    let requester = downloader::start();
+    let requester = downloader::start(url);
     game_window.to_foreground();
     let mut game = Game::new(game_window.rect().expect("game window rect"));
 
@@ -186,7 +194,7 @@ fn start(game_window: GameWindow) {
                 println!("Window closed");
                 break 'running;
             }
-            update_visibility(&game_window, canvas.window_mut());
+            update_visibility(&game_window, canvas.window_mut(), game.overlay_hide);
         }
 
         for event in event_pump.poll_iter() {
@@ -214,11 +222,18 @@ fn start(game_window: GameWindow) {
                 match msg {
                     MsgIn::UpdateAvatars(avatars) => {
                         new_avatars = Some(avatars);
+                    },
+                    MsgIn::OverlayHide(hide) => {
+                        game.overlay_hide = hide;
                     }
                 }
             }
         } else {
             new_avatars = Some(Vec::new());
+        }
+
+        if game.overlay_hide {
+            new_avatars = None;
         }
 
         if let Some(new_avatars) = new_avatars {

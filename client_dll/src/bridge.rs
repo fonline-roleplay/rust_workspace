@@ -29,12 +29,18 @@ fn is_overlay_running() -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn connect_to_overlay(url: &ScriptString) {
+pub extern "C" fn connect_to_overlay(url: &ScriptString, web: &ScriptString) {
     if !is_overlay_running() {
+        let web_url = web.string();
         println!("Spawn new overlay process");
         use std::os::windows::process::CommandExt;
         use winapi::um::winbase;
-        let res = std::process::Command::new("FOnlineOverlay")
+        use std::path::PathBuf;
+        let mut path = PathBuf::new();
+        path.push("overlay");
+        path.push("FOnlineOverlay");
+        let res = std::process::Command::new(&path)
+            .arg(web_url)
             .creation_flags(winbase::CREATE_NEW_PROCESS_GROUP | winbase::CREATE_NO_WINDOW)
             .spawn();
         println!("Spawn overlay: {:?}", res);
@@ -45,6 +51,13 @@ pub extern "C" fn connect_to_overlay(url: &ScriptString) {
     let url = url.string();
     let addr: SocketAddr = url.parse().expect("malformed socket address");
     BRIDGE.connect(addr, HANDSHAKE, VERSION);
+}
+
+#[no_mangle]
+pub extern "C" fn hide_overlay(hide: bool) {
+    let _res = BRIDGE.with_online(|bridge| {
+        bridge.send(MsgOut::OverlayHide(hide))
+    });
 }
 /*
 #[no_mangle]

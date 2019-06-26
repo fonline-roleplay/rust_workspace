@@ -79,11 +79,10 @@ impl Bridge {
         )?;
         //stream.set_read_timeout(Some(Duration::from_millis(500)));
         //stream.set_write_timeout(Some(Duration::from_millis(500)));
-        let reader = stream;
-        let writer = reader.try_clone()?;
+        let mut reader = stream;
+        let mut writer = reader.try_clone()?;
 
         let read_thread = thread::spawn(move || -> std::io::Result<_> {
-            let mut reader = &*reader;
             loop {
                 let mut buf = [0u8; std::mem::size_of::<MsgIn>()];
                 //assert_eq!(std::mem::align_of_val(&buf), std::mem::align_of::<MsgIn>());
@@ -95,7 +94,6 @@ impl Bridge {
             }
         });
         let write_res = (|| -> std::io::Result<_> {
-            let mut writer = &*writer;
             loop {
                 match receiver.recv() {
                     Ok(msg) => {

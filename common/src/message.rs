@@ -36,6 +36,7 @@ pub mod client_dll_overlay {
     #[derive(Debug, Clone, Deserialize, Serialize)]
     pub enum ClientDllToOverlay {
         UpdateAvatars(Vec<Avatar>),
+        OverlayHide(bool),
     }
 
     #[repr(C)]

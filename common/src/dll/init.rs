@@ -9,7 +9,7 @@
 use winapi::um::consoleapi;
 
 #[macro_export(local_inner_macros)]
-macro_rules! dll_main(($callback:expr) => { mod dll {
+macro_rules! dll_main(($callback_attach:expr, $callback_detach:expr) => { mod dll {
     use super::*;
     use winapi::{
         shared::{
@@ -30,10 +30,12 @@ macro_rules! dll_main(($callback:expr) => { mod dll {
 
         match call_reason {
             DLL_PROCESS_ATTACH => {
-                tnf_common::console_init();
-                let _ = {$callback};
+                //tnf_common::console_init();
+                let _ = {$callback_attach};
             },
-            DLL_PROCESS_DETACH => (),
+            DLL_PROCESS_DETACH => {
+                let _ = {$callback_detach};
+            },
             _ => (),
         }
         minwindef::TRUE

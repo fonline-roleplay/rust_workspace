@@ -1,17 +1,20 @@
 pub mod defines;
-#[cfg(windows)]
+#[cfg(all(windows, feature = "dll"))]
 pub mod engine_types;
 #[allow(non_camel_case_types)]
 pub mod primitives;
 
 pub mod message;
 
-#[cfg(windows)]
+#[cfg(feature = "bridge")]
+pub mod bridge;
+
+#[cfg(all(windows, feature = "dll"))]
 mod dll {
     pub mod init;
     mod param_getters;
 }
-#[cfg(windows)]
+#[cfg(all(windows, feature = "dll"))]
 pub use dll::init::console_init;
 
 #[no_mangle]

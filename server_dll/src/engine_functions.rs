@@ -161,12 +161,6 @@ fn get_ptr(
                     }
                 }
             }
-            //pdb::SymbolData::DataSymbol(data) => {
-            //    print_row(data.offset, "data", symbol.name()?);
-            //}
-            //pdb::SymbolData::Procedure(data) => {
-            //
-            //}
             _ => {
                 // ignore everything else
             }

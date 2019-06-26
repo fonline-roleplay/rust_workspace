@@ -7,8 +7,9 @@ publish = false
 
 [dependencies]
 winapi = { version = "0.3.6", features = ["consoleapi"] }
-tnf_common = { path = "../common", features = ["client"] }
+tnf_common = { path = "../common", features = ["client", "bridge"] }
 webbrowser = "0.5.1"
+#crossbeam = "0.7.1"
 
 [lib]
 crate-type = ["cdylib"]

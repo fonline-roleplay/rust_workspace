@@ -40,6 +40,34 @@ impl ScriptArray {
             unsafe { std::slice::from_raw_parts(data as *const T, buf.numElements as usize) };
         Some(array)
     }
+    pub fn cast_struct<T: 'static + Copy + Sync>(&self) -> Option<&[T]> {
+        let buf = self.buffer();
+        let ptr = buf.as_ptr();
+
+        let size = ::std::mem::size_of::<T>();
+        let align = ::std::mem::align_of::<T>();
+
+        if buf.len()%size != 0 || (ptr as usize) % align != 0 {
+            return None;
+        }
+        let array: &[T] =
+            unsafe { std::slice::from_raw_parts(ptr as *const T, buf.len()/size) };
+        Some(array)
+    }
+    pub unsafe fn cast_pointer<T>(&self) -> Option<&[Option<&mut T>]> {
+        let buf = unsafe { &*self.buffer };
+        let data = buf.data.as_ptr();
+
+        let size = ::std::mem::size_of::<*mut T>();
+        let align = ::std::mem::align_of::<*mut T>();
+
+        if size != self.elementSize as usize || (data as usize) % align != 0 {
+            return None;
+        }
+        let array: &[Option<&mut T>] =
+            std::slice::from_raw_parts(data as *const Option<&mut T>, buf.numElements as usize);
+        Some(array)
+    }
 }
 
 #[repr(C)]

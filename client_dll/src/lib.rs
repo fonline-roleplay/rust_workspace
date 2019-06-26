@@ -3,12 +3,23 @@
 use tnf_common::engine_types::{ScriptArray, ScriptString};
 
 //#[cfg(debug_assertions)]
-tnf_common::dll_main!({});
+tnf_common::dll_main!({},{
+    bridge::finish();
+});
+
+mod bridge;
+//mod engine_functions;
 
 #[no_mangle]
 #[allow(non_snake_case)]
 pub extern "C" fn CLIENT() {
     // FOnline needs this to check if this is correct dll for client
+}
+
+#[no_mangle]
+#[allow(non_snake_case)]
+pub extern "C" fn DllMainEx(is_compiler: bool) {
+
 }
 
 #[no_mangle]
@@ -45,26 +56,4 @@ pub extern "C" fn open_link_auth(link: &ScriptString, p0: i32, p1: i32, p2: i32)
     } else {
         println!("Invalid link: {:?}", link);
     }
-}
-
-fn send_avatars(avatars: Vec<u8>) -> std::io::Result<()> {
-    use std::io::Write;
-    let mut stream = std::net::TcpStream::connect_timeout(
-        &"127.0.0.1:33741".parse().unwrap(),
-        std::time::Duration::from_micros(50),
-    )?;
-    stream.write_all(&avatars[..])
-}
-
-#[no_mangle]
-pub extern "C" fn update_avatars(array: &ScriptArray) {
-    //let points: Option<&[i32]> = array.cast();
-    let buffer = array.buffer();
-    //if let Some(points) = points {
-    //let vec = points.to_owned();
-    let vec = buffer.to_owned();
-    std::thread::spawn(move || {
-        send_avatars(vec);
-    });
-    //}
 }

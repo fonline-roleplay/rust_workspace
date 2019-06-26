@@ -11,8 +11,10 @@ use std::{
 };
 use tnf_common::message;
 
-pub use message::ServerDllToWeb as MsgOut;
-pub use message::ServerWebToDll as MsgIn;
+pub use tnf_common::message::server_dll_web::{
+    ServerDllToWeb as MsgOut,
+    ServerWebToDll as MsgIn,
+};
 //pub type MsgIn = message::ServerWebToDll;
 //pub type MsgOut = message::ServerDllToWeb;
 
@@ -77,8 +79,8 @@ impl Bridge {
         )?;
         //stream.set_read_timeout(Some(Duration::from_millis(500)));
         //stream.set_write_timeout(Some(Duration::from_millis(500)));
-        let reader = Arc::new(stream);
-        let writer = Arc::clone(&reader);
+        let reader = stream;
+        let writer = reader.try_clone()?;
 
         let read_thread = thread::spawn(move || -> std::io::Result<_> {
             let mut reader = &*reader;

@@ -33,6 +33,79 @@ pub fn critter_change_param(state: &GameOptions, cr: &mut Critter, param: u32) -
     }
 }
 
+#[cfg(feature = "client")]
+pub fn get_drawind_sprites(state: &GameOptions) -> Option<&[Option<&Sprite>]> {
+    state.GetDrawingSprites.and_then(|f| {
+        let mut count = 0;
+        unsafe {
+            let ptr = f(&mut count) as *mut Option<&Sprite>;
+            if ptr as usize == 0 || count == 0 {
+                None
+            } else {
+                Some(std::slice::from_raw_parts(ptr, count as usize))
+            }
+        }
+    })
+}
+
+#[cfg(feature = "client")]
+pub fn get_sprite_info<'a>(state: &'a GameOptions, sprite: &Sprite) -> Option<&'a SpriteInfo> {
+    state.GetSpriteInfo.and_then(|f| {
+        unsafe {
+            let spr_id = if sprite.PSprId as usize != 0  {
+                *sprite.PSprId
+            } else {
+                sprite.SprId
+            };
+            let ptr = f(spr_id);
+            if ptr as usize != 0 {
+                Some(&*ptr)
+            } else {
+                None
+            }
+        }
+    })
+}
+
+#[cfg(feature = "client")]
+pub fn sprite_get_pos(state: &GameOptions, sprite: &Sprite, si: &SpriteInfo) -> (i32, i32) {
+    let offs_x = if sprite.OffsX as usize == 0 {0} else {unsafe{*sprite.OffsX}};
+    let offs_y = if sprite.OffsY as usize == 0 {0} else {unsafe{*sprite.OffsY}};
+    let x = ( ( sprite.ScrX - si.Width as i32 / 2 + si.OffsX as i32 + offs_x as i32 + state.ScrOx ) as f32 / state.SpritesZoom ) as i32;
+    let y = ( ( sprite.ScrY - si.Height as i32    + si.OffsY as i32 + offs_y as i32 + state.ScrOy ) as f32 / state.SpritesZoom ) as i32;
+    (x, y)
+}
+
+#[cfg(feature = "client")]
+pub fn sprite_get_top(state: &GameOptions, sprite: &Sprite, si: &SpriteInfo) -> (i32, i32) {
+    let offs_x = if sprite.OffsX as usize == 0 {0} else {unsafe{*sprite.OffsX}};
+    let offs_y = if sprite.OffsY as usize == 0 {0} else {unsafe{*sprite.OffsY}};
+    let x = ( ( sprite.ScrX + offs_x as i32 + state.ScrOx ) as f32 / state.SpritesZoom ) as i32;
+    let y = ( ( sprite.ScrY - si.Height as i32 + si.OffsY as i32 + offs_y as i32 + state.ScrOy ) as f32 / state.SpritesZoom ) as i32;
+    (x, y)
+}
+/*
+pub fn get_sprites_hex(state: &GameOptions, hex_x: i32, hex_y: i32) -> Option<impl Iterator<Item=&Sprite>> {
+    let all_sprites = get_drawind_sprites(state)?;
+    let sprites = all_sprites.iter()
+        .filter_map(|s| *s)
+        .filter(|s| s.HexX == hex_x && s.HexY == hex_y);
+    Some(sprites)
+}
+*/
+#[cfg(feature = "client")]
+pub fn get_sprites_dot(state: &GameOptions, dot: i32) -> Vec<&Sprite> {
+    if let Some(all_sprites) = get_drawind_sprites(state) {
+        all_sprites
+            .into_iter()
+            .filter_map(|s| *s)
+            .filter(|s| s.DrawOrderType == dot)
+            .collect()
+    } else {
+        Vec::new()
+    }
+}
+
 #[repr(C)]
 pub struct GameOptions {
     pub YearStart: uint16,

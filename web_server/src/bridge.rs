@@ -20,8 +20,10 @@ use tokio_tcp::TcpStream;
 use crate::database::{CharTrunk, TreeRoot, VersionedError};
 use parking_lot::RwLock;
 
-pub use tnf_common::message::ServerDllToWeb as MsgIn;
-pub use tnf_common::message::ServerWebToDll as MsgOut;
+pub use tnf_common::message::server_dll_web::{
+    ServerDllToWeb as MsgIn,
+    ServerWebToDll as MsgOut,
+};
 pub type MsgOutSender = Sender<MsgOut>;
 //pub type MsgOutSendError = SendError<MsgOut>;
 pub type MsgOutSendError = TrySendError<MsgOut>;

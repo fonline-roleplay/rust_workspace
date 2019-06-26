@@ -7,7 +7,7 @@ mod param;
 
 use tnf_common::dll_main;
 
-dll_main!({});
+dll_main!({}, {});
 
 #[no_mangle]
 #[allow(non_snake_case)]

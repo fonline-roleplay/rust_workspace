@@ -20,7 +20,9 @@ struct Downloader {
     url: String,
 }
 
-pub fn start(url: String) -> Requester<Char, Image, DownloaderError> {
+pub type ImageRequester = Requester<Char, Image, DownloaderError>;
+
+pub fn start(url: String) -> ImageRequester {
     let responder = Arc::new(Responder::new());
     let requester= responder.clone();
     let thread = thread::spawn(move || {

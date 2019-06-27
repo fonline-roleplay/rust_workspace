@@ -41,6 +41,7 @@ pub extern "C" fn connect_to_overlay(url: &ScriptString, web: &ScriptString) {
         path.push("FOnlineOverlay");
         let res = std::process::Command::new(&path)
             .arg(web_url)
+            .stdout(std::fs::File::create("FOnlineOverlay.log").expect("overlay log file"))
             .creation_flags(winbase::CREATE_NEW_PROCESS_GROUP | winbase::CREATE_NO_WINDOW)
             .spawn();
         println!("Spawn overlay: {:?}", res);

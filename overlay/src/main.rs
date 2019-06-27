@@ -4,7 +4,7 @@ use sdl2::{
     event::{Event, WindowEvent},
     keyboard::Keycode,
     rect::Rect,
-    render::{BlendMode, Texture},
+    render::{BlendMode, Texture, Canvas},
     surface::{Surface, SurfaceRef},
     video::{Window, DisplayMode, WindowBuildError},
     sys::{SDL_SetWindowShape, SDL_WindowShapeMode, WindowShapeMode, SDL_WindowShapeParams, SDL_Window},
@@ -15,11 +15,13 @@ use std::{
 };
 
 mod bridge;
-use bridge::{MsgIn, MsgOut, Avatar, Char, Position};
+use bridge::{MsgIn, MsgOut, Avatar, Char, Position, BridgeOverlayToClient};
 
 mod game_window;
-mod downloader;
 mod reqres;
+
+mod downloader;
+use downloader::ImageRequester;
 
 fn create_window(video_subsystem: VideoSubsystem, game: &Game, shaped: bool) -> Result<Window, WindowBuildError> {
     use sdl2::sys::{
@@ -112,6 +114,8 @@ pub fn update_visibility(game_window: &GameWindow, window: &mut Window, hide: bo
 
 pub use game_window::GameWindow;
 use sdl2::pixels::PixelFormat;
+use sdl2::render::TextureCreator;
+use sdl2::video::WindowContext;
 
 fn main() {
     let url = std::env::args().nth(1).expect("Pass web server address as argument."); //.unwrap_or("localhost:8000".into());
@@ -126,19 +130,25 @@ fn main() {
 struct Game {
     rect: Rect,
     avatars: Vec<Avatar>,
+    hide: bool,
     //images: BTreeMap<Char, AvatarImage>,
     frame: u64,
-    overlay_hide: bool,
+    dirty: bool,
+    bridge: BridgeOverlayToClient,
+    requester: ImageRequester,
 }
 
 impl Game {
-    pub fn new(rect: Rect) -> Self {
+    pub fn new(rect: Rect, bridge: BridgeOverlayToClient, requester: ImageRequester) -> Self {
         Game{
             rect,
             avatars: vec![],
             //images: BTreeMap::new(),
             frame: 0,
-            overlay_hide: false,
+            hide: false,
+            dirty: true,
+            bridge,
+            requester,
         }
     }
     fn update(&mut self) {
@@ -165,10 +175,20 @@ fn start(game_window: GameWindow, url: String) {
     let mut bridge = bridge::start();
     let requester = downloader::start(url);
     game_window.to_foreground();
-    let mut game = Game::new(game_window.rect().expect("game window rect"));
+    let mut game = Game::new(
+        game_window.rect().expect("game window rect"),
+        bridge,
+        requester,
+    );
 
     let sdl_context = sdl2::init().unwrap();
+
+    let drivers: Vec<_> = sdl2::video::drivers().collect();
+    println!("Available drivers: {:?}", drivers);
+
     let video_subsystem = sdl_context.video().unwrap();
+
+    println!("Current driver: {:?}", video_subsystem.current_video_driver());
 
     let mut window = create_window(video_subsystem, &game, false).expect("created window");
 
@@ -178,11 +198,6 @@ fn start(game_window: GameWindow, url: String) {
     let texture_creator = canvas.texture_creator();
 
     let mut images: BTreeMap<Char, AvatarImage> = BTreeMap::new();
-
-    //let anuri = Surface::load_bmp("anuri.bmp").expect("loaded bmp");
-    //let anuri_texture = texture_creator.create_texture_from_surface(&anuri).expect("created texture");
-
-    //let avatars = BTreeMap::<Char, AvatarImage>::new();
 
     let mut event_pump = sdl_context.event_pump().unwrap();
 
@@ -194,7 +209,7 @@ fn start(game_window: GameWindow, url: String) {
                 println!("Window closed");
                 break 'running;
             }
-            update_visibility(&game_window, canvas.window_mut(), game.overlay_hide);
+            update_visibility(&game_window, canvas.window_mut(), game.hide);
         }
 
         for event in event_pump.poll_iter() {
@@ -213,93 +228,103 @@ fn start(game_window: GameWindow, url: String) {
             }
         }
 
-        let mut new_avatars = None;
+        if game.bridge.is_online() {
+            let _ = game.bridge.ping();
 
-        if bridge.is_online() {
-            let _ = bridge.ping();
+            let mut last_avatars = None;
 
-            for msg in bridge.receive() {
+            for msg in game.bridge.receive() {
                 match msg {
                     MsgIn::UpdateAvatars(avatars) => {
-                        new_avatars = Some(avatars);
+                        last_avatars = Some(avatars);
                     },
                     MsgIn::OverlayHide(hide) => {
-                        game.overlay_hide = hide;
+                        game.hide = hide;
+                        game.dirty = true;
                     }
                 }
             }
-        } else {
-            new_avatars = Some(Vec::new());
-        }
 
-        if game.overlay_hide {
-            new_avatars = None;
-        }
-
-        if let Some(new_avatars) = new_avatars {
-            if new_avatars != game.avatars {
-                game.avatars = new_avatars;
-
-                let game_rect = Rect::new(0, 0, game.rect.width(), game.rect.height());
-
-                let mut visible_avatars = Vec::with_capacity(game.avatars.len());
-                let mut requester_free = requester.is_free();
-                if requester_free {
-                    if let Some((for_char, new_image)) = requester.receive() {
-                        match new_image {
-                            Ok(image) => {
-                                let width = image.width();
-                                let height = image.height();
-                                let pitch = width*3;
-                                let mut bytes = image.into_raw();
-                                let surface = Surface::from_data(&mut bytes, width, height, pitch, PixelFormatEnum::RGB24).expect("loaded surface");
-                                let texture = texture_creator.create_texture_from_surface(&surface).expect("created texture");
-                                images.insert(for_char, AvatarImage::Texture(texture));
-                            },
-                            Err(err) => {
-                                images.insert(for_char, AvatarImage::Error(err));
-                            }
-                        }
+            if let Some(avatars) = last_avatars {
+                if game.avatars != avatars {
+                    game.avatars = avatars;
+                    if !game.hide {
+                        game.dirty = true;
                     }
                 }
-                for avatar in &game.avatars {
-                    match images.get(&avatar.char) {
-                        Some(image) => {
-                            match image {
-                                AvatarImage::Texture(texture) => {
-                                    visible_avatars.push((texture, avatar.pos));
-                                },
-                                AvatarImage::Error(_) => {
-                                    // TODO: Implement error recovery
-                                },
-                            }
-                        },
-                        None => {
-                            if requester_free {
-                                requester.send(avatar.char);
-                                requester_free = false;
-                            }
-                        }
-                    }
-                }
-
-                canvas.set_draw_color(Color::RGBA(0, 0, 0, 0));
-                canvas.clear();
-                let texture_rect = Rect::new(0, 0, 128, 128);
-                for (texture, position) in visible_avatars {
-                    let avatar_rect = Rect::new(position.x-32, position.y-64-16, 64, 64);
-                    if let Some(_intersection) = game_rect.intersection(avatar_rect) {
-                        canvas.copy(texture, texture_rect, avatar_rect).expect("successfully copy texture");
-                    }
-                }
-                canvas.set_draw_color(Color::RGB(255, 0, 0));
-                canvas.draw_rect(game_rect);
-                canvas.present();
             }
+        }
+
+        if game.dirty {
+            redraw(&mut game, &mut canvas, &texture_creator, &mut images);
         }
 
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 240));
         game.update();
     }
-    bridge.finish(true);
+    game.bridge.finish(true);
+}
+
+
+fn redraw<'a>(game: &mut Game, canvas: &mut Canvas<Window>,
+          texture_creator: &'a TextureCreator<WindowContext>,
+          images: &mut BTreeMap<Char, AvatarImage<'a>>) {
+    let game_rect = Rect::new(0, 0, game.rect.width(), game.rect.height());
+
+    canvas.set_draw_color(Color::RGBA(0, 0, 0, 0));
+    canvas.clear();
+
+    if !game.hide && !game.avatars.is_empty() {
+        let mut visible_avatars = Vec::with_capacity(game.avatars.len());
+        let mut requester_free = game.requester.is_free();
+        if requester_free {
+            if let Some((for_char, new_image)) = game.requester.receive() {
+                match new_image {
+                    Ok(image) => {
+                        let width = image.width();
+                        let height = image.height();
+                        let pitch = width*3;
+                        let mut bytes = image.into_raw();
+                        let surface = Surface::from_data(&mut bytes, width, height, pitch, PixelFormatEnum::RGB24).expect("loaded surface");
+                        let texture = texture_creator.create_texture_from_surface(&surface).expect("created texture");
+                        images.insert(for_char, AvatarImage::Texture(texture));
+                    },
+                    Err(err) => {
+                        images.insert(for_char, AvatarImage::Error(err));
+                    }
+                }
+            }
+        }
+        for avatar in &game.avatars {
+            match images.get(&avatar.char) {
+                Some(image) => {
+                    match &image {
+                        AvatarImage::Texture(texture) => {
+                            visible_avatars.push((texture, avatar.pos));
+                        },
+                        AvatarImage::Error(_) => {
+                            // TODO: Implement error recovery
+                        },
+                    }
+                },
+                None => {
+                    if requester_free {
+                        game.requester.send(avatar.char);
+                        requester_free = false;
+                    }
+                }
+            }
+        }
+
+        let texture_rect = Rect::new(0, 0, 128, 128);
+        for (texture, position) in visible_avatars {
+            let avatar_rect = Rect::new(position.x-32, position.y-64-16, 64, 64);
+            if let Some(_intersection) = game_rect.intersection(avatar_rect) {
+                canvas.copy(texture, texture_rect, avatar_rect).expect("successfully copy texture");
+            }
+        }
+    }
+    canvas.set_draw_color(Color::RGB(255, 0, 0));
+    canvas.draw_rect(game_rect);
+    canvas.present();
 }

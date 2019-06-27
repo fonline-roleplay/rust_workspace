@@ -12,7 +12,7 @@ static-link = ["sdl2/static-link"]
 #orbtk = { path = "../orbtk" }
 #orbclient = "0.3.22"
 #sdl2 = { path = "../rust-sdl2", features = ["bundled", "use-bindgen"] }
-sdl2 = { version = "0.32" , features = ["bundled", "use-bindgen"] }
+sdl2 = { version = "0.32" , features = ["bundled", "use-bindgen", "unsafe_textures"] }
 winapi = { version = "0.3.7", features = ["winuser"] }
 crossbeam = "0.7.1"
 reqwest = "0.9.18"

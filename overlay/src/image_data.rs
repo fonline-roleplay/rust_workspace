@@ -1,11 +1,10 @@
-use crate::{downloader::Image, SdlError};
-use sdl2::{pixels::PixelFormatEnum, surface::Surface};
+use crate::downloader::Image;
 
 pub struct ImageData {
-    bytes: Vec<u8>,
-    width: u32,
-    height: u32,
-    pitch: u32,
+    pub bytes: Vec<u8>,
+    pub width: u32,
+    pub height: u32,
+    pub pitch: u32,
 }
 
 impl ImageData {
@@ -16,15 +15,5 @@ impl ImageData {
             pitch: image.width() * 3,
             bytes: image.into_raw(),
         }
-    }
-    pub fn surface(&mut self) -> Result<Surface, SdlError> {
-        Surface::from_data(
-            &mut self.bytes,
-            self.width,
-            self.height,
-            self.pitch,
-            PixelFormatEnum::RGB24,
-        )
-        .map_err(SdlError::SurfaceFromData)
     }
 }

@@ -2,23 +2,24 @@ mod overlay;
 use overlay::Overlay;
 
 mod avatar_window;
-mod image_data;
-mod windowing;
-
 mod bridge;
 mod game_window;
+mod image_data;
+mod windowing;
 use game_window::GameWindow;
 
 mod downloader;
 mod reqres;
 mod win_tools;
 
+mod backend;
+
 fn start(game_window: GameWindow, url: String) {
     let mut bridge = bridge::start();
     let requester = downloader::start(url);
     game_window.to_foreground();
 
-    let mut game = Overlay::new(game_window, bridge, requester);
+    let mut game = Overlay::<backend::SdlBackend>::new(game_window, bridge, requester);
     game.run();
 }
 
@@ -34,11 +35,20 @@ fn main() {
     gui_thread.join().expect("graceful exit");
 }
 
-#[derive(Debug)]
-pub enum SdlError {
-    WindowBuild(sdl2::video::WindowBuildError),
-    TextureFromSurface(sdl2::render::TextureValueError),
-    TextureCopy(String),
-    SurfaceFromData(String),
-    CanvasBuild(sdl2::IntegerOrSdlError),
+#[derive(Debug, PartialEq)]
+pub struct Rect {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}
+impl Rect {
+    fn new(x: i32, y: i32, width: u32, height: u32) -> Self {
+        Rect {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
 }

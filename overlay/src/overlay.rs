@@ -1,20 +1,15 @@
 use crate::{
-    bridge::BridgeOverlayToClient,
-    bridge::{Avatar, Char, MsgIn},
+    backend::{Backend, BackendWindow},
+    bridge::{Avatar, BridgeOverlayToClient, Char, MsgIn},
     downloader::{DownloaderError, ImageRequester},
     image_data::ImageData,
     win_tools::get_winapi_handle,
     windowing::Windowing,
-    GameWindow, SdlError,
-};
-use sdl2::{
-    event::{Event, WindowEvent},
-    keyboard::Keycode,
-    rect::Rect,
+    GameWindow, Rect,
 };
 use std::{collections::BTreeMap, time::Duration};
 
-pub struct Overlay {
+pub struct Overlay<B: Backend> {
     rect: Rect,
     game_window: GameWindow,
     avatars: Vec<Avatar>,
@@ -26,10 +21,10 @@ pub struct Overlay {
     bridge: BridgeOverlayToClient,
     requester: ImageRequester,
     requester_free: bool,
-    windowing: Windowing,
+    windowing: Windowing<B>,
 }
 
-impl Overlay {
+impl<B: Backend> Overlay<B> {
     pub fn new(
         game_window: GameWindow,
         bridge: BridgeOverlayToClient,
@@ -96,23 +91,9 @@ impl Overlay {
             return false;
         }
 
-        for event in self.windowing.event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => {
-                    return false;
-                }
-                //Event::Window {win_event: WindowEvent::Enter, ..} => {
-                //    sdl_context.mouse().show_cursor(false);
-                //},
-                //Event::Window {win_event: WindowEvent::Leave, ..} => {
-                //    //sdl_context.mouse().show_cursor(true);
-                //},
-                _ => {}
-            }
+        let exit = self.windowing.poll_events();
+        if exit {
+            return false;
         }
 
         //check new messages from client, send ping
@@ -209,15 +190,7 @@ impl Overlay {
             }*/
         }
 
-        let mut windows_to_drop = Vec::new();
-        for (char, window) in &mut self.windowing.windows {
-            if !window.maintain(self.frame) {
-                windows_to_drop.push(*char);
-            }
-        }
-        for char in &windows_to_drop {
-            self.windowing.windows.remove(char);
-        }
+        self.windowing.maintain(self.frame);
     }
 
     fn is_game_foreground(&self) -> bool {
@@ -232,8 +205,8 @@ impl Overlay {
             return true;
         }
         for window in self.windowing.windows.values() {
-            let handle = get_winapi_handle(window.window()).0;
-            if handle == focus {
+            let handle = window.backend_window().handle() as usize;
+            if handle == focus as usize {
                 return true;
             }
         }

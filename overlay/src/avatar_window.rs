@@ -1,53 +1,27 @@
 use crate::{
+    backend::{Backend, BackendError, BackendWindow},
     bridge::{Avatar, Char},
     image_data::ImageData,
-    SdlError,
-};
-use sdl2::{
-    rect::Rect,
-    render::{Canvas, Texture, TextureCreator},
-    surface::Surface,
-    video::{Window, WindowContext, WindowPos},
-    VideoSubsystem,
+    Rect,
 };
 
-pub struct AvatarWindow {
-    canvas: Canvas<Window>,
-    texture_creator: TextureCreator<WindowContext>,
-    char_texture: Option<(Char, Texture)>,
+pub struct AvatarWindow<B: Backend> {
+    inner: B::Window,
+    char_texture: Option<(Char, <B::Window as BackendWindow>::Texture)>,
     last_frame: u64,
     hidden: bool,
-    pos_x: WindowPos,
-    pos_y: WindowPos,
+    pos: Option<(i32, i32)>,
 }
 
-impl AvatarWindow {
-    pub fn new(video_subsystem: &VideoSubsystem) -> Result<Self, SdlError> {
-        use sdl2::sys::SDL_WindowFlags;
-        let window = video_subsystem
-            .window("FOnlineOverlay", 64, 64)
-            .set_window_flags(
-                SDL_WindowFlags::SDL_WINDOW_BORDERLESS as u32
-                    | SDL_WindowFlags::SDL_WINDOW_ALWAYS_ON_TOP as u32
-                    | SDL_WindowFlags::SDL_WINDOW_SKIP_TASKBAR as u32,
-            )
-            .hidden()
-            .build()
-            .map_err(SdlError::WindowBuild)?;
-        let canvas = window
-            .into_canvas()
-            .build()
-            .map_err(SdlError::CanvasBuild)?;
-        let texture_creator = canvas.texture_creator();
-        Ok(AvatarWindow {
-            canvas,
-            texture_creator,
+impl<B: Backend> AvatarWindow<B> {
+    pub fn new(inner: B::Window) -> Self {
+        AvatarWindow {
+            inner,
             char_texture: None,
             last_frame: 0,
             hidden: true,
-            pos_x: WindowPos::Undefined,
-            pos_y: WindowPos::Undefined,
-        })
+            pos: None,
+        }
     }
     pub fn maintain(&mut self, frame: u64) -> bool {
         if self.last_frame + 240 * 30 < frame {
@@ -74,8 +48,8 @@ impl AvatarWindow {
         let x = avatar.pos.x - 32;
         let y = avatar.pos.y - 64 - 16;
         let mut appeared = false;
-        if (rect.width() as i32 - 64 > x && x > 0) && (rect.height() as i32 - 64 > y && y > 0) {
-            self.set_position(rect.x() + x, rect.y() + y);
+        if (rect.width as i32 - 64 > x && x > 0) && (rect.height as i32 - 64 > y && y > 0) {
+            self.set_position(rect.x + x, rect.y + y);
             if self.show() {
                 appeared = true;
             }
@@ -87,40 +61,31 @@ impl AvatarWindow {
         self.last_frame = frame;
         appeared
     }
-    fn update_char(&mut self, char: Char, image: &mut ImageData) -> Result<(), SdlError> {
+    fn update_char(&mut self, char: Char, image: &mut ImageData) -> Result<(), BackendError<B>> {
         if let Some((old_char, _)) = &self.char_texture {
             if *old_char == char {
                 return Ok(());
             } else {
                 let (_, old_texture) = self.char_texture.take().unwrap();
-                unsafe {
-                    old_texture.destroy();
-                }
+                self.inner.drop_texture(old_texture);
             }
         }
-        let surface = image.surface()?;
-        let texture = self
-            .texture_creator
-            .create_texture_from_surface(&surface)
-            .map_err(SdlError::TextureFromSurface)?;
+        let texture = self.inner.create_texture(image)?;
         self.char_texture = Some((char, texture));
         Ok(())
     }
-    fn draw(&mut self) -> Result<(), SdlError> {
+    fn draw(&mut self) -> Result<(), BackendError<B>> {
         if let Some((_, texture)) = &self.char_texture {
             let src = Rect::new(0, 0, 128, 128);
             let dst = Rect::new(0, 0, 64, 64);
-            self.canvas
-                .copy(texture, src, dst)
-                .map_err(SdlError::TextureCopy)?;
-            self.canvas.present();
+            self.inner.draw_texture(texture, &src, &dst)?;
         }
         Ok(())
     }
     fn show(&mut self) -> bool {
         if self.hidden {
             self.hidden = false;
-            self.window_mut().show();
+            self.inner.show();
             true
         } else {
             false
@@ -129,26 +94,18 @@ impl AvatarWindow {
     fn hide(&mut self) {
         if !self.hidden {
             self.hidden = true;
-            self.window_mut().hide();
+            self.inner.hide();
         }
     }
     fn set_position(&mut self, x: i32, y: i32) {
-        let x = WindowPos::Positioned(x);
-        let y = WindowPos::Positioned(y);
-        if self.pos_x != x {
-            self.pos_x = x;
-        } else if self.pos_y != y {
-            self.pos_y = y;
+        if self.pos != Some((x, y)) {
+            self.pos = Some((x, y));
         } else {
             return;
         }
-        let window = self.window_mut();
-        window.set_position(x, y);
+        self.inner.set_position(x, y);
     }
-    pub fn window(&self) -> &Window {
-        self.canvas.window()
-    }
-    fn window_mut(&mut self) -> &mut Window {
-        self.canvas.window_mut()
+    pub fn backend_window(&self) -> &B::Window {
+        &self.inner
     }
 }

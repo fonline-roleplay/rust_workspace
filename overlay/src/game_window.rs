@@ -1,4 +1,5 @@
-use sdl2::{rect::Rect, video::WindowPos};
+//use sdl2::{rect::Rect, video::WindowPos};
+use crate::Rect;
 use winapi::{shared::windef, um::winuser};
 
 macro_rules! not_null (
@@ -51,13 +52,8 @@ impl GameWindow {
         })
     }
 
-    pub fn window_pos(&self) -> Option<(WindowPos, WindowPos)> {
-        self.winapi_rect().map(|rect| {
-            (
-                WindowPos::Positioned(rect.left),
-                WindowPos::Positioned(rect.top),
-            )
-        })
+    pub fn window_pos(&self) -> Option<(i32, i32)> {
+        self.winapi_rect().map(|rect| (rect.left, rect.top))
     }
     pub fn raw(&self) -> windef::HWND {
         self.0

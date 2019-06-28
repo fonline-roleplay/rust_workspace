@@ -1,11 +1,5 @@
-use winapi::{
-    um::winuser,
-    shared::windef,
-};
-use sdl2::{
-    video::WindowPos,
-    rect::Rect,
-};
+use sdl2::{rect::Rect, video::WindowPos};
+use winapi::{shared::windef, um::winuser};
 
 macro_rules! not_null (
     ($ret:expr) => {
@@ -35,23 +29,35 @@ impl GameWindow {
 
     pub fn winapi_rect(&self) -> Option<windef::RECT> {
         let mut rect: windef::RECT = self.client_rect()?;
-        let ret = unsafe { winuser::MapWindowPoints(self.0, 0 as _, &mut rect as *mut windef::RECT as usize as _, 2) };
+        let ret = unsafe {
+            winuser::MapWindowPoints(
+                self.0,
+                0 as _,
+                &mut rect as *mut windef::RECT as usize as _,
+                2,
+            )
+        };
         not_null!(ret).map(|_| rect)
     }
 
     pub fn rect(&self) -> Option<Rect> {
-        self.winapi_rect().map(|rect|
-            Rect::new(rect.left, rect.top,
-                      (rect.right-rect.left) as u32,
-                      (rect.bottom-rect.top) as u32,
+        self.winapi_rect().map(|rect| {
+            Rect::new(
+                rect.left,
+                rect.top,
+                (rect.right - rect.left) as u32,
+                (rect.bottom - rect.top) as u32,
             )
-        )
+        })
     }
 
     pub fn window_pos(&self) -> Option<(WindowPos, WindowPos)> {
-        self.winapi_rect().map(|rect|
-            (WindowPos::Positioned(rect.left), WindowPos::Positioned(rect.top))
-        )
+        self.winapi_rect().map(|rect| {
+            (
+                WindowPos::Positioned(rect.left),
+                WindowPos::Positioned(rect.top),
+            )
+        })
     }
     pub fn raw(&self) -> windef::HWND {
         self.0

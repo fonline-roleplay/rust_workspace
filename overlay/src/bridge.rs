@@ -1,18 +1,10 @@
-use std::{
-    net::{SocketAddr},
+use std::net::SocketAddr;
+pub use tnf_common::message::client_dll_overlay::{
+    Avatar, Char, ClientDllToOverlay as MsgIn, OverlayToClientDll as MsgOut, Position,
 };
 use tnf_common::{
-    message::client_dll_overlay::{
-        HANDSHAKE, VERSION,
-    },
-    bridge::{BridgeServerHandle},
-};
-pub use tnf_common::{
-    message::client_dll_overlay::{
-        ClientDllToOverlay as MsgIn,
-        OverlayToClientDll as MsgOut,
-        Avatar, Char, Position,
-    }
+    bridge::BridgeServerHandle,
+    message::client_dll_overlay::{HANDSHAKE, VERSION},
 };
 
 pub type BridgeOverlayToClient = BridgeServerHandle<MsgIn, MsgOut>;

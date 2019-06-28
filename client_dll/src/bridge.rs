@@ -1,22 +1,18 @@
 use tnf_common::{
-    engine_types::{
-        game_options::{self, game_state, Sprite},
-        ScriptArray, ScriptString, critter::CritterCl,
-    },
+    bridge::BridgeClientCell,
     defines::param::{CritterParam, Param},
-    bridge::{BridgeClientCell},
+    engine_types::{
+        critter::CritterCl,
+        game_options::{self, game_state, Sprite},
+        ScriptArray, ScriptString,
+    },
     message::client_dll_overlay::{
-        OverlayToClientDll as MsgIn,
-        ClientDllToOverlay as MsgOut,
+        Avatar, Char, ClientDllToOverlay as MsgOut, OverlayToClientDll as MsgIn, Position,
         HANDSHAKE, VERSION,
-        Avatar, Char, Position,
     },
 };
 
-use std::{
-    net::SocketAddr,
-    convert::identity,
-};
+use std::{convert::identity, net::SocketAddr};
 
 use tnf_common::engine_types::game_options::GameOptions;
 
@@ -34,8 +30,8 @@ pub extern "C" fn connect_to_overlay(url: &ScriptString, web: &ScriptString) {
         let web_url = web.string();
         println!("Spawn new overlay process");
         use std::os::windows::process::CommandExt;
-        use winapi::um::winbase;
         use std::path::PathBuf;
+        use winapi::um::winbase;
         let mut path = PathBuf::new();
         path.push("overlay");
         path.push("FOnlineOverlay");
@@ -56,9 +52,7 @@ pub extern "C" fn connect_to_overlay(url: &ScriptString, web: &ScriptString) {
 
 #[no_mangle]
 pub extern "C" fn hide_overlay(hide: bool) {
-    let _res = BRIDGE.with_online(|bridge| {
-        bridge.send(MsgOut::OverlayHide(hide))
-    });
+    let _res = BRIDGE.with_online(|bridge| bridge.send(MsgOut::OverlayHide(hide)));
 }
 /*
 #[no_mangle]
@@ -71,7 +65,11 @@ pub extern "C" fn update_avatars(array: &ScriptArray) {
 }
 */
 
-fn critter_to_avatar<'a: 'b, 'b>(game_options: &'a GameOptions, critter: &CritterCl, sprites: &mut Option<Vec<&'b Sprite>>) -> Option<Avatar> {
+fn critter_to_avatar<'a: 'b, 'b>(
+    game_options: &'a GameOptions,
+    critter: &CritterCl,
+    sprites: &mut Option<Vec<&'b Sprite>>,
+) -> Option<Avatar> {
     let ver = critter.uparam(Param::QST_CHAR_VER);
     let secret = critter.uparam(Param::QST_CHAR_SECRET);
 
@@ -82,9 +80,7 @@ fn critter_to_avatar<'a: 'b, 'b>(game_options: &'a GameOptions, critter: &Critte
     let hex_x = critter.HexX as i32;
     let hex_y = critter.HexY as i32;
 
-    let sprites = sprites.get_or_insert_with(|| {
-        game_options::get_sprites_dot(game_options, 29)
-    });
+    let sprites = sprites.get_or_insert_with(|| game_options::get_sprites_dot(game_options, 29));
 
     let sprite = sprites
         .into_iter()
@@ -94,9 +90,13 @@ fn critter_to_avatar<'a: 'b, 'b>(game_options: &'a GameOptions, critter: &Critte
     let si = game_options::get_sprite_info(game_options, sprite)?;
     let (x, y) = game_options::sprite_get_top(game_options, sprite, si);
 
-    let char = Char{id: critter.Id, ver, secret};
-    let pos = Position{x, y};
-    Some(Avatar{char, pos})
+    let char = Char {
+        id: critter.Id,
+        ver,
+        secret,
+    };
+    let pos = Position { x, y };
+    Some(Avatar { char, pos })
 }
 
 fn is_player(cr: &CritterCl) -> bool {
@@ -107,12 +107,17 @@ fn is_player(cr: &CritterCl) -> bool {
 pub extern "C" fn update_avatars(array: &ScriptArray) {
     if let Some(game_options) = game_state() {
         let _res = BRIDGE.with_online(|bridge| {
-            let critters = unsafe { array.cast_pointer::<CritterCl>().expect("CritterCl ScriptArray cast") };
+            let critters = unsafe {
+                array
+                    .cast_pointer::<CritterCl>()
+                    .expect("CritterCl ScriptArray cast")
+            };
 
             let mut sprites = None;
             let mut avatars = Vec::with_capacity(16);
 
-            for critter in critters.into_iter()
+            for critter in critters
+                .into_iter()
                 .filter_map(Option::as_ref)
                 .filter(|cr| is_player(*cr))
             {

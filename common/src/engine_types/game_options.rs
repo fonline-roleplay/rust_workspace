@@ -50,38 +50,58 @@ pub fn get_drawind_sprites(state: &GameOptions) -> Option<&[Option<&Sprite>]> {
 
 #[cfg(feature = "client")]
 pub fn get_sprite_info<'a>(state: &'a GameOptions, sprite: &Sprite) -> Option<&'a SpriteInfo> {
-    state.GetSpriteInfo.and_then(|f| {
-        unsafe {
-            let spr_id = if sprite.PSprId as usize != 0  {
-                *sprite.PSprId
-            } else {
-                sprite.SprId
-            };
-            let ptr = f(spr_id);
-            if ptr as usize != 0 {
-                Some(&*ptr)
-            } else {
-                None
-            }
+    state.GetSpriteInfo.and_then(|f| unsafe {
+        let spr_id = if sprite.PSprId as usize != 0 {
+            *sprite.PSprId
+        } else {
+            sprite.SprId
+        };
+        let ptr = f(spr_id);
+        if ptr as usize != 0 {
+            Some(&*ptr)
+        } else {
+            None
         }
     })
 }
 
 #[cfg(feature = "client")]
 pub fn sprite_get_pos(state: &GameOptions, sprite: &Sprite, si: &SpriteInfo) -> (i32, i32) {
-    let offs_x = if sprite.OffsX as usize == 0 {0} else {unsafe{*sprite.OffsX}};
-    let offs_y = if sprite.OffsY as usize == 0 {0} else {unsafe{*sprite.OffsY}};
-    let x = ( ( sprite.ScrX - si.Width as i32 / 2 + si.OffsX as i32 + offs_x as i32 + state.ScrOx ) as f32 / state.SpritesZoom ) as i32;
-    let y = ( ( sprite.ScrY - si.Height as i32    + si.OffsY as i32 + offs_y as i32 + state.ScrOy ) as f32 / state.SpritesZoom ) as i32;
+    let offs_x = if sprite.OffsX as usize == 0 {
+        0
+    } else {
+        unsafe { *sprite.OffsX }
+    };
+    let offs_y = if sprite.OffsY as usize == 0 {
+        0
+    } else {
+        unsafe { *sprite.OffsY }
+    };
+    let x = ((sprite.ScrX - si.Width as i32 / 2 + si.OffsX as i32 + offs_x as i32 + state.ScrOx)
+        as f32
+        / state.SpritesZoom) as i32;
+    let y = ((sprite.ScrY - si.Height as i32 + si.OffsY as i32 + offs_y as i32 + state.ScrOy)
+        as f32
+        / state.SpritesZoom) as i32;
     (x, y)
 }
 
 #[cfg(feature = "client")]
 pub fn sprite_get_top(state: &GameOptions, sprite: &Sprite, si: &SpriteInfo) -> (i32, i32) {
-    let offs_x = if sprite.OffsX as usize == 0 {0} else {unsafe{*sprite.OffsX}};
-    let offs_y = if sprite.OffsY as usize == 0 {0} else {unsafe{*sprite.OffsY}};
-    let x = ( ( sprite.ScrX + offs_x as i32 + state.ScrOx ) as f32 / state.SpritesZoom ) as i32;
-    let y = ( ( sprite.ScrY - si.Height as i32 + si.OffsY as i32 + offs_y as i32 + state.ScrOy ) as f32 / state.SpritesZoom ) as i32;
+    let offs_x = if sprite.OffsX as usize == 0 {
+        0
+    } else {
+        unsafe { *sprite.OffsX }
+    };
+    let offs_y = if sprite.OffsY as usize == 0 {
+        0
+    } else {
+        unsafe { *sprite.OffsY }
+    };
+    let x = ((sprite.ScrX + offs_x as i32 + state.ScrOx) as f32 / state.SpritesZoom) as i32;
+    let y = ((sprite.ScrY - si.Height as i32 + si.OffsY as i32 + offs_y as i32 + state.ScrOy)
+        as f32
+        / state.SpritesZoom) as i32;
     (x, y)
 }
 /*

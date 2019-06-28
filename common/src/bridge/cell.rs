@@ -1,6 +1,6 @@
 use super::*;
-use parking_lot::Mutex;
 use once_cell::sync::OnceCell;
+use parking_lot::Mutex;
 
 pub struct BridgeCell<H> {
     //TODO: get rid of OnceCell
@@ -17,7 +17,7 @@ impl<H> BridgeCell<H> {
 
 impl<T: BridgeTask> BridgeCell<BridgeHandle<T>> {
     pub fn connect(&self, addr: SocketAddr, handshake: u16, version: u16) {
-        let inner = self.inner.get_or_init(|| {Mutex::new(None)});
+        let inner = self.inner.get_or_init(|| Mutex::new(None));
         let mut guard = inner.lock();
         if let Some(mut old) = guard.take() {
             old.finish(true);
@@ -26,8 +26,8 @@ impl<T: BridgeTask> BridgeCell<BridgeHandle<T>> {
     }
 
     pub fn with_online<O, F>(&self, mut f: F) -> Result<O, BridgeError>
-        where
-            F: FnMut(&mut BridgeHandle<T>)->Result<O, BridgeError>,
+    where
+        F: FnMut(&mut BridgeHandle<T>) -> Result<O, BridgeError>,
     {
         self.with_some(|bridge| {
             if bridge.is_online() {
@@ -38,23 +38,17 @@ impl<T: BridgeTask> BridgeCell<BridgeHandle<T>> {
         })
     }
     pub fn with_some<O, F>(&self, mut f: F) -> Result<O, BridgeError>
-        where
-            F: FnMut(&mut BridgeHandle<T>)->Result<O, BridgeError>,
+    where
+        F: FnMut(&mut BridgeHandle<T>) -> Result<O, BridgeError>,
     {
-        self.with(|bridge| {
-            match bridge {
-                Some(bridge) => {
-                    f(bridge)
-                },
-                None => {
-                    Err(BridgeError::EmptyBridgeCell)
-                }
-            }
+        self.with(|bridge| match bridge {
+            Some(bridge) => f(bridge),
+            None => Err(BridgeError::EmptyBridgeCell),
         })
     }
     fn with<O, F>(&self, mut f: F) -> Result<O, BridgeError>
-        where
-            F: FnMut(&mut Option<BridgeHandle<T>>)->Result<O, BridgeError>,
+    where
+        F: FnMut(&mut Option<BridgeHandle<T>>) -> Result<O, BridgeError>,
     {
         let inner = self.inner.get().ok_or(BridgeError::EmptyBridgeCell)?;
         let mut guard = inner.lock();

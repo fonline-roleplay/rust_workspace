@@ -1,16 +1,16 @@
 use super::*;
 use bincode::{deserialize, deserialize_from, serialize, serialize_into};
-use std::net::{
-    Shutdown,
-};
+use std::net::Shutdown;
 
-pub struct BridgeClient<MsgIn, MsgOut>{
+pub struct BridgeClient<MsgIn, MsgOut> {
     _in: PhantomData<MsgIn>,
     _out: PhantomData<MsgOut>,
     stream: Option<TcpStream>,
 }
 
-impl<MIn: 'static+Send+DeserializeOwned+Debug, MOut: 'static+Send+Serialize+Debug> BridgeTask for BridgeClient<MIn, MOut> {
+impl<MIn: 'static + Send + DeserializeOwned + Debug, MOut: 'static + Send + Serialize + Debug>
+    BridgeTask for BridgeClient<MIn, MOut>
+{
     type MsgIn = MIn;
     type MsgOut = MOut;
 
@@ -24,12 +24,14 @@ impl<MIn: 'static+Send+DeserializeOwned+Debug, MOut: 'static+Send+Serialize+Debu
     fn process(worker: &mut BridgeWorker<Self>) -> Result<(), BridgeError> {
         println!("Bridge client: connecting");
         let timeout = Duration::from_millis(2000);
-        let mut stream = TcpStream::connect_timeout(
-            worker.address(),
-            timeout,
-        ).map_err(BridgeError::Io)?;
-        stream.set_read_timeout(Some(timeout)).map_err(BridgeError::Io)?;
-        stream.set_write_timeout(Some(timeout)).map_err(BridgeError::Io)?;
+        let mut stream =
+            TcpStream::connect_timeout(worker.address(), timeout).map_err(BridgeError::Io)?;
+        stream
+            .set_read_timeout(Some(timeout))
+            .map_err(BridgeError::Io)?;
+        stream
+            .set_write_timeout(Some(timeout))
+            .map_err(BridgeError::Io)?;
 
         println!("Bridge client: handshake");
         serialize_into(&mut stream, &worker.handshake()).map_err(BridgeError::BinCode)?;
@@ -42,9 +44,7 @@ impl<MIn: 'static+Send+DeserializeOwned+Debug, MOut: 'static+Send+Serialize+Debu
 
         let sender = worker.sender();
         let mut reader = stream.try_clone().map_err(BridgeError::Io)?;
-        worker.spawn_reader(move || {
-            with_bincode::reader(reader, sender)
-        });
+        worker.spawn_reader(move || with_bincode::reader(reader, sender));
 
         loop {
             let msg_out = worker.receive()?;

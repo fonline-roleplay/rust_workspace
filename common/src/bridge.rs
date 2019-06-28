@@ -1,17 +1,17 @@
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
-    sync::{
-        Arc,
-        mpsc::{channel, Sender, Receiver, TryIter},
-        atomic::{AtomicBool, Ordering},
-    },
-    thread::{JoinHandle, sleep},
-    net::{TcpStream, SocketAddr},
-    time::Duration,
+    fmt::Debug,
     iter::FilterMap,
     marker::PhantomData,
-    fmt::Debug,
+    net::{SocketAddr, TcpStream},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc::{channel, Receiver, Sender, TryIter},
+        Arc,
+    },
+    thread::{sleep, JoinHandle},
+    time::Duration,
 };
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 mod cell;
 pub use cell::BridgeCell;

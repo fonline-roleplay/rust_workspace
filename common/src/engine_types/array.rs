@@ -47,11 +47,10 @@ impl ScriptArray {
         let size = ::std::mem::size_of::<T>();
         let align = ::std::mem::align_of::<T>();
 
-        if buf.len()%size != 0 || (ptr as usize) % align != 0 {
+        if buf.len() % size != 0 || (ptr as usize) % align != 0 {
             return None;
         }
-        let array: &[T] =
-            unsafe { std::slice::from_raw_parts(ptr as *const T, buf.len()/size) };
+        let array: &[T] = unsafe { std::slice::from_raw_parts(ptr as *const T, buf.len() / size) };
         Some(array)
     }
     pub unsafe fn cast_pointer<T>(&self) -> Option<&[Option<&mut T>]> {

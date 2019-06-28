@@ -3,7 +3,7 @@
 use tnf_common::engine_types::{ScriptArray, ScriptString};
 
 //#[cfg(debug_assertions)]
-tnf_common::dll_main!({},{
+tnf_common::dll_main!({}, {
     bridge::finish();
 });
 
@@ -18,9 +18,7 @@ pub extern "C" fn CLIENT() {
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub extern "C" fn DllMainEx(is_compiler: bool) {
-
-}
+pub extern "C" fn DllMainEx(is_compiler: bool) {}
 
 #[no_mangle]
 pub extern "C" fn open_link(link: &ScriptString) {

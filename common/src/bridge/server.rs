@@ -1,16 +1,16 @@
 use super::*;
 use bincode::{deserialize, deserialize_from, serialize, serialize_into};
-use std::net::{
-    TcpListener, Shutdown,
-};
+use std::net::{Shutdown, TcpListener};
 
-pub struct BridgeServer<MsgIn, MsgOut>{
+pub struct BridgeServer<MsgIn, MsgOut> {
     _in: PhantomData<MsgIn>,
     _out: PhantomData<MsgOut>,
     stream: Option<TcpStream>,
 }
 
-impl<MIn: 'static+Send+DeserializeOwned+Debug, MOut: 'static+Send+Serialize+Debug> BridgeTask for BridgeServer<MIn, MOut> {
+impl<MIn: 'static + Send + DeserializeOwned + Debug, MOut: 'static + Send + Serialize + Debug>
+    BridgeTask for BridgeServer<MIn, MOut>
+{
     type MsgIn = MIn;
     type MsgOut = MOut;
 
@@ -50,9 +50,7 @@ impl<MIn: 'static+Send+DeserializeOwned+Debug, MOut: 'static+Send+Serialize+Debu
 
             let sender = worker.sender();
             let mut reader = stream.try_clone().map_err(BridgeError::Io)?;
-            worker.spawn_reader(move || {
-                with_bincode::reader(reader, sender)
-            });
+            worker.spawn_reader(move || with_bincode::reader(reader, sender));
 
             loop {
                 let msg_out = worker.receive()?;
@@ -67,7 +65,7 @@ impl<MIn: 'static+Send+DeserializeOwned+Debug, MOut: 'static+Send+Serialize+Debu
                 }
             }
         }
-        return Ok(())
+        return Ok(());
     }
     fn shutdown(&mut self) {
         if let Some(stream) = self.stream.take() {

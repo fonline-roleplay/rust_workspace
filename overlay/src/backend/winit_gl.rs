@@ -16,6 +16,39 @@ pub struct WinitGlBackend {
     redraw_windows: HashSet<WindowId>,
 }
 
+fn make_window_popup(window: &Window) -> Result<(), String> {
+    use glutin::os::windows::WindowExt;
+    use winapi::{
+        shared::windef,
+        um::{errhandlingapi as err, wingdi, winuser},
+    };
+    let handle = window.get_hwnd() as _;
+
+    window.hide_cursor(true);
+
+    unsafe {
+        let mut flags = winuser::GetWindowLongPtrA(handle, winuser::GWL_STYLE);
+        if flags == 0 {
+            return Err(format!("winuser::GetWindowLongPtrA"));
+        }
+        flags |= winuser::WS_POPUP as i32;
+        if winuser::SetWindowLongPtrA(handle, winuser::GWL_STYLE, flags) == 0 {
+            return Err(format!("winuser::SetWindowLongPtrA"));
+        }
+
+        let mut flags = winuser::GetWindowLongPtrA(handle, winuser::GWL_EXSTYLE);
+        if flags == 0 {
+            return Err(format!("winuser::GetWindowLongPtrA"));
+        }
+        flags |= winuser::WS_EX_NOACTIVATE as i32;
+        flags &= !winuser::WS_EX_APPWINDOW as i32;
+        if winuser::SetWindowLongPtrA(handle, winuser::GWL_EXSTYLE, flags) == 0 {
+            return Err(format!("winuser::SetWindowLongPtrA"));
+        }
+    }
+    Ok(())
+}
+
 impl Backend for WinitGlBackend {
     type Window = WinitGlWindow;
     fn new() -> Self {
@@ -38,7 +71,13 @@ impl Backend for WinitGlBackend {
             .with_dimensions(glutin::dpi::LogicalSize::new(64f64, 64f64));
         let display = Display::new(builder, context, &self.events_loop)
             .map_err(WinitGlError::DisplayCreation)?;
-        let window_id = display.gl_window().window().id();
+        let window_id = {
+            let window = display.gl_window();
+            let window = window.window();
+            make_window_popup(window).map_err(WinitGlError::Platform)?;
+            window.id()
+        };
+
         let window = WinitGlWindow { display, window_id };
         Ok(window)
     }
@@ -140,6 +179,7 @@ pub enum WinitGlError {
     DisplayCreation(glium::backend::glutin::DisplayCreationError),
     TextureCreation(glium::texture::TextureCreationError),
     SwapBuffers(glium::SwapBuffersError),
+    Platform(String),
 }
 /*
 pub fn run<F>(title: String, clear_color: [f32; 4], mut run_ui: F)

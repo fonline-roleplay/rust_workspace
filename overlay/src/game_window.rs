@@ -30,15 +30,22 @@ impl GameWindow {
 
     pub fn winapi_rect(&self) -> Option<windef::RECT> {
         let mut rect: windef::RECT = self.client_rect()?;
-        let ret = unsafe {
-            winuser::MapWindowPoints(
-                self.0,
-                0 as _,
-                &mut rect as *mut windef::RECT as usize as _,
-                2,
-            )
-        };
-        not_null!(ret).map(|_| rect)
+        unsafe {
+            winapi::um::errhandlingapi::SetLastError(0);
+            let _ret =
+                winuser::MapWindowPoints(
+                    self.0,
+                    0 as _,
+                    &mut rect as *mut windef::RECT as usize as _,
+                    2,
+            );
+            let err = winapi::um::errhandlingapi::GetLastError();
+            if err == 0 {
+                Some(rect)
+            } else {
+                None
+            }
+        }
     }
 
     pub fn rect(&self) -> Option<Rect> {

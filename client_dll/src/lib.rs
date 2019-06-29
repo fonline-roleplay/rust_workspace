@@ -3,9 +3,9 @@
 use tnf_common::engine_types::{ScriptArray, ScriptString};
 
 //#[cfg(debug_assertions)]
-tnf_common::dll_main!({}, {
+/*tnf_common::dll_main!({}, {
     bridge::finish();
-});
+});*/
 
 mod bridge;
 //mod engine_functions;

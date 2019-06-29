@@ -4,6 +4,7 @@ use crate::{
     downloader::{DownloaderError, ImageRequester},
     image_data::ImageData,
     windowing::Windowing,
+    chat_window::ChatWindow,
     GameWindow, Rect,
 };
 use std::{collections::BTreeMap, time::Duration};
@@ -21,6 +22,7 @@ pub struct Overlay<B: Backend> {
     requester: ImageRequester,
     requester_free: bool,
     windowing: Windowing<B>,
+    chat: Option<ChatWindow>,
 }
 
 impl<B: Backend> Overlay<B> {
@@ -30,6 +32,15 @@ impl<B: Backend> Overlay<B> {
         requester: ImageRequester,
     ) -> Self {
         eprintln!("err test");
+        let chat = {
+            match ChatWindow::new() {
+                Ok(chat) => Some(chat),
+                Err(err) => {
+                    eprintln!("Can't create chat window: {:?}", err);
+                    None
+                }
+            }
+        };
         Overlay {
             rect: game_window.rect().expect("game window rect"),
             game_window,
@@ -43,6 +54,7 @@ impl<B: Backend> Overlay<B> {
             requester,
             requester_free: true,
             windowing: Windowing::new(),
+            chat,
         }
     }
 
@@ -107,6 +119,16 @@ impl<B: Backend> Overlay<B> {
         }
         self.windowing.maintain(self.frame, self.dirty);
         self.dirty = false;
+
+        if self.frame % 4 == 0 {
+            if let Some(chat) = self.chat.as_mut() {
+                if let Err(err) = chat.draw() {
+                    eprintln!("Error drawing chat window: {:?}", err);
+                    self.chat = None;
+                }
+            }
+        }
+
         true
     }
 
@@ -143,6 +165,9 @@ impl<B: Backend> Overlay<B> {
                             if let Some(avatar_window) = self.windowing.get_window_mut(msg.cr_id) {
                                 avatar_window.hide_for_ms(msg.delay);
                             }
+                        }
+                        if let Some(chat) = &mut self.chat {
+                            chat.push_message(msg);
                         }
                     }
                 }

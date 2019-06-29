@@ -18,7 +18,7 @@ impl<B: Backend> Windowing<B> {
     }
     pub fn window_for_char(&mut self, char: u32) -> Result<&mut AvatarWindow<B>, BackendError<B>> {
         if let Entry::Vacant(vacant) = self.windows.entry(char) {
-            let inner = self.backend.new_window()?;
+            let inner = self.backend.new_popup("FOnlineOverlay".into(), 64, 64)?;
             let window = AvatarWindow::new(inner);
             vacant.insert(window);
         }

@@ -38,6 +38,8 @@ impl<MIn: 'static + Send + DeserializeOwned + Debug, MOut: 'static + Send + Seri
         let handshake = deserialize_from(&mut stream).map_err(BridgeError::BinCode)?;
         worker.check_handshake(handshake)?;
 
+        stream.set_nodelay(true).map_err(BridgeError::Io)?;
+
         worker.task().stream = Some(stream.try_clone().map_err(BridgeError::Io)?);
         worker.set_online();
         println!("Bridge client: online");

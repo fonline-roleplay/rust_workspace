@@ -3,7 +3,6 @@ use crate::{
     bridge::{Avatar, BridgeOverlayToClient, Char, MsgIn},
     downloader::{DownloaderError, ImageRequester},
     image_data::ImageData,
-    win_tools::get_winapi_handle,
     windowing::Windowing,
     GameWindow, Rect,
 };
@@ -30,6 +29,7 @@ impl<B: Backend> Overlay<B> {
         bridge: BridgeOverlayToClient,
         requester: ImageRequester,
     ) -> Self {
+        eprintln!("err test");
         Overlay {
             rect: game_window.rect().expect("game window rect"),
             game_window,
@@ -105,6 +105,8 @@ impl<B: Backend> Overlay<B> {
         if self.dirty {
             self.redraw();
         }
+        self.windowing.maintain(self.frame, self.dirty);
+        self.dirty = false;
         true
     }
 
@@ -122,6 +124,26 @@ impl<B: Backend> Overlay<B> {
                     MsgIn::OverlayHide(hide) => {
                         self.hide = hide;
                         self.dirty = true;
+                    }
+                    MsgIn::Message(mut msg) => {
+                        use tnf_common::defines::fos;
+                        match msg.say_type as u32 {
+                            fos::SAY_NORM | fos::SAY_SHOUT | fos::SAY_EMOTE | fos::SAY_WHISP => {
+                                //log message
+                            }
+                            _ => continue,
+                        };
+                        match msg.say_type as u32 {
+                            fos::SAY_NORM | fos::SAY_NORM_ON_HEAD => {
+                                auto_emote(&mut msg.text);
+                            }
+                            _ => {}
+                        }
+                        if msg.text.chars().count() > 15 {
+                            if let Some(avatar_window) = self.windowing.get_window_mut(msg.cr_id) {
+                                avatar_window.hide_for_ms(msg.delay);
+                            }
+                        }
                     }
                 }
             }
@@ -165,9 +187,14 @@ impl<B: Backend> Overlay<B> {
                         match image {
                             AvatarImage::Image(image) => {
                                 //visible_avatars.push((image, avatar.pos));
-                                if let Ok(window) = self.windowing.window_for_char(avatar.char.id) {
-                                    if window.update(avatar, image, &self.rect, self.frame) {
-                                        popup_game_window = true;
+                                match self.windowing.window_for_char(avatar.char.id) {
+                                    Ok(window) => {
+                                        if window.update(avatar, image, &self.rect, self.frame) {
+                                            popup_game_window = true;
+                                        }
+                                    }
+                                    Err(err) => {
+                                        eprintln!("{:?}", err);
                                     }
                                 }
                             }
@@ -189,8 +216,6 @@ impl<B: Backend> Overlay<B> {
                 self.game_window.to_foreground();
             }*/
         }
-
-        self.windowing.maintain(self.frame);
     }
 
     fn is_game_foreground(&self) -> bool {
@@ -217,4 +242,22 @@ impl<B: Backend> Overlay<B> {
 enum AvatarImage {
     Image(ImageData),
     Error(DownloaderError),
+}
+
+fn auto_emote(text: &mut String) {
+    let mut emoted = text.replace("**", "*");
+    text.clear();
+    for (i, chunk) in emoted.split("*").enumerate() {
+        if chunk.len() == 0 {
+            continue;
+        }
+        let odd = i % 2 == 1;
+        if odd {
+            text.push_str("**");
+        }
+        text.push_str(chunk);
+        if odd {
+            text.push_str("**");
+        }
+    }
 }

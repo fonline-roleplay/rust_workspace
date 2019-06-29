@@ -1,17 +1,4 @@
 //use crate::game_window::GameWindow;
-use sdl2::video::Window;
-
-pub fn get_winapi_handle(
-    window: &Window,
-) -> (winapi::shared::windef::HWND, winapi::shared::windef::HDC) {
-    use sdl2::sys::{SDL_GetVersion, SDL_GetWindowWMInfo, SDL_SysWMinfo};
-    unsafe {
-        let mut wmInfo: SDL_SysWMinfo = std::mem::zeroed();
-        SDL_GetVersion(&mut wmInfo.version);
-        SDL_GetWindowWMInfo(window.raw(), &mut wmInfo);
-        (wmInfo.info.win.window as _, wmInfo.info.win.hdc as _)
-    }
-}
 
 /*
 fn create_window(

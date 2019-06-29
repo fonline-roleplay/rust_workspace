@@ -1,4 +1,4 @@
-use crate::{avatar_window::AvatarWindow, win_tools::get_winapi_handle};
+use crate::avatar_window::AvatarWindow;
 use sdl2::{
     event::{Event, WindowEvent},
     keyboard::Keycode,
@@ -176,4 +176,16 @@ pub enum SdlError {
     TextureCopy(String),
     SurfaceFromData(String),
     CanvasBuild(sdl2::IntegerOrSdlError),
+}
+
+pub fn get_winapi_handle(
+    window: &Window,
+) -> (winapi::shared::windef::HWND, winapi::shared::windef::HDC) {
+    use sdl2::sys::{SDL_GetVersion, SDL_GetWindowWMInfo, SDL_SysWMinfo};
+    unsafe {
+        let mut wmInfo: SDL_SysWMinfo = std::mem::zeroed();
+        SDL_GetVersion(&mut wmInfo.version);
+        SDL_GetWindowWMInfo(window.raw(), &mut wmInfo);
+        (wmInfo.info.win.window as _, wmInfo.info.win.hdc as _)
+    }
 }

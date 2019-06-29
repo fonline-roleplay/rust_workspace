@@ -26,7 +26,7 @@ pub mod client_dll_overlay {
     use super::*;
 
     pub const HANDSHAKE: u16 = 0xB00B;
-    pub const VERSION: u16 = 1;
+    pub const VERSION: u16 = 2;
 
     #[derive(Debug, Clone, Deserialize, Serialize)]
     pub enum OverlayToClientDll {
@@ -37,6 +37,7 @@ pub mod client_dll_overlay {
     pub enum ClientDllToOverlay {
         UpdateAvatars(Vec<Avatar>),
         OverlayHide(bool),
+        Message(Message),
     }
 
     #[repr(C)]
@@ -61,5 +62,14 @@ pub mod client_dll_overlay {
     pub struct Position {
         pub x: i32,
         pub y: i32,
+    }
+
+    #[repr(C)]
+    #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+    pub struct Message {
+        pub text: String,
+        pub say_type: i32,
+        pub cr_id: u32,
+        pub delay: u32,
     }
 }

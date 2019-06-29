@@ -35,6 +35,7 @@ impl<MIn: 'static + Send + DeserializeOwned + Debug, MOut: 'static + Send + Seri
             println!("Bridge server: listening...");
             let (mut stream, addr) = listener.accept().map_err(BridgeError::Io)?;
             stream.set_nonblocking(false).map_err(BridgeError::Io)?;
+            stream.set_nodelay(true).map_err(BridgeError::Io)?;
             println!("Bridge server: incoming");
             stream.set_read_timeout(timeout).map_err(BridgeError::Io)?;
             stream.set_write_timeout(timeout).map_err(BridgeError::Io)?;

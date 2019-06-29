@@ -4,6 +4,7 @@ use crate::{
     image_data::ImageData,
     Rect,
 };
+use std::time::{Duration, Instant};
 
 pub struct AvatarWindow<B: Backend> {
     inner: B::Window,
@@ -11,6 +12,7 @@ pub struct AvatarWindow<B: Backend> {
     last_frame: u64,
     hidden: bool,
     pos: Option<(i32, i32)>,
+    hide_until: Option<Instant>,
 }
 
 impl<B: Backend> AvatarWindow<B> {
@@ -21,17 +23,33 @@ impl<B: Backend> AvatarWindow<B> {
             last_frame: 0,
             hidden: true,
             pos: None,
+            hide_until: None,
         }
     }
-    pub fn maintain(&mut self, frame: u64) -> bool {
-        if self.last_frame + 240 * 30 < frame {
-            false
-        } else if self.last_frame != frame {
-            self.hide();
-            true
+    pub fn maintain(&mut self, frame: u64, updated: bool) -> bool {
+        if updated {
+            if self.last_frame + 240 * 30 < frame {
+                println!("delete");
+                return false;
+            } else if self.last_frame != frame {
+                println!("hide");
+                self.hide();
+            }
         } else {
-            true
+            if let Some(hide_until) = self.hide_until {
+                println!("hide until");
+                let now = Instant::now();
+                if now > hide_until {
+                    println!("expired");
+                    self.hide_until = None;
+                    if !self.hidden {
+                        self.inner.show();
+                        self.draw();
+                    }
+                }
+            }
         }
+        true
     }
     pub fn update(
         &mut self,
@@ -52,8 +70,8 @@ impl<B: Backend> AvatarWindow<B> {
             self.set_position(rect.x + x, rect.y + y);
             if self.show() {
                 appeared = true;
+                self.draw();
             }
-            self.draw();
         } else {
             //if characters are visible, but out of screen - don't show them. but mark avatar window as used
             self.hide();
@@ -84,6 +102,15 @@ impl<B: Backend> AvatarWindow<B> {
     }
     fn show(&mut self) -> bool {
         if self.hidden {
+            if let Some(hide_until) = self.hide_until {
+                let now = Instant::now();
+                if now > hide_until {
+                    self.hide_until = None;
+                } else {
+                    self.hidden = false;
+                    return false;
+                }
+            }
             self.hidden = false;
             self.inner.show();
             true
@@ -107,5 +134,9 @@ impl<B: Backend> AvatarWindow<B> {
     }
     pub fn backend_window(&self) -> &B::Window {
         &self.inner
+    }
+    pub fn hide_for_ms(&mut self, delay: u32) {
+        self.hide_until = Some(Instant::now() + Duration::from_millis(delay as u64));
+        self.inner.hide();
     }
 }

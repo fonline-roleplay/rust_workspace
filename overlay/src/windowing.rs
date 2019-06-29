@@ -24,10 +24,13 @@ impl<B: Backend> Windowing<B> {
         }
         Ok(self.windows.get_mut(&char).unwrap())
     }
-    pub fn maintain(&mut self, frame: u64) {
+    pub fn get_window_mut(&mut self, char: u32) -> Option<&mut AvatarWindow<B>> {
+        self.windows.get_mut(&char)
+    }
+    pub fn maintain(&mut self, frame: u64, updated: bool) {
         let mut windows_to_drop = Vec::new();
         for (char, window) in &mut self.windows {
-            if !window.maintain(frame) {
+            if !window.maintain(frame, updated) {
                 windows_to_drop.push(*char);
             }
         }

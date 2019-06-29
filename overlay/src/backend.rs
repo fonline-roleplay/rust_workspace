@@ -28,5 +28,8 @@ pub trait BackendWindow {
     fn handle(&self) -> *mut ();
 }
 
-mod sdl;
-pub use sdl::SdlBackend;
+#[cfg(feature = "backend-sdl")]
+pub mod sdl;
+
+#[cfg(feature = "backend-winit-gl")]
+pub mod winit_gl;

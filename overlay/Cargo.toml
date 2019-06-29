@@ -5,16 +5,23 @@ authors = ["qthree <qthree3@gmail.com>"]
 edition = "2018"
 
 [features]
-default = []
-static-link = ["sdl2/static-link"]
+default = ["backend-winit-gl"]
+backend-winit-gl = ["imgui", "imgui-glium-renderer", "imgui-winit-support", "glium"]
+backend-sdl2 = ["sdl2"]
+static-link = ["backend-sdl2", "sdl2/static-link"]
 
 [dependencies]
 #orbtk = { path = "../orbtk" }
 #orbclient = "0.3.22"
 #sdl2 = { path = "../rust-sdl2", features = ["bundled", "use-bindgen"] }
-sdl2 = { version = "0.32" , features = ["bundled", "use-bindgen", "unsafe_textures"] }
+sdl2 = { version = "0.32" , features = ["bundled", "use-bindgen", "unsafe_textures"], optional = true }
 winapi = { version = "0.3.7", features = ["winuser"] }
 crossbeam = "0.7.1"
 reqwest = "0.9.18"
 image = { version = "0.21.2", default-features = false, features = ["png_codec"] }
 tnf_common = { path = "../common", features = ["bridge"] }
+
+imgui = { git = "https://github.com/Gekkio/imgui-rs.git", default-features = false, features = ["glium"], optional = true }
+imgui-glium-renderer = { git = "https://github.com/Gekkio/imgui-rs.git", optional = true }
+imgui-winit-support = { git = "https://github.com/Gekkio/imgui-rs.git", optional = true }
+glium = { version = "0.25", default-features = true, optional = true }

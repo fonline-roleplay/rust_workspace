@@ -13,13 +13,18 @@ mod reqres;
 mod win_tools;
 
 mod backend;
+#[cfg(feature = "backend-sdl")]
+type DefaultBackend = backend::sdl::SdlBackend;
+
+#[cfg(feature = "backend-winit-gl")]
+type DefaultBackend = backend::winit_gl::WinitGlBackend;
 
 fn start(game_window: GameWindow, url: String) {
     let mut bridge = bridge::start();
     let requester = downloader::start(url);
     game_window.to_foreground();
 
-    let mut game = Overlay::<backend::SdlBackend>::new(game_window, bridge, requester);
+    let mut game = Overlay::<DefaultBackend>::new(game_window, bridge, requester);
     game.run();
 }
 

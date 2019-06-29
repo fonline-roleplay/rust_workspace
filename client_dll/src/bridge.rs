@@ -7,7 +7,7 @@ use tnf_common::{
         ScriptArray, ScriptString,
     },
     message::client_dll_overlay::{
-        Avatar, Char, ClientDllToOverlay as MsgOut, OverlayToClientDll as MsgIn, Position,
+        Avatar, Char, ClientDllToOverlay as MsgOut, Message, OverlayToClientDll as MsgIn, Position,
         HANDSHAKE, VERSION,
     },
 };
@@ -35,9 +35,12 @@ pub extern "C" fn connect_to_overlay(url: &ScriptString, web: &ScriptString) {
         let mut path = PathBuf::new();
         path.push("overlay");
         path.push("FOnlineOverlay");
+        let file_out = std::fs::File::create("FOnlineOverlay.log").expect("overlay log file");
+        let file_err = file_out.try_clone().expect("overlay err log file");
         let res = std::process::Command::new(&path)
             .arg(web_url)
-            .stdout(std::fs::File::create("FOnlineOverlay.log").expect("overlay log file"))
+            .stdout(file_out)
+            .stderr(file_err)
             .creation_flags(winbase::CREATE_NEW_PROCESS_GROUP | winbase::CREATE_NO_WINDOW)
             .spawn();
         println!("Spawn overlay: {:?}", res);
@@ -128,6 +131,20 @@ pub extern "C" fn update_avatars(array: &ScriptArray) {
             bridge.send(MsgOut::UpdateAvatars(avatars))
         });
     }
+}
+
+#[no_mangle]
+pub extern "C" fn message_in(text: &ScriptString, say_type: i32, cr_id: u32, delay: u32) {
+    let _res = BRIDGE.with_online(|bridge| {
+        let text = text.string();
+        let msg = MsgOut::Message(Message {
+            text,
+            say_type,
+            cr_id,
+            delay,
+        });
+        bridge.send(msg)
+    });
 }
 
 pub fn finish() {

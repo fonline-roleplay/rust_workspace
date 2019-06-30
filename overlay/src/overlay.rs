@@ -255,7 +255,7 @@ impl<B: Backend> Overlay<B> {
             return true;
         }
         for window in self.windowing.windows.values() {
-            let handle = window.backend_window().handle() as usize;
+            let handle = window.backend_window().window_handle() as usize;
             if handle == focus as usize {
                 return true;
             }

@@ -1,5 +1,5 @@
 use crate::{
-    backend::{Backend, BackendError, BackendWindow},
+    backend::{Backend, BackendError, BackendWindow, BackendTexture},
     bridge::{Avatar, Char},
     image_data::ImageData,
     Rect,
@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 pub struct AvatarWindow<B: Backend> {
     inner: B::Window,
-    char_texture: Option<(Char, <B::Window as BackendWindow>::Texture)>,
+    char_texture: Option<(Char, BackendTexture<B>)>,
     last_frame: u64,
     hidden: bool,
     pos: Option<(i32, i32)>,

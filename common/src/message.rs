@@ -26,7 +26,7 @@ pub mod client_dll_overlay {
     use super::*;
 
     pub const HANDSHAKE: u16 = 0xB00B;
-    pub const VERSION: u16 = 2;
+    pub const VERSION: u16 = 3;
 
     #[derive(Debug, Clone, Deserialize, Serialize)]
     pub enum OverlayToClientDll {
@@ -71,5 +71,6 @@ pub mod client_dll_overlay {
         pub say_type: i32,
         pub cr_id: u32,
         pub delay: u32,
+        pub name: Option<String>,
     }
 }

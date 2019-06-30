@@ -32,6 +32,11 @@ impl ChatWindow {
     pub fn draw(&mut self) -> Result<(), WinitGlError>{
         use imgui::{Condition, StyleVar, im_str};
 
+        let inner = &mut self.inner;
+        self.back.poll_events(|event| {
+            inner.handle_event(&event);
+        });
+
         let size = self.size;
         let messages = &self.messages;
         self.inner.draw_gui(|ui, context, textures| {
@@ -40,8 +45,11 @@ impl ChatWindow {
                     .size([size.0 as f32, size.1 as f32], Condition::Always)
                     .position([0.0, 0.0], Condition::Always)
                     .build(|| {
-                        for message in messages.rchunks(10).take(1).flatten() {
-                            ui.text(im_str!("({}): {}", message.cr_id, message.text));
+                        for message in messages { //.rchunks(10).take(1).flatten() {
+                            let name = im_str!("{}", message.name.as_ref().map(String::as_str).unwrap_or("???"));
+                            let text = im_str!("{}", message.text);
+                            ui.small_button(&name);
+                            ui.text(&text);
                         }
                 });
             true

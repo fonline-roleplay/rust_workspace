@@ -134,14 +134,16 @@ pub extern "C" fn update_avatars(array: &ScriptArray) {
 }
 
 #[no_mangle]
-pub extern "C" fn message_in(text: &ScriptString, say_type: i32, cr_id: u32, delay: u32) {
+pub extern "C" fn message_in(text: &ScriptString, say_type: i32, cr_id: u32, delay: u32, name: Option<&ScriptString>) {
     let _res = BRIDGE.with_online(|bridge| {
         let text = text.string();
+        let name = name.map(|name| name.string());
         let msg = MsgOut::Message(Message {
             text,
             say_type,
             cr_id,
             delay,
+            name
         });
         bridge.send(msg)
     });

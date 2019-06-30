@@ -1,6 +1,6 @@
 use crate::{
     avatar_window::AvatarWindow,
-    backend::{Backend, BackendError, BackendWindow},
+    backend::{Backend, BackendError, BackendWindow, GuiEvent},
 };
 use std::collections::btree_map::{BTreeMap, Entry};
 
@@ -39,6 +39,13 @@ impl<B: Backend> Windowing<B> {
         }
     }
     pub fn poll_events(&mut self) -> bool {
-        self.backend.poll_events()
+        let mut exit = false;
+        self.backend.poll_events(|event| {
+            if event.is_close_request() {
+                exit = true;
+            }
+            //platform.handle_event(imgui.io_mut(), &window, &event);
+        });
+        exit
     }
 }

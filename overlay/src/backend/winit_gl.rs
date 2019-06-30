@@ -50,6 +50,11 @@ fn make_window_popup(window: &Window) -> Result<(), String> {
 
 impl Backend for WinitGlBackend {
     type Window = WinitGlWindow;
+    type Event = glutin::Event;
+    type Texture = Texture2d;
+    type Error = WinitGlError;
+    type Context = glium::backend::Context;
+
     fn new() -> Self {
         let mut events_loop = glutin::EventsLoop::new();
         WinitGlBackend {
@@ -57,7 +62,7 @@ impl Backend for WinitGlBackend {
             redraw_windows: HashSet::new(),
         }
     }
-    fn new_window(&self, title: String, width: u32, height: u32) -> Result<Self::Window, BackendError<Self>> {
+    fn new_window(&self, title: String, width: u32, height: u32) -> BackendResult<Self::Window, Self> {
         let context = glutin::ContextBuilder::new().with_vsync(false);
         let builder = glutin::WindowBuilder::new()
             .with_title(title)
@@ -76,8 +81,7 @@ impl Backend for WinitGlBackend {
         let window = WinitGlWindow { display, window_id, gui: None };
         Ok(window)
     }
-    fn new_popup(&self, title: String, width: u32, height: u32) -> Result<Self::Window, BackendError<Self>> {
-
+    fn new_popup(&self, title: String, width: u32, height: u32) -> BackendResult<Self::Window, Self> {
         let context = glutin::ContextBuilder::new().with_vsync(false);
         let builder = glutin::WindowBuilder::new()
             .with_title(title)
@@ -98,24 +102,24 @@ impl Backend for WinitGlBackend {
         let window = WinitGlWindow { display, window_id, gui: None };
         Ok(window)
     }
-    fn poll_events(&mut self) -> bool {
-        let mut exit = false;
-        self.events_loop.poll_events(|event| {
-            use glutin::{Event, WindowEvent};
+    fn poll_events<F>(&mut self, f: F)
+        where F: FnMut(Self::Event)
+    {
+        self.events_loop.poll_events(f);
+    }
+}
 
-            //platform.handle_event(imgui.io_mut(), &window, &event);
-
-            if let Event::WindowEvent { event, window_id } = event {
-                match event {
-                    WindowEvent::CloseRequested => exit = true,
-                    /*WindowEvent::Refresh => {
-                        self.redraw_windows.insert(window_id);
-                    }*/
-                    _ => (),
-                }
+impl GuiEvent<WinitGlBackend> for glutin::Event {
+    fn is_close_request(&self) -> bool {
+        use glutin::{Event, WindowEvent};
+        if let Event::WindowEvent { event, window_id } = self {
+            match event {
+                WindowEvent::CloseRequested => true,
+                _ => false,
             }
-        });
-        exit
+        } else {
+            false
+        }
     }
 }
 
@@ -132,9 +136,7 @@ macro_rules! window {
 }
 
 impl BackendWindow for WinitGlWindow {
-    type Texture = Texture2d;
-    type Error = WinitGlError;
-    type Context = glium::backend::Context;
+    type Back = WinitGlBackend;
     //fn change(pos: Some<(i32, i32)>, size: Option<(u32, u32)>, show: Option<bool>) -> bool;
     fn show(&mut self) {
         window!(self).show();
@@ -145,7 +147,7 @@ impl BackendWindow for WinitGlWindow {
     fn set_position(&mut self, x: i32, y: i32) {
         window!(self).set_position((x, y).into());
     }
-    fn create_texture(&mut self, image: &mut ImageData) -> Result<Self::Texture, Self::Error> {
+    fn create_texture(&mut self, image: &mut ImageData) -> BackendResult<BackendTexture<Self::Back>, Self::Back> {
         let raw = glium::texture::RawImage2d {
             data: Cow::Borrowed(&image.bytes),
             width: image.width,
@@ -156,10 +158,10 @@ impl BackendWindow for WinitGlWindow {
     }
     fn draw_texture(
         &mut self,
-        texture: &Self::Texture,
+        texture: &BackendTexture<Self::Back>,
         src: &Rect,
         dst: &Rect,
-    ) -> Result<(), Self::Error> {
+    ) -> BackendResult<(), Self::Back> {
         use glium::Surface;
 
         let src = glium::Rect {
@@ -186,9 +188,8 @@ impl BackendWindow for WinitGlWindow {
         target.finish().map_err(WinitGlError::SwapBuffers)
     }
 
-    fn init_gui<F>(&mut self, init_context: F) -> Result<(), WinitGlError>
-        where
-            F: FnMut(&mut imgui::Context, GuiInfo) -> Result<(),()>
+    fn init_gui<F>(&mut self, init_context: F) -> BackendResult<(), Self::Back>
+        where F: FnMut(&mut imgui::Context, GuiInfo) -> Result<(),()>
     {
         /*if self.gui.is_none() {
             let gui = Gui::init(&mut self.display)?;
@@ -200,8 +201,8 @@ impl BackendWindow for WinitGlWindow {
         Ok(())
     }
 
-    fn draw_gui<F>(&mut self, run_ui: F) -> Result<(), Self::Error>
-        where F: FnMut(&imgui::Ui, &Rc<Self::Context>, &mut ImGuiTextures<Self>) -> bool
+    fn draw_gui<F>(&mut self, run_ui: F) -> BackendResult<(), Self::Back>
+        where F: FnMut(&imgui::Ui, &Rc<BackendContext<Self::Back>>, &mut ImGuiTextures<Self::Back>) -> bool
     {
         if let Some(gui) = self.gui.as_mut() {
             gui.draw(&self.display, run_ui)
@@ -209,9 +210,14 @@ impl BackendWindow for WinitGlWindow {
             Err(WinitGlError::ImGuiInit)
         }
     }
-
-    fn drop_texture(&mut self, texture: Self::Texture) {}
-    fn handle(&self) -> *mut () {
+    fn handle_event(&mut self, event: &BackendEvent<Self::Back>) {
+        if let Some(gui) = self.gui.as_mut() {
+            let window_gl = self.display.gl_window();
+            let window = window_gl.window();
+            gui.platform.handle_event(gui.imgui.io_mut(), window, event);
+        }
+    }
+    fn window_handle(&self) -> *mut () {
         use glutin::os::windows::WindowExt;
         window!(self).get_hwnd() as _
     }
@@ -262,7 +268,7 @@ impl Gui{
     }
     fn draw<F>(&mut self, display: &Display, mut run_ui: F) -> Result<(), WinitGlError>
         where
-            F: FnMut(&Ui, &Rc<Context>, &mut ImGuiTextures<WinitGlWindow>) -> bool,
+            F: FnMut(&Ui, &Rc<Context>, &mut ImGuiTextures<WinitGlBackend>) -> bool,
     {
         let ui = {
             let gl_window = display.gl_window();

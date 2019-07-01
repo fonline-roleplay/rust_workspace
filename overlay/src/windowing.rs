@@ -49,3 +49,7 @@ impl<B: Backend> Windowing<B> {
         exit
     }
 }
+
+pub trait OverlayWindow<B: Backend> {
+    fn backend_window(&self) -> &B::Window;
+}

@@ -132,11 +132,14 @@ impl<B: Backend> AvatarWindow<B> {
         }
         self.inner.set_position(x, y);
     }
-    pub fn backend_window(&self) -> &B::Window {
-        &self.inner
-    }
     pub fn hide_for_ms(&mut self, delay: u32) {
         self.hide_until = Some(Instant::now() + Duration::from_millis(delay as u64));
         self.inner.hide();
+    }
+}
+
+impl<B: Backend> crate::windowing::OverlayWindow<B> for AvatarWindow<B> {
+    fn backend_window(&self) -> &B::Window {
+        &self.inner
     }
 }

@@ -4,7 +4,7 @@ use crate::{
     downloader::{DownloaderError, ImageRequester},
     image_data::ImageData,
     windowing::Windowing,
-    chat_window::ChatWindow,
+    ui_window::{UiWindow, Chat},
     GameWindow, Rect,
 };
 use std::{collections::BTreeMap, time::Duration};
@@ -22,7 +22,8 @@ pub struct Overlay<B: Backend> {
     requester: ImageRequester,
     requester_free: bool,
     windowing: Windowing<B>,
-    chat: Option<ChatWindow>,
+    //parent: Option<UiWindow<B>>,
+    chat: Option<UiWindow<B, Chat>>,
 }
 
 impl<B: Backend> Overlay<B> {
@@ -33,7 +34,8 @@ impl<B: Backend> Overlay<B> {
     ) -> Self {
         eprintln!("err test");
         let chat = {
-            match ChatWindow::new() {
+            let logic = Chat::new();
+            match UiWindow::new(logic) {
                 Ok(chat) => Some(chat),
                 Err(err) => {
                     eprintln!("Can't create chat window: {:?}", err);
@@ -122,7 +124,7 @@ impl<B: Backend> Overlay<B> {
 
         if self.frame % 4 == 0 {
             if let Some(chat) = self.chat.as_mut() {
-                if let Err(err) = chat.draw() {
+                if let Err(err) = chat.draw(self.is_foreground) {
                     eprintln!("Error drawing chat window: {:?}", err);
                     self.chat = None;
                 }
@@ -167,7 +169,7 @@ impl<B: Backend> Overlay<B> {
                             }
                         }
                         if let Some(chat) = &mut self.chat {
-                            chat.push_message(msg);
+                            chat.logic().push_message(msg);
                         }
                     }
                 }
@@ -245,6 +247,7 @@ impl<B: Backend> Overlay<B> {
 
     fn is_game_foreground(&self) -> bool {
         use winapi::um::winuser;
+        use crate::windowing::OverlayWindow;
 
         let game_window = self.game_window.raw();
         let focus = unsafe { winuser::GetForegroundWindow() };
@@ -260,6 +263,13 @@ impl<B: Backend> Overlay<B> {
                 return true;
             }
         }
+        if let Some(chat) = self.chat.as_ref() {
+            let handle = chat.backend_window().window_handle() as usize;
+            if handle == focus as usize {
+                return true;
+            }
+        }
+
         false
     }
 }

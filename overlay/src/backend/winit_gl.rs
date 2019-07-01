@@ -1,7 +1,7 @@
 use super::*;
 
 use glium::{backend::{Context, Facade}, glutin, Texture2d, Surface, Display};
-use glutin::{dpi::LogicalPosition, EventsLoop, Window, WindowId};
+use glutin::{dpi::LogicalPosition, EventsLoop, Window, WindowId, WindowEvent, Event};
 use imgui::{Ui};
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use std::{borrow::Cow, collections::HashSet, rc::Rc, time::Instant};
@@ -50,7 +50,7 @@ fn make_window_popup(window: &Window) -> Result<(), String> {
 
 impl Backend for WinitGlBackend {
     type Window = WinitGlWindow;
-    type Event = glutin::Event;
+    type Event = Event;
     type Texture = Texture2d;
     type Error = WinitGlError;
     type Context = glium::backend::Context;
@@ -78,7 +78,7 @@ impl Backend for WinitGlBackend {
             window.window().id()
         };
 
-        let window = WinitGlWindow { display, window_id, gui: None };
+        let window = WinitGlWindow { display, window_id, gui: None, last_pos: None, dragging: None};
         Ok(window)
     }
     fn new_popup(&self, title: String, width: u32, height: u32) -> BackendResult<Self::Window, Self> {
@@ -99,7 +99,7 @@ impl Backend for WinitGlBackend {
             window.id()
         };
 
-        let window = WinitGlWindow { display, window_id, gui: None };
+        let window = WinitGlWindow { display, window_id, gui: None, last_pos: None, dragging: None};
         Ok(window)
     }
     fn poll_events<F>(&mut self, f: F)
@@ -109,9 +109,8 @@ impl Backend for WinitGlBackend {
     }
 }
 
-impl GuiEvent<WinitGlBackend> for glutin::Event {
+impl GuiEvent<WinitGlBackend> for Event {
     fn is_close_request(&self) -> bool {
-        use glutin::{Event, WindowEvent};
         if let Event::WindowEvent { event, window_id } = self {
             match event {
                 WindowEvent::CloseRequested => true,
@@ -127,6 +126,8 @@ pub struct WinitGlWindow {
     window_id: WindowId,
     display: Display,
     gui: Option<Box<Gui>>,
+    last_pos: Option<LogicalPosition>,
+    dragging: Option<LogicalPosition>,
 }
 
 macro_rules! window {
@@ -147,6 +148,13 @@ impl BackendWindow for WinitGlWindow {
     fn set_position(&mut self, x: i32, y: i32) {
         window!(self).set_position((x, y).into());
     }
+    fn move_by_f32(&mut self, x: f32, y: f32) {
+        let window_gl = self.display.gl_window();
+        let window = window_gl.window();
+        if let Some(win_pos) = window.get_position() {
+            window.set_position((win_pos.x + x as f64, win_pos.y + y as f64).into());
+        }
+    }
     fn create_texture(&mut self, image: &mut ImageData) -> BackendResult<BackendTexture<Self::Back>, Self::Back> {
         let raw = glium::texture::RawImage2d {
             data: Cow::Borrowed(&image.bytes),
@@ -162,8 +170,6 @@ impl BackendWindow for WinitGlWindow {
         src: &Rect,
         dst: &Rect,
     ) -> BackendResult<(), Self::Back> {
-        use glium::Surface;
-
         let src = glium::Rect {
             left: src.x as u32,
             bottom: src.y as u32,
@@ -211,9 +217,42 @@ impl BackendWindow for WinitGlWindow {
         }
     }
     fn handle_event(&mut self, event: &BackendEvent<Self::Back>) {
+        let window_gl = self.display.gl_window();
+        let window = window_gl.window();
+/*
+        match event {
+            Event::WindowEvent {event, ..} => {
+                use WindowEvent::{MouseInput, CursorMoved};
+                match event {
+                    MouseInput {button: glutin::MouseButton::Left, state, ..} => {
+                        use glutin::ElementState::{Pressed, Released};
+                        self.dragging = match state {
+                            Pressed => self.last_pos.copy().filter(drag),
+                            Released => None,
+                        };
+                    },
+                    CursorMoved {position, ..} => {
+                            self.last_pos = Some(*position);
+                        }
+                    },
+                    _ => {},
+                }
+            },
+        if self.dragging {
+            if let Some(last_pos) = self.last_pos.as_ref() {
+                if let Some(win_pos) = window.get_position() {
+                    let x = position.x - last_pos.x + win_pos.x;
+                    let y = position.y - last_pos.y + win_pos.y;
+                    window.set_position((x, y).into());
+                }
+            }
+        } else {
+            self.last_pos = Some(*position);
+        }
+            _ => {},
+        }
+        */
         if let Some(gui) = self.gui.as_mut() {
-            let window_gl = self.display.gl_window();
-            let window = window_gl.window();
             gui.platform.handle_event(gui.imgui.io_mut(), window, event);
         }
     }

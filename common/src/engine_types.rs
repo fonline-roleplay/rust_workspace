@@ -30,7 +30,7 @@ pub mod mutual {
     pub type CritterMutual = crate::engine_types::critter::Critter;
 }
 
-#[cfg(feature = "client")]
+#[cfg(all(feature = "client", not(feature = "server")))]
 pub mod mutual {
     /*
     #[no_mangle]

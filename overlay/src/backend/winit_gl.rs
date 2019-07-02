@@ -48,6 +48,36 @@ fn make_window_popup(window: &Window) -> Result<(), String> {
     Ok(())
 }
 
+fn make_window_border(window: &Window) -> Result<(), String> {
+    use glutin::os::windows::WindowExt;
+    use winapi::{
+        shared::windef,
+        um::{errhandlingapi as err, wingdi, winuser},
+    };
+    let handle = window.get_hwnd() as _;
+
+    unsafe {
+        let mut flags = winuser::GetWindowLongPtrA(handle, winuser::GWL_STYLE);
+        if flags == 0 {
+            return Err(format!("winuser::GetWindowLongPtrA"));
+        }
+        flags |= winuser::WS_BORDER as i32;
+        if winuser::SetWindowLongPtrA(handle, winuser::GWL_STYLE, flags) == 0 {
+            return Err(format!("winuser::SetWindowLongPtrA"));
+        }
+
+        let mut flags = winuser::GetWindowLongPtrA(handle, winuser::GWL_EXSTYLE);
+        if flags == 0 {
+            return Err(format!("winuser::GetWindowLongPtrA"));
+        }
+        flags |= winuser::WS_EX_WINDOWEDGE as i32;
+        if winuser::SetWindowLongPtrA(handle, winuser::GWL_EXSTYLE, flags) == 0 {
+            return Err(format!("winuser::SetWindowLongPtrA"));
+        }
+    }
+    Ok(())
+}
+
 impl Backend for WinitGlBackend {
     type Window = WinitGlWindow;
     type Event = Event;
@@ -75,7 +105,9 @@ impl Backend for WinitGlBackend {
             .map_err(WinitGlError::DisplayCreation)?;
         let window_id = {
             let window = display.gl_window();
-            window.window().id()
+            let window = window.window();
+            //make_window_border(window).map_err(WinitGlError::Platform)?;
+            window.id()
         };
 
         let window = WinitGlWindow { display, window_id, gui: None, last_pos: None, dragging: None};
@@ -148,6 +180,9 @@ impl BackendWindow for WinitGlWindow {
     fn set_position(&mut self, x: i32, y: i32) {
         window!(self).set_position((x, y).into());
     }
+    fn set_size(&mut self, x: u32, y: u32) {
+        window!(self).set_inner_size((x, y).into());
+    }
     fn move_by_f32(&mut self, x: f32, y: f32) {
         let window_gl = self.display.gl_window();
         let window = window_gl.window();
@@ -219,39 +254,7 @@ impl BackendWindow for WinitGlWindow {
     fn handle_event(&mut self, event: &BackendEvent<Self::Back>) {
         let window_gl = self.display.gl_window();
         let window = window_gl.window();
-/*
-        match event {
-            Event::WindowEvent {event, ..} => {
-                use WindowEvent::{MouseInput, CursorMoved};
-                match event {
-                    MouseInput {button: glutin::MouseButton::Left, state, ..} => {
-                        use glutin::ElementState::{Pressed, Released};
-                        self.dragging = match state {
-                            Pressed => self.last_pos.copy().filter(drag),
-                            Released => None,
-                        };
-                    },
-                    CursorMoved {position, ..} => {
-                            self.last_pos = Some(*position);
-                        }
-                    },
-                    _ => {},
-                }
-            },
-        if self.dragging {
-            if let Some(last_pos) = self.last_pos.as_ref() {
-                if let Some(win_pos) = window.get_position() {
-                    let x = position.x - last_pos.x + win_pos.x;
-                    let y = position.y - last_pos.y + win_pos.y;
-                    window.set_position((x, y).into());
-                }
-            }
-        } else {
-            self.last_pos = Some(*position);
-        }
-            _ => {},
-        }
-        */
+
         if let Some(gui) = self.gui.as_mut() {
             gui.platform.handle_event(gui.imgui.io_mut(), window, event);
         }
@@ -309,7 +312,7 @@ impl Gui{
         where
             F: FnMut(&Ui, &Rc<Context>, &mut ImGuiTextures<WinitGlBackend>) -> bool,
     {
-        let ui = {
+        let draw_data = {
             let gl_window = display.gl_window();
             let window = gl_window.window();
 
@@ -325,19 +328,19 @@ impl Gui{
 
             }
             self.platform.prepare_render(&ui, &window);
-
-            ui
+            let draw_data = ui.render();
+            draw_data
         };
 
         let mut target = display.draw();
         target.clear_color(
-            1.0,
+            0.0,
             0.0,
             0.0,
             1.0,
         );
 
-        self.renderer.render(&mut target, ui).map_err(WinitGlError::GliumRenderer)?;
+        self.renderer.render(&mut target,  draw_data).map_err(WinitGlError::GliumRenderer)?;
         target.finish().map_err(WinitGlError::SwapBuffers)
     }
 }

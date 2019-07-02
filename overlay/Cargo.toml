@@ -25,3 +25,4 @@ imgui = { git = "https://github.com/Gekkio/imgui-rs.git", default-features = fal
 imgui-glium-renderer = { git = "https://github.com/Gekkio/imgui-rs.git", optional = true }
 imgui-winit-support = { git = "https://github.com/Gekkio/imgui-rs.git", optional = true }
 glium = { version = "0.25", default-features = true, optional = true }
+colorsys = "0.5.1"

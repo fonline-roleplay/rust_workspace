@@ -30,6 +30,7 @@ pub trait BackendWindow {
     fn show(&mut self);
     fn hide(&mut self);
     fn set_position(&mut self, x: i32, y: i32);
+    fn set_size(&mut self, x: u32, y: u32);
     fn move_by_f32(&mut self, x: f32, y: f32);
     fn create_texture(&mut self, image: &mut ImageData) -> BackendResult<BackendTexture<Self::Back>, Self::Back>;
     fn draw_texture(

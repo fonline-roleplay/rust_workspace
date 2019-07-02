@@ -32,7 +32,7 @@ impl<B: Backend> AvatarWindow<B> {
                 println!("delete");
                 return false;
             } else if self.last_frame != frame {
-                println!("hide");
+                //println!("hide");
                 self.hide();
             }
         } else {

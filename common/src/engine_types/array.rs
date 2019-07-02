@@ -54,7 +54,7 @@ impl ScriptArray {
         Some(array)
     }
     pub unsafe fn cast_pointer<T>(&self) -> Option<&[Option<&mut T>]> {
-        let buf = unsafe { &*self.buffer };
+        let buf = &*self.buffer;
         let data = buf.data.as_ptr();
 
         let size = ::std::mem::size_of::<*mut T>();

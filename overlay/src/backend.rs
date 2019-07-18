@@ -10,18 +10,30 @@ pub type BackendResult<T, B> = Result<T, BackendError<B>>;
 pub type ImGuiTextures<B> = imgui::Textures<Rc<BackendTexture<B>>>;
 
 pub trait Backend
-    where Self: Sized
+where
+    Self: Sized,
 {
-    type Window: BackendWindow<Back=Self>;
+    type Window: BackendWindow<Back = Self>;
     type Event: GuiEvent<Self>;
     type Texture;
     type Error: Debug;
     type Context;
     fn new() -> Self;
-    fn new_window(&self, title: String, width: u32, height: u32) -> BackendResult<Self::Window, Self>;
-    fn new_popup(&self, title: String, width: u32, height: u32) -> BackendResult<Self::Window, Self>;
+    fn new_window(
+        &self,
+        title: String,
+        width: u32,
+        height: u32,
+    ) -> BackendResult<Self::Window, Self>;
+    fn new_popup(
+        &self,
+        title: String,
+        width: u32,
+        height: u32,
+    ) -> BackendResult<Self::Window, Self>;
     fn poll_events<F>(&mut self, f: F)
-        where F: FnMut(Self::Event);
+    where
+        F: FnMut(Self::Event);
 }
 
 pub trait BackendWindow {
@@ -32,7 +44,10 @@ pub trait BackendWindow {
     fn set_position(&mut self, x: i32, y: i32);
     fn set_size(&mut self, x: u32, y: u32);
     fn move_by_f32(&mut self, x: f32, y: f32);
-    fn create_texture(&mut self, image: &mut ImageData) -> BackendResult<BackendTexture<Self::Back>, Self::Back>;
+    fn create_texture(
+        &mut self,
+        image: &mut ImageData,
+    ) -> BackendResult<BackendTexture<Self::Back>, Self::Back>;
     fn draw_texture(
         &mut self,
         texture: &BackendTexture<Self::Back>,
@@ -40,9 +55,15 @@ pub trait BackendWindow {
         dst: &Rect,
     ) -> BackendResult<(), Self::Back>;
     fn init_gui<F>(&mut self, init_context: F) -> BackendResult<(), Self::Back>
-        where F: FnMut(&mut imgui::Context, GuiInfo) -> Result<(),()>;
+    where
+        F: FnMut(&mut imgui::Context, GuiInfo) -> Result<(), ()>;
     fn draw_gui<F>(&mut self, run_ui: F) -> BackendResult<(), Self::Back>
-        where F: FnMut(&imgui::Ui, &Rc<BackendContext<Self::Back>>, &mut ImGuiTextures<Self::Back>) -> bool;
+    where
+        F: FnMut(
+            &imgui::Ui,
+            &Rc<BackendContext<Self::Back>>,
+            &mut ImGuiTextures<Self::Back>,
+        ) -> bool;
     fn handle_event(&mut self, event: &BackendEvent<Self::Back>);
     fn drop_texture(&mut self, texture: BackendTexture<Self::Back>) {}
     fn window_handle(&self) -> *mut ();

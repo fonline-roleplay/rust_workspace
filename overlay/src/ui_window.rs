@@ -120,7 +120,7 @@ impl UiLogic for Chat {
             ui.text(im_str!("нет"));
         }
 
-        let mut size = ui.get_content_region_avail();
+        let mut size = ui.content_region_avail();
         let messages = &self.messages;
         ChildWindow::new("Сообщения")
             .size(size.into())

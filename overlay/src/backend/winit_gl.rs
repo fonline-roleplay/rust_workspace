@@ -1,11 +1,14 @@
 use super::*;
 
-use glium::{backend::{Context, Facade}, glutin, Texture2d, Surface, Display};
-use glutin::{dpi::LogicalPosition, EventsLoop, Window, WindowId, WindowEvent, Event};
-use imgui::{Ui};
+use glium::{
+    backend::{Context, Facade},
+    glutin, Display, Surface, Texture2d,
+};
+use glutin::{dpi::LogicalPosition, Event, EventsLoop, Window, WindowEvent, WindowId};
+use imgui::Ui;
+use imgui_glium_renderer::Renderer;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use std::{borrow::Cow, collections::HashSet, rc::Rc, time::Instant};
-use imgui_glium_renderer::Renderer;
 
 //pub trait GuiRun: FnMut(&Ui, &Rc<Context>, &mut Textures) -> bool {}
 //impl<T: FnMut(&Ui, &Rc<Context>, &mut Textures) -> bool> GuiRun for T {}
@@ -92,7 +95,12 @@ impl Backend for WinitGlBackend {
             redraw_windows: HashSet::new(),
         }
     }
-    fn new_window(&self, title: String, width: u32, height: u32) -> BackendResult<Self::Window, Self> {
+    fn new_window(
+        &self,
+        title: String,
+        width: u32,
+        height: u32,
+    ) -> BackendResult<Self::Window, Self> {
         let context = glutin::ContextBuilder::new().with_vsync(false);
         let builder = glutin::WindowBuilder::new()
             .with_title(title)
@@ -110,10 +118,21 @@ impl Backend for WinitGlBackend {
             window.id()
         };
 
-        let window = WinitGlWindow { display, window_id, gui: None, last_pos: None, dragging: None};
+        let window = WinitGlWindow {
+            display,
+            window_id,
+            gui: None,
+            last_pos: None,
+            dragging: None,
+        };
         Ok(window)
     }
-    fn new_popup(&self, title: String, width: u32, height: u32) -> BackendResult<Self::Window, Self> {
+    fn new_popup(
+        &self,
+        title: String,
+        width: u32,
+        height: u32,
+    ) -> BackendResult<Self::Window, Self> {
         let context = glutin::ContextBuilder::new().with_vsync(false);
         let builder = glutin::WindowBuilder::new()
             .with_title(title)
@@ -131,11 +150,18 @@ impl Backend for WinitGlBackend {
             window.id()
         };
 
-        let window = WinitGlWindow { display, window_id, gui: None, last_pos: None, dragging: None};
+        let window = WinitGlWindow {
+            display,
+            window_id,
+            gui: None,
+            last_pos: None,
+            dragging: None,
+        };
         Ok(window)
     }
     fn poll_events<F>(&mut self, f: F)
-        where F: FnMut(Self::Event)
+    where
+        F: FnMut(Self::Event),
     {
         self.events_loop.poll_events(f);
     }
@@ -190,7 +216,10 @@ impl BackendWindow for WinitGlWindow {
             window.set_position((win_pos.x + x as f64, win_pos.y + y as f64).into());
         }
     }
-    fn create_texture(&mut self, image: &mut ImageData) -> BackendResult<BackendTexture<Self::Back>, Self::Back> {
+    fn create_texture(
+        &mut self,
+        image: &mut ImageData,
+    ) -> BackendResult<BackendTexture<Self::Back>, Self::Back> {
         let raw = glium::texture::RawImage2d {
             data: Cow::Borrowed(&image.bytes),
             width: image.width,
@@ -230,7 +259,8 @@ impl BackendWindow for WinitGlWindow {
     }
 
     fn init_gui<F>(&mut self, init_context: F) -> BackendResult<(), Self::Back>
-        where F: FnMut(&mut imgui::Context, GuiInfo) -> Result<(),()>
+    where
+        F: FnMut(&mut imgui::Context, GuiInfo) -> Result<(), ()>,
     {
         /*if self.gui.is_none() {
             let gui = Gui::init(&mut self.display)?;
@@ -243,7 +273,12 @@ impl BackendWindow for WinitGlWindow {
     }
 
     fn draw_gui<F>(&mut self, run_ui: F) -> BackendResult<(), Self::Back>
-        where F: FnMut(&imgui::Ui, &Rc<BackendContext<Self::Back>>, &mut ImGuiTextures<Self::Back>) -> bool
+    where
+        F: FnMut(
+            &imgui::Ui,
+            &Rc<BackendContext<Self::Back>>,
+            &mut ImGuiTextures<Self::Back>,
+        ) -> bool,
     {
         if let Some(gui) = self.gui.as_mut() {
             gui.draw(&self.display, run_ui)
@@ -282,9 +317,10 @@ struct Gui {
     renderer: Renderer,
     last_frame: Instant,
 }
-impl Gui{
+impl Gui {
     fn init<F>(display: &mut Display, mut f: F) -> Result<Self, WinitGlError>
-        where F: FnMut(&mut imgui::Context, GuiInfo) -> Result<(),()>
+    where
+        F: FnMut(&mut imgui::Context, GuiInfo) -> Result<(), ()>,
     {
         let gl_window = display.gl_window();
         let window = gl_window.window();
@@ -296,7 +332,7 @@ impl Gui{
         platform.attach_window(imgui.io_mut(), &window, HiDpiMode::Rounded);
 
         let hidpi_factor = platform.hidpi_factor();
-        let info = GuiInfo{hidpi_factor};
+        let info = GuiInfo { hidpi_factor };
 
         f(&mut imgui, info).map_err(|_| WinitGlError::ImGuiInit)?;
 
@@ -304,13 +340,15 @@ impl Gui{
             Renderer::init(&mut imgui, &*display).map_err(WinitGlError::GliumRenderer)?;
 
         Ok(Gui {
-            imgui, platform, renderer,
-            last_frame: Instant::now()
+            imgui,
+            platform,
+            renderer,
+            last_frame: Instant::now(),
         })
     }
     fn draw<F>(&mut self, display: &Display, mut run_ui: F) -> Result<(), WinitGlError>
-        where
-            F: FnMut(&Ui, &Rc<Context>, &mut ImGuiTextures<WinitGlBackend>) -> bool,
+    where
+        F: FnMut(&Ui, &Rc<Context>, &mut ImGuiTextures<WinitGlBackend>) -> bool,
     {
         let draw_data = {
             let gl_window = display.gl_window();
@@ -324,23 +362,18 @@ impl Gui{
 
             let ui = self.imgui.frame();
 
-            if !run_ui(&ui, display.get_context(), self.renderer.textures()) {
-
-            }
+            if !run_ui(&ui, display.get_context(), self.renderer.textures()) {}
             self.platform.prepare_render(&ui, &window);
             let draw_data = ui.render();
             draw_data
         };
 
         let mut target = display.draw();
-        target.clear_color(
-            0.0,
-            0.0,
-            0.0,
-            1.0,
-        );
+        target.clear_color(0.0, 0.0, 0.0, 1.0);
 
-        self.renderer.render(&mut target,  draw_data).map_err(WinitGlError::GliumRenderer)?;
+        self.renderer
+            .render(&mut target, draw_data)
+            .map_err(WinitGlError::GliumRenderer)?;
         target.finish().map_err(WinitGlError::SwapBuffers)
     }
 }

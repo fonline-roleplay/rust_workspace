@@ -32,12 +32,11 @@ impl GameWindow {
         let mut rect: windef::RECT = self.client_rect()?;
         unsafe {
             winapi::um::errhandlingapi::SetLastError(0);
-            let _ret =
-                winuser::MapWindowPoints(
-                    self.0,
-                    0 as _,
-                    &mut rect as *mut windef::RECT as usize as _,
-                    2,
+            let _ret = winuser::MapWindowPoints(
+                self.0,
+                0 as _,
+                &mut rect as *mut windef::RECT as usize as _,
+                2,
             );
             let err = winapi::um::errhandlingapi::GetLastError();
             if err == 0 {

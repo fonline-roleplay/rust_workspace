@@ -1,5 +1,5 @@
 use crate::{
-    backend::{Backend, BackendError, BackendWindow, BackendTexture},
+    backend::{Backend, BackendError, BackendTexture, BackendWindow},
     bridge::{Avatar, Char},
     image_data::ImageData,
     Rect,

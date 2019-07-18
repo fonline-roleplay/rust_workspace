@@ -2,10 +2,10 @@ mod overlay;
 use overlay::Overlay;
 
 mod avatar_window;
-mod ui_window;
 mod bridge;
 mod game_window;
 mod image_data;
+mod ui_window;
 mod windowing;
 use game_window::GameWindow;
 

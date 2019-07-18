@@ -3,8 +3,8 @@ use crate::{
     bridge::{Avatar, BridgeOverlayToClient, Char, MsgIn},
     downloader::{DownloaderError, ImageRequester},
     image_data::ImageData,
+    ui_window::{Chat, UiWindow},
     windowing::Windowing,
-    ui_window::{UiWindow, Chat},
     GameWindow, Rect,
 };
 use std::{collections::BTreeMap, time::Duration};
@@ -246,8 +246,8 @@ impl<B: Backend> Overlay<B> {
     }
 
     fn is_game_foreground(&self) -> bool {
-        use winapi::um::winuser;
         use crate::windowing::OverlayWindow;
+        use winapi::um::winuser;
 
         let game_window = self.game_window.raw();
         let focus = unsafe { winuser::GetForegroundWindow() };

@@ -1,5 +1,5 @@
 [package]
-name = "overlay_sdl2"
+name = "overlay"
 version = "0.1.0"
 authors = ["qthree <qthree3@gmail.com>"]
 edition = "2018"

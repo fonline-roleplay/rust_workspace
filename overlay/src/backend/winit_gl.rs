@@ -5,7 +5,7 @@ use glutin::{dpi::LogicalPosition, EventsLoop, Window, WindowId, WindowEvent, Ev
 use imgui::{Ui};
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use std::{borrow::Cow, collections::HashSet, rc::Rc, time::Instant};
-use imgui_glium_renderer::GliumRenderer;
+use imgui_glium_renderer::Renderer;
 
 //pub trait GuiRun: FnMut(&Ui, &Rc<Context>, &mut Textures) -> bool {}
 //impl<T: FnMut(&Ui, &Rc<Context>, &mut Textures) -> bool> GuiRun for T {}
@@ -269,7 +269,7 @@ impl BackendWindow for WinitGlWindow {
 pub enum WinitGlError {
     DisplayCreation(glium::backend::glutin::DisplayCreationError),
     TextureCreation(glium::texture::TextureCreationError),
-    GliumRenderer(imgui_glium_renderer::GliumRendererError),
+    GliumRenderer(imgui_glium_renderer::RendererError),
     SwapBuffers(glium::SwapBuffersError),
     ImGuiPrepareFrame(String),
     ImGuiInit,
@@ -279,7 +279,7 @@ pub enum WinitGlError {
 struct Gui {
     imgui: imgui::Context,
     platform: WinitPlatform,
-    renderer: GliumRenderer,
+    renderer: Renderer,
     last_frame: Instant,
 }
 impl Gui{
@@ -301,7 +301,7 @@ impl Gui{
         f(&mut imgui, info).map_err(|_| WinitGlError::ImGuiInit)?;
 
         let mut renderer =
-            GliumRenderer::init(&mut imgui, &*display).map_err(WinitGlError::GliumRenderer)?;
+            Renderer::init(&mut imgui, &*display).map_err(WinitGlError::GliumRenderer)?;
 
         Ok(Gui {
             imgui, platform, renderer,

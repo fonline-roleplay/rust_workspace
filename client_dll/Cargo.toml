@@ -9,6 +9,8 @@ publish = false
 winapi = { version = "0.3.6", features = ["consoleapi"] }
 tnf_common = { path = "../common", features = ["client", "bridge"] }
 webbrowser = "0.5.1"
+heim = {version = "0.0.7", default-features = false, features = ["process"] }
+futures-preview = "=0.3.0-alpha.18"
 #crossbeam = "0.7.1"
 
 [lib]

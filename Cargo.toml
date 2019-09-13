@@ -2,7 +2,7 @@
 members = ["client_dll", "server_dll", "common", "web_server", "clients_db", "overlay"]
 
 [profile.release]
-lto = true
+#lto = true
 
 [patch.crates-io]
 glium  = { git = 'https://github.com/qthree/glium.git' }

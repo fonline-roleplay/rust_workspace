@@ -21,20 +21,35 @@ pub struct Parent {
 }
 
 pub struct Chat {
-    messages: Vec<(Message, Color)>,
-    filter: Option<(u32, String, Color)>,
+    messages: Vec<(Message, SayType, Color)>,
+    filter: ChatFilter,
     //size: (u32, u32)
 }
+
+struct ChatFilter {
+    add: bool,
+    names: Vec<(u32, String, Color)>,
+}
+impl ChatFilter {
+    fn has_cr_id(&self, cr_id: u32) -> bool {
+        self.names.iter().any(|entry| cr_id == entry.0)
+    }
+}
+
 impl Chat {
     pub fn new() -> Self {
         Chat {
             messages: vec![],
-            filter: None,
+            filter: ChatFilter {
+                add: false,
+                names: vec![],
+            },
         }
     }
     pub fn push_message(&mut self, message: Message) {
         let color = random_color(message.cr_id);
-        self.messages.push((message, color));
+        let say_type = message.say_type.into();
+        self.messages.push((message, say_type, color));
     }
 }
 
@@ -59,6 +74,67 @@ struct Color {
     lighter: [f32; 4],
 }
 
+#[derive(Clone, Copy)]
+enum SayType {
+    Normal,
+    Shout,
+    Emote,
+    Whisper,
+    Radio,
+    Unknown,
+}
+impl From<i32> for SayType {
+    fn from(from: i32) -> Self {
+        use tnf_common::defines::fos;
+        use SayType::*;
+        match from as u32 {
+            fos::SAY_NORM => Normal,
+            fos::SAY_SHOUT => Shout,
+            fos::SAY_EMOTE => Emote,
+            fos::SAY_WHISP => Whisper,
+            fos::SAY_RADIO => Radio,
+            _ => Unknown,
+        }
+    }
+}
+impl SayType {
+    fn color(self) -> [f32; 4] {
+        use SayType::*;
+        match self {
+            Normal => rgb_to_rgb_arr(0xF8F993),
+            Shout => rgb_to_rgb_arr(0xFF0000),
+            Emote => rgb_to_rgb_arr(0xFF00FF),
+            Whisper => rgb_to_rgb_arr(0x00FFFF),
+            Radio => rgb_to_rgb_arr(0xFFFFFE),
+            Unknown => rgb_to_rgb_arr(0x555555),
+        }
+    }
+    fn action(self) -> Option<&'static ImStr> {
+        use SayType::*;
+        match self {
+            Normal => Some(im_str!("(говорит)")),
+            Shout => Some(im_str!("(кричит)")),
+            Whisper => Some(im_str!("(шепчет)")),
+            _ => None,
+        }
+    }
+    fn text_wrapped<T: AsRef<ImStr>>(self, ui: &Ui, text: T) {
+        let style = ui.push_style_color(StyleColor::Text, self.color());
+        ui.text_wrapped(text.as_ref());
+        style.pop(ui);
+    }
+    fn format(self, text: &str) -> ImString {
+        use SayType::*;
+        match self {
+            Shout => im_str!("!!!{}!!!", text.to_uppercase()),
+            Emote => im_str!("**{}**", text),
+            Whisper => im_str!("...{}...", text.to_lowercase()),
+            Radio => im_str!("..{}..", text),
+            _ => im_str!("{}", text),
+        }
+    }
+}
+
 impl Color {
     fn small_button(&self, ui: &Ui, label: &ImStr) -> bool {
         let token = ui.push_style_colors(
@@ -73,6 +149,16 @@ impl Color {
         token.pop(ui);
         res
     }
+}
+
+fn rgb_to_rgb_arr(rgb: u32) -> [f32; 4] {
+    let rgb = rgb.to_be_bytes();
+    [
+        rgb[1] as f32 / 255.0,
+        rgb[2] as f32 / 255.0,
+        rgb[3] as f32 / 255.0,
+        1.0,
+    ]
 }
 
 fn int_hsl_to_rgb_arr(h: u16, s: u8, l: u8) -> [f32; 4] {
@@ -108,41 +194,81 @@ impl UiLogic for Chat {
         Some(im_str!("FOnline Chat").into())
     }
     fn draw(&mut self, ui: &imgui::Ui) {
-        //ui.text(im_str!(""));
+        let filter = &mut self.filter;
+        let messages = &mut self.messages;
+
+        let settings = im_str!("Настройки");
+        if ui.small_button(settings) {
+            ui.open_popup(settings);
+        }
+
+        ui.popup_modal(settings).always_auto_resize(true).build(|| {
+            if ui.small_button(&im_str!("Очистить")) {
+                messages.clear();
+                ui.close_current_popup();
+            }
+            if ui.small_button(im_str!("Закрыть")) {
+                ui.close_current_popup();
+            }
+        });
+
+        ui.same_line(0.0);
         ui.text(im_str!("Фильтр: "));
         ui.same_line(0.0);
-        let filter = &mut self.filter;
-        if let Some((_, name, color)) = filter.as_ref() {
-            if color.small_button(ui, &im_str!("{}##filter", name)) {
-                *filter = None;
+
+        if !filter.names.is_empty() {
+            let mut delete = None;
+            for (i, entry) in filter.names.iter().enumerate() {
+                let (_, name, color) = entry;
+                if color.small_button(ui, &im_str!("{}##filter", name)) {
+                    //*filter = None;
+                    delete = Some(i);
+                }
+                ui.same_line(0.0);
+            }
+            if let Some(delete) = delete {
+                filter.names.remove(delete);
+            }
+            if ui.small_button(if filter.add {
+                im_str!("ok")
+            } else {
+                im_str!("+")
+            }) {
+                filter.add = !filter.add;
             }
         } else {
             ui.text(im_str!("нет"));
         }
 
         let mut size = ui.content_region_avail();
-        let messages = &self.messages;
         ChildWindow::new("Сообщения")
             .size(size.into())
             .border(true)
             .build(ui, || {
-                for (i, (message, color)) in messages.into_iter().enumerate() {
+                for (i, (message, say_type, color)) in messages.into_iter().enumerate() {
                     //.rchunks(10).take(1).flatten() {
-                    if let Some((cr_id, _, _)) = filter.as_ref() {
-                        if message.cr_id != *cr_id {
+                    if !filter.add && !ui.io().key_alt && !filter.names.is_empty() {
+                        if !filter.has_cr_id(message.cr_id) {
                             continue;
                         }
                     }
                     ui.spacing();
                     let name = message.name.as_ref().map(String::as_str).unwrap_or("???");
                     let label = im_str!("{}##name_{}", name, i);
-                    let text = im_str!("{}", message.text);
                     {
                         if color.small_button(ui, &label) {
-                            *filter = Some((message.cr_id, name.to_string(), *color));
+                            if !filter.has_cr_id(message.cr_id) {
+                                filter.names.push((message.cr_id, name.to_string(), *color));
+                            }
                         }
                     }
-                    ui.text(&text);
+                    {
+                        if let Some(text) = say_type.action() {
+                            ui.same_line(0.0);
+                            SayType::Unknown.text_wrapped(ui, text);
+                        }
+                    }
+                    say_type.text_wrapped(ui, say_type.format(&message.text));
                     ui.separator();
                 }
                 stick_bottom(ui);
@@ -196,6 +322,7 @@ impl<B: Backend, L: UiLogic> UiWindow<B, L> {
                 inner.show();
                 self.hidden = false;
             }
+            inner.to_foreground();
         }
 
         self.back.poll_events(|event| {
@@ -258,7 +385,7 @@ impl<B: Backend, L: UiLogic> UiWindow<B, L> {
 
 fn imgui_init_fonts(imgui: &mut imgui::Context, hidpi_factor: f64) {
     dbg!(hidpi_factor);
-    let font_size = (13.0 * hidpi_factor) as f32;
+    let font_size = (16.0 * hidpi_factor) as f32;
     /*
         imgui.fonts().add_default_font_with_config(
             ImFontConfig::new()
@@ -277,7 +404,8 @@ fn imgui_init_fonts(imgui: &mut imgui::Context, hidpi_factor: f64) {
     };
     let font = FontSource::TtfData {
         config: Some(config),
-        data: include_bytes!("../resources/fallout_display.ttf"),
+        data: include_bytes!("../resources/clacon.ttf"),
+        //data: include_bytes!("../resources/fallout_display.ttf"),
         size_pixels: font_size,
     };
     imgui.fonts().add_font(&[font]);

@@ -41,6 +41,7 @@ pub trait BackendWindow {
     //fn change(pos: Some<(i32, i32)>, size: Option<(u32, u32)>, show: Option<bool>) -> bool;
     fn show(&mut self);
     fn hide(&mut self);
+    fn to_foreground(&mut self);
     fn set_position(&mut self, x: i32, y: i32);
     fn set_size(&mut self, x: u32, y: u32);
     fn move_by_f32(&mut self, x: f32, y: f32);

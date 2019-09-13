@@ -152,7 +152,11 @@ impl<B: Backend> Overlay<B> {
                     MsgIn::Message(mut msg) => {
                         use tnf_common::defines::fos;
                         match msg.say_type as u32 {
-                            fos::SAY_NORM | fos::SAY_SHOUT | fos::SAY_EMOTE | fos::SAY_WHISP => {
+                            fos::SAY_NORM
+                            | fos::SAY_SHOUT
+                            | fos::SAY_EMOTE
+                            | fos::SAY_WHISP
+                            | fos::SAY_RADIO => {
                                 //log message
                             }
                             _ => continue,

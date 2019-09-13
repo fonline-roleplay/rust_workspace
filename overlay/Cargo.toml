@@ -20,7 +20,9 @@ crossbeam = "0.7.1"
 reqwest = "0.9.18"
 image = { version = "0.21.2", default-features = false, features = ["png_codec"] }
 tnf_common = { path = "../common", features = ["bridge"] }
-
+#imgui = { path = "../../../rust/imgui-rs", default-features = false, features = ["glium"], optional = true }
+#imgui-glium-renderer = { path = "../../../rust/imgui-rs/imgui-glium-renderer", optional = true }
+#imgui-winit-support = { path = "../../../rust/imgui-rs/imgui-winit-support", optional = true }
 imgui = { git = "https://github.com/Gekkio/imgui-rs.git", default-features = false, features = ["glium"], optional = true }
 imgui-glium-renderer = { git = "https://github.com/Gekkio/imgui-rs.git", optional = true }
 imgui-winit-support = { git = "https://github.com/Gekkio/imgui-rs.git", optional = true }

@@ -29,7 +29,7 @@ impl<B: Backend> AvatarWindow<B> {
     pub fn maintain(&mut self, frame: u64, updated: bool) -> bool {
         if updated {
             if self.last_frame + 240 * 30 < frame {
-                println!("delete");
+                //println!("delete");
                 return false;
             } else if self.last_frame != frame {
                 //println!("hide");
@@ -37,10 +37,10 @@ impl<B: Backend> AvatarWindow<B> {
             }
         } else {
             if let Some(hide_until) = self.hide_until {
-                println!("hide until");
+                //println!("hide until");
                 let now = Instant::now();
                 if now > hide_until {
-                    println!("expired");
+                    //println!("expired");
                     self.hide_until = None;
                     if !self.hidden {
                         self.inner.show();

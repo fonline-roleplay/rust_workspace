@@ -203,6 +203,12 @@ impl BackendWindow for WinitGlWindow {
     fn hide(&mut self) {
         window!(self).hide();
     }
+    fn to_foreground(&mut self) {
+        use glutin::os::windows::WindowExt;
+        let hwnd = window!(self).get_hwnd();
+        use winapi::um::winuser;
+        unsafe { winuser::BringWindowToTop(hwnd as _) };
+    }
     fn set_position(&mut self, x: i32, y: i32) {
         window!(self).set_position((x, y).into());
     }
@@ -291,6 +297,22 @@ impl BackendWindow for WinitGlWindow {
         let window = window_gl.window();
 
         if let Some(gui) = self.gui.as_mut() {
+            match event {
+                Event::WindowEvent {
+                    window_id,
+                    event: WindowEvent::Focused(false),
+                } if *window_id == window.id() => {
+                    let io = gui.imgui.io_mut();
+                    io.key_shift = false;
+                    io.key_ctrl = false;
+                    io.key_alt = false;
+                    io.key_super = false;
+                    for key in io.keys_down.iter_mut() {
+                        *key = false;
+                    }
+                }
+                _ => {}
+            }
             gui.platform.handle_event(gui.imgui.io_mut(), window, event);
         }
     }

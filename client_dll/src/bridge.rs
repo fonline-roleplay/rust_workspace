@@ -20,8 +20,23 @@ type BridgeClientToOverlay = BridgeClientCell<MsgIn, MsgOut>;
 static BRIDGE: BridgeClientToOverlay = BridgeClientToOverlay::new();
 
 fn is_overlay_running() -> bool {
-    let ret = unsafe { winapi::um::winuser::FindWindowA(0 as _, "FOnlineOverlay\0".as_ptr() as _) };
-    ret as usize != 0
+    const NAME: &str = "FOnlineOverlay.exe";
+    //let ret = unsafe { winapi::um::winuser::FindWindowA(0 as _, "FOnlineOverlay\0".as_ptr() as _) };
+    //ret as usize != 0
+    use futures::{
+        future::{self, FutureExt, TryFutureExt},
+        stream::StreamExt,
+    };
+    let mut stream = heim::process::processes()
+        .filter_map(|res| future::ready(res.ok()))
+        .skip_while(|process| {
+            process.name().then(|res| {
+                //println!("Process: {:?}", res);
+                future::ready(res.map(|name| name != NAME).unwrap_or(false))
+            })
+        });
+    let process = futures::executor::block_on(stream.next());
+    process.is_some()
 }
 
 #[no_mangle]
@@ -38,6 +53,7 @@ pub extern "C" fn connect_to_overlay(url: &ScriptString, web: &ScriptString) {
         let file_out = std::fs::File::create("FOnlineOverlay.log").expect("overlay log file");
         let file_err = file_out.try_clone().expect("overlay err log file");
         let res = std::process::Command::new(&path)
+            .env("RUST_BACKTRACE", "1")
             .arg(web_url)
             .stdout(file_out)
             .stderr(file_err)
@@ -134,7 +150,13 @@ pub extern "C" fn update_avatars(array: &ScriptArray) {
 }
 
 #[no_mangle]
-pub extern "C" fn message_in(text: &ScriptString, say_type: i32, cr_id: u32, delay: u32, name: Option<&ScriptString>) {
+pub extern "C" fn message_in(
+    text: &ScriptString,
+    say_type: i32,
+    cr_id: u32,
+    delay: u32,
+    name: Option<&ScriptString>,
+) {
     let _res = BRIDGE.with_online(|bridge| {
         let text = text.string();
         let name = name.map(|name| name.string());
@@ -143,7 +165,7 @@ pub extern "C" fn message_in(text: &ScriptString, say_type: i32, cr_id: u32, del
             say_type,
             cr_id,
             delay,
-            name
+            name,
         });
         bridge.send(msg)
     });

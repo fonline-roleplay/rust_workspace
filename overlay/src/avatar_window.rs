@@ -1,14 +1,17 @@
 use crate::{
-    backend::{Backend, BackendError, BackendTexture, BackendWindow},
+    backend::{Backend, BackendError, BackendTexture, BackendWindow, WindowRef},
     bridge::{Avatar, Char},
     image_data::ImageData,
     Rect,
 };
-use std::time::{Duration, Instant};
+use std::{
+    rc::Rc,
+    time::{Duration, Instant},
+};
 
 pub struct AvatarWindow<B: Backend> {
-    inner: B::Window,
-    char_texture: Option<(Char, BackendTexture<B>)>,
+    inner: WindowRef<B>,
+    pub char_texture: Option<(Char, Rc<BackendTexture<B>>)>,
     last_frame: u64,
     hidden: bool,
     pos: Option<(i32, i32)>,
@@ -16,7 +19,12 @@ pub struct AvatarWindow<B: Backend> {
 }
 
 impl<B: Backend> AvatarWindow<B> {
-    pub fn new(inner: B::Window) -> Self {
+    pub fn texture(&self) -> Option<Rc<BackendTexture<B>>> {
+        self.char_texture
+            .as_ref()
+            .map(|char_texture| Rc::clone(&char_texture.1))
+    }
+    pub fn new(inner: WindowRef<B>) -> Self {
         AvatarWindow {
             inner,
             char_texture: None,
@@ -43,7 +51,7 @@ impl<B: Backend> AvatarWindow<B> {
                     //println!("expired");
                     self.hide_until = None;
                     if !self.hidden {
-                        self.inner.show();
+                        self.inner.borrow_mut().show();
                         self.draw();
                     }
                 }
@@ -57,6 +65,7 @@ impl<B: Backend> AvatarWindow<B> {
         image: &mut ImageData,
         rect: &Rect,
         frame: u64,
+        redraw: bool,
     ) -> bool {
         if let Err(err) = self.update_char(avatar.char, image) {
             eprintln!("Update char window: {:?}", err);
@@ -68,7 +77,7 @@ impl<B: Backend> AvatarWindow<B> {
         let mut appeared = false;
         if (rect.width as i32 - 64 > x && x > 0) && (rect.height as i32 - 64 > y && y > 0) {
             self.set_position(rect.x + x, rect.y + y);
-            if self.show() {
+            if self.show() || redraw {
                 appeared = true;
                 self.draw();
             }
@@ -85,18 +94,18 @@ impl<B: Backend> AvatarWindow<B> {
                 return Ok(());
             } else {
                 let (_, old_texture) = self.char_texture.take().unwrap();
-                self.inner.drop_texture(old_texture);
+                //self.inner.drop_texture(old_texture);
             }
         }
-        let texture = self.inner.create_texture(image)?;
-        self.char_texture = Some((char, texture));
+        let texture = self.inner.borrow_mut().create_texture(image)?;
+        self.char_texture = Some((char, Rc::new(texture)));
         Ok(())
     }
     fn draw(&mut self) -> Result<(), BackendError<B>> {
         if let Some((_, texture)) = &self.char_texture {
             let src = Rect::new(0, 0, 128, 128);
             let dst = Rect::new(0, 0, 64, 64);
-            self.inner.draw_texture(texture, &src, &dst)?;
+            self.inner.borrow_mut().draw_texture(texture, &src, &dst)?;
         }
         Ok(())
     }
@@ -112,7 +121,7 @@ impl<B: Backend> AvatarWindow<B> {
                 }
             }
             self.hidden = false;
-            self.inner.show();
+            self.inner.borrow_mut().show();
             true
         } else {
             false
@@ -121,7 +130,7 @@ impl<B: Backend> AvatarWindow<B> {
     fn hide(&mut self) {
         if !self.hidden {
             self.hidden = true;
-            self.inner.hide();
+            self.inner.borrow_mut().hide();
         }
     }
     fn set_position(&mut self, x: i32, y: i32) {
@@ -130,16 +139,16 @@ impl<B: Backend> AvatarWindow<B> {
         } else {
             return;
         }
-        self.inner.set_position(x, y);
+        self.inner.borrow_mut().set_position(x, y);
     }
     pub fn hide_for_ms(&mut self, delay: u32) {
         self.hide_until = Some(Instant::now() + Duration::from_millis(delay as u64));
-        self.inner.hide();
+        self.inner.borrow_mut().hide();
     }
 }
 
 impl<B: Backend> crate::windowing::OverlayWindow<B> for AvatarWindow<B> {
-    fn backend_window(&self) -> &B::Window {
+    fn backend_window(&self) -> &WindowRef<B> {
         &self.inner
     }
 }

@@ -3,7 +3,7 @@ use crate::{
     bridge::{Avatar, BridgeOverlayToClient, Char, MsgIn},
     downloader::{DownloaderError, ImageRequester},
     image_data::ImageData,
-    ui_window::{Chat, UiWindow},
+    ui_window::{Bar, Chat, UiWindow},
     windowing::Windowing,
     GameWindow, Rect,
 };
@@ -23,9 +23,10 @@ pub struct Overlay<B: Backend> {
     requester_free: bool,
     windowing: Windowing<B>,
     //parent: Option<UiWindow<B>>,
+    bar: Option<UiWindow<B, Bar>>,
     chat: Option<UiWindow<B, Chat>>,
 }
-
+use std::{cell::RefCell, rc::Rc};
 impl<B: Backend> Overlay<B> {
     pub fn new(
         game_window: GameWindow,
@@ -33,9 +34,11 @@ impl<B: Backend> Overlay<B> {
         requester: ImageRequester,
     ) -> Self {
         eprintln!("err test");
+        let backend = Rc::new(RefCell::new(B::new()));
+        let rect = game_window.rect().expect("game window rect");
         let chat = {
             let logic = Chat::new();
-            match UiWindow::new(logic) {
+            match UiWindow::new(logic, Rc::clone(&backend)) {
                 Ok(chat) => Some(chat),
                 Err(err) => {
                     eprintln!("Can't create chat window: {:?}", err);
@@ -43,8 +46,19 @@ impl<B: Backend> Overlay<B> {
                 }
             }
         };
+        let bar = {
+            let logic = Bar::new((rect.width, rect.height));
+            match UiWindow::new(logic, Rc::clone(&backend)) {
+                Ok(bar) => Some(bar),
+                Err(err) => {
+                    eprintln!("Can't create bar window: {:?}", err);
+                    None
+                }
+            }
+        };
+
         Overlay {
-            rect: game_window.rect().expect("game window rect"),
+            rect,
             game_window,
             avatars: vec![],
             images: BTreeMap::new(),
@@ -55,7 +69,8 @@ impl<B: Backend> Overlay<B> {
             bridge,
             requester,
             requester_free: true,
-            windowing: Windowing::new(),
+            windowing: Windowing::new(backend),
+            bar,
             chat,
         }
     }
@@ -105,10 +120,10 @@ impl<B: Backend> Overlay<B> {
             return false;
         }
 
-        let exit = self.windowing.poll_events();
+        /*let exit = self.windowing.poll_events();
         if exit {
             return false;
-        }
+        }*/
 
         //check new messages from client, send ping
         self.update_bridge();
@@ -116,15 +131,35 @@ impl<B: Backend> Overlay<B> {
         //check if new image is downloaded, mark overlay dirty is so
         self.update_downloader();
 
-        if self.dirty {
-            self.redraw();
+        let redraw = self.windowing.backend.borrow_mut().poll_events(|event| {});
+        if self.dirty || redraw {
+            self.redraw(redraw);
         }
         self.windowing.maintain(self.frame, self.dirty);
         self.dirty = false;
 
         if self.frame % 4 == 0 {
+            if let Some(bar) = self.bar.as_mut() {
+                bar.logic().show_faces = !self.hide;
+                if let Err(err) = bar.draw(self.is_foreground, &mut self.windowing, &self.rect) {
+                    eprintln!("Error drawing bar window: {:?}", err);
+                    self.bar = None;
+                } else {
+                    if bar.logic().show_faces != !self.hide {
+                        self.hide = !bar.logic().show_faces;
+                        self.dirty = true;
+                    }
+                }
+            }
             if let Some(chat) = self.chat.as_mut() {
-                if let Err(err) = chat.draw(self.is_foreground) {
+                let show = if let Some(bar) = self.bar.as_mut() {
+                    bar.logic().show_chat
+                } else {
+                    true
+                };
+                if let Err(err) =
+                    chat.draw(self.is_foreground && show, &mut self.windowing, &self.rect)
+                {
                     eprintln!("Error drawing chat window: {:?}", err);
                     self.chat = None;
                 }
@@ -208,7 +243,7 @@ impl<B: Backend> Overlay<B> {
         }
     }
 
-    fn redraw(&mut self) {
+    fn redraw(&mut self, redraw: bool) {
         if self.is_foreground && !self.hide && !self.avatars.is_empty() {
             let mut popup_game_window = false;
 
@@ -220,7 +255,9 @@ impl<B: Backend> Overlay<B> {
                                 //visible_avatars.push((image, avatar.pos));
                                 match self.windowing.window_for_char(avatar.char.id) {
                                     Ok(window) => {
-                                        if window.update(avatar, image, &self.rect, self.frame) {
+                                        if window
+                                            .update(avatar, image, &self.rect, self.frame, redraw)
+                                        {
                                             popup_game_window = true;
                                         }
                                     }
@@ -262,13 +299,20 @@ impl<B: Backend> Overlay<B> {
             return true;
         }
         for window in self.windowing.windows.values() {
-            let handle = window.backend_window().window_handle() as usize;
+            let handle = window.backend_window().borrow().window_handle() as usize;
+            if handle == focus as usize {
+                return true;
+            }
+        }
+
+        if let Some(bar) = self.bar.as_ref() {
+            let handle = bar.backend_window().borrow().window_handle() as usize;
             if handle == focus as usize {
                 return true;
             }
         }
         if let Some(chat) = self.chat.as_ref() {
-            let handle = chat.backend_window().window_handle() as usize;
+            let handle = chat.backend_window().borrow().window_handle() as usize;
             if handle == focus as usize {
                 return true;
             }

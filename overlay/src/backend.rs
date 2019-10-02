@@ -1,6 +1,9 @@
 use crate::{avatar_window::AvatarWindow, image_data::ImageData, Rect};
 use std::fmt::Debug;
-use std::rc::Rc;
+use std::{
+    cell::RefCell,
+    rc::{Rc, Weak},
+};
 
 pub type BackendEvent<B> = <B as Backend>::Event;
 pub type BackendTexture<B> = <B as Backend>::Texture;
@@ -8,6 +11,9 @@ pub type BackendContext<B> = <B as Backend>::Context;
 pub type BackendError<B> = <B as Backend>::Error;
 pub type BackendResult<T, B> = Result<T, BackendError<B>>;
 pub type ImGuiTextures<B> = imgui::Textures<Rc<BackendTexture<B>>>;
+pub type BackendRef<B> = Rc<RefCell<B>>;
+pub type WindowRef<B> = Rc<RefCell<<B as Backend>::Window>>;
+pub type WindowWeak<B> = Weak<RefCell<<B as Backend>::Window>>;
 
 pub trait Backend
 where
@@ -15,25 +21,26 @@ where
 {
     type Window: BackendWindow<Back = Self>;
     type Event: GuiEvent<Self>;
-    type Texture;
+    type Texture: Debug;
     type Error: Debug;
     type Context;
     fn new() -> Self;
     fn new_window(
-        &self,
+        &mut self,
         title: String,
         width: u32,
         height: u32,
-    ) -> BackendResult<Self::Window, Self>;
+    ) -> BackendResult<WindowRef<Self>, Self>;
     fn new_popup(
-        &self,
+        &mut self,
         title: String,
         width: u32,
         height: u32,
-    ) -> BackendResult<Self::Window, Self>;
-    fn poll_events<F>(&mut self, f: F)
+    ) -> BackendResult<WindowRef<Self>, Self>;
+    fn poll_events<F>(&mut self, f: F) -> bool
     where
         F: FnMut(Self::Event);
+    fn drop_texture(context: &Rc<BackendContext<Self>>, texture: &BackendTexture<Self>) {}
 }
 
 pub trait BackendWindow {
@@ -64,8 +71,8 @@ pub trait BackendWindow {
             &imgui::Ui,
             &Rc<BackendContext<Self::Back>>,
             &mut ImGuiTextures<Self::Back>,
-        ) -> bool;
-    fn handle_event(&mut self, event: &BackendEvent<Self::Back>);
+        ) -> Vec<imgui::TextureId>;
+    fn handle_event(&mut self, event: &BackendEvent<Self::Back>) -> bool;
     fn drop_texture(&mut self, texture: BackendTexture<Self::Back>) {}
     fn window_handle(&self) -> *mut ();
 }

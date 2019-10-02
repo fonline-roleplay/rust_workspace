@@ -46,7 +46,10 @@ pub extern "C" fn connect_to_overlay(url: &ScriptString, web: &ScriptString) {
         println!("Spawn new overlay process");
         use std::os::windows::process::CommandExt;
         use std::path::PathBuf;
-        use winapi::um::winbase;
+        use winapi::um::{processthreadsapi, winbase};
+
+        let pid = unsafe { processthreadsapi::GetCurrentProcessId() };
+
         let mut path = PathBuf::new();
         path.push("overlay");
         path.push("FOnlineOverlay");
@@ -55,6 +58,8 @@ pub extern "C" fn connect_to_overlay(url: &ScriptString, web: &ScriptString) {
         let res = std::process::Command::new(&path)
             .env("RUST_BACKTRACE", "1")
             .arg(web_url)
+            .arg("--pid")
+            .arg(format!("{}", pid))
             .stdout(file_out)
             .stderr(file_err)
             .creation_flags(winbase::CREATE_NEW_PROCESS_GROUP | winbase::CREATE_NO_WINDOW)

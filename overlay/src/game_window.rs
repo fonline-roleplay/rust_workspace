@@ -17,6 +17,31 @@ impl GameWindow {
     fn from_handle(handle: windef::HWND) -> Self {
         GameWindow(handle)
     }
+    pub fn from_pid(pid: u32) -> Option<Self> {
+        if pid == 0 {
+            return None;
+        }
+        struct EnumWindowsData {
+            pid: u32,
+            hwnd: Option<windef::HWND>,
+        };
+        let mut data = EnumWindowsData { pid, hwnd: None };
+        unsafe extern "system" fn find_by_pid(hwnd: windef::HWND, data: isize) -> i32 {
+            let data = &mut *(data as *mut EnumWindowsData);
+            let mut process_id = 0;
+            let _thread_id = winuser::GetWindowThreadProcessId(hwnd, &mut process_id);
+            if process_id == data.pid {
+                data.hwnd = Some(hwnd);
+                0
+            } else {
+                1
+            }
+        }
+        unsafe {
+            winuser::EnumWindows(Some(find_by_pid), (&mut data) as *mut _ as _);
+        }
+        data.hwnd.map(|hwnd| Self::from_handle(hwnd))
+    }
     pub fn find() -> Option<Self> {
         let ret = unsafe { winuser::FindWindowA(0 as _, "FOnline\0".as_ptr() as _) };
         //let ret = unsafe { winuser::FindWindowA( "Notepad\0".as_ptr() as _, 0 as _) };

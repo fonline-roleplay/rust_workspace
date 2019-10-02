@@ -1,24 +1,61 @@
 use crate::{
     avatar_window::AvatarWindow,
-    backend::{Backend, BackendError, BackendWindow, GuiEvent},
+    backend::{
+        Backend, BackendError, BackendRef, BackendWindow, GuiEvent, ImGuiTextures, WindowRef,
+    },
 };
 use std::collections::btree_map::{BTreeMap, Entry};
 
 pub struct Windowing<B: Backend> {
     pub windows: BTreeMap<u32, AvatarWindow<B>>,
-    backend: B,
+    pub char_textures: BTreeMap<u32, imgui::TextureId>,
+    pub textures: ImGuiTextures<B>,
+    pub backend: BackendRef<B>,
+}
+
+pub trait TextureForChar {
+    fn texture_for_char(&mut self, char: u32) -> Option<imgui::TextureId>;
+    fn debug(&self);
+}
+
+impl<B: Backend> TextureForChar for Windowing<B> {
+    fn texture_for_char(&mut self, char: u32) -> Option<imgui::TextureId> {
+        if let Some(id) = self.char_textures.get(&char) {
+            return Some(*id);
+        }
+        let texture = self
+            .windows
+            .get(&char)
+            .and_then(|window| window.texture())?;
+        let id = self.textures.insert(texture);
+        self.char_textures.insert(char, id);
+        Some(id)
+    }
+    fn debug(&self) {
+        println!("windows: {}", self.windows.len());
+        for (char, window) in &self.windows {
+            println!("{}: {:?}", char, window.char_texture);
+        }
+        println!("textures: {:?}", self.textures);
+        println!("char_textures: {:?}", self.char_textures);
+    }
 }
 
 impl<B: Backend> Windowing<B> {
-    pub fn new() -> Self {
+    pub fn new(backend: BackendRef<B>) -> Self {
         Windowing {
             windows: BTreeMap::new(),
-            backend: B::new(),
+            char_textures: BTreeMap::new(),
+            textures: imgui::Textures::new(),
+            backend,
         }
     }
     pub fn window_for_char(&mut self, char: u32) -> Result<&mut AvatarWindow<B>, BackendError<B>> {
         if let Entry::Vacant(vacant) = self.windows.entry(char) {
-            let inner = self.backend.new_popup("FOnlineOverlay".into(), 64, 64)?;
+            let inner = self
+                .backend
+                .borrow_mut()
+                .new_popup("FOnlineOverlay".into(), 64, 64)?;
             let window = AvatarWindow::new(inner);
             vacant.insert(window);
         }
@@ -40,7 +77,7 @@ impl<B: Backend> Windowing<B> {
     }
     pub fn poll_events(&mut self) -> bool {
         let mut exit = false;
-        self.backend.poll_events(|event| {
+        self.backend.borrow_mut().poll_events(|event| {
             if event.is_close_request() {
                 exit = true;
             }
@@ -51,5 +88,5 @@ impl<B: Backend> Windowing<B> {
 }
 
 pub trait OverlayWindow<B: Backend> {
-    fn backend_window(&self) -> &B::Window;
+    fn backend_window(&self) -> &WindowRef<B>;
 }

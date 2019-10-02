@@ -4,18 +4,29 @@ use glium::{
     backend::{Context, Facade},
     glutin, Display, Surface, Texture2d,
 };
-use glutin::{dpi::LogicalPosition, Event, EventsLoop, Window, WindowEvent, WindowId};
+use glutin::{dpi::LogicalPosition, Event, EventsLoop, NotCurrent, Window, WindowEvent, WindowId};
 use imgui::Ui;
 use imgui_glium_renderer::Renderer;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
-use std::{borrow::Cow, collections::HashSet, rc::Rc, time::Instant};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    rc::{Rc, Weak},
+    time::Instant,
+};
 
 //pub trait GuiRun: FnMut(&Ui, &Rc<Context>, &mut Textures) -> bool {}
 //impl<T: FnMut(&Ui, &Rc<Context>, &mut Textures) -> bool> GuiRun for T {}
 
 pub struct WinitGlBackend {
     events_loop: EventsLoop,
-    redraw_windows: HashSet<WindowId>,
+    headless: glutin::Context<NotCurrent>,
+    windows: HashMap<WindowId, WindowWeak<Self>>,
+    //redraw_windows: HashSet<WindowId>,
+}
+
+fn context_builder<'a>() -> glutin::ContextBuilder<'a, NotCurrent> {
+    glutin::ContextBuilder::new().with_vsync(false)
 }
 
 fn make_window_popup(window: &Window) -> Result<(), String> {
@@ -26,7 +37,7 @@ fn make_window_popup(window: &Window) -> Result<(), String> {
     };
     let handle = window.get_hwnd() as _;
 
-    window.hide_cursor(true);
+    //window.hide_cursor(true);
 
     unsafe {
         let mut flags = winuser::GetWindowLongPtrA(handle, winuser::GWL_STYLE);
@@ -90,18 +101,23 @@ impl Backend for WinitGlBackend {
 
     fn new() -> Self {
         let mut events_loop = glutin::EventsLoop::new();
+        let headless = context_builder()
+            .build_headless(&events_loop, glutin::dpi::PhysicalSize::new(1.0, 1.0))
+            .expect("Headless GL context");
         WinitGlBackend {
             events_loop,
-            redraw_windows: HashSet::new(),
+            headless,
+            windows: HashMap::new(),
+            //redraw_windows: HashSet::new(),
         }
     }
     fn new_window(
-        &self,
+        &mut self,
         title: String,
         width: u32,
         height: u32,
-    ) -> BackendResult<Self::Window, Self> {
-        let context = glutin::ContextBuilder::new().with_vsync(false);
+    ) -> BackendResult<WindowRef<Self>, Self> {
+        let context = context_builder().with_shared_lists(&self.headless);
         let builder = glutin::WindowBuilder::new()
             .with_title(title)
             .with_decorations(false)
@@ -125,15 +141,17 @@ impl Backend for WinitGlBackend {
             last_pos: None,
             dragging: None,
         };
+        let window = Rc::new(RefCell::new(window));
+        self.windows.insert(window_id, Rc::downgrade(&window));
         Ok(window)
     }
     fn new_popup(
-        &self,
+        &mut self,
         title: String,
         width: u32,
         height: u32,
-    ) -> BackendResult<Self::Window, Self> {
-        let context = glutin::ContextBuilder::new().with_vsync(false);
+    ) -> BackendResult<WindowRef<Self>, Self> {
+        let context = context_builder().with_shared_lists(&self.headless);
         let builder = glutin::WindowBuilder::new()
             .with_title(title)
             .with_decorations(false)
@@ -157,13 +175,40 @@ impl Backend for WinitGlBackend {
             last_pos: None,
             dragging: None,
         };
+        let window = Rc::new(RefCell::new(window));
+        self.windows.insert(window_id, Rc::downgrade(&window));
         Ok(window)
     }
-    fn poll_events<F>(&mut self, f: F)
+    fn poll_events<F>(&mut self, f: F) -> bool
     where
         F: FnMut(Self::Event),
     {
-        self.events_loop.poll_events(f);
+        let windows = &mut self.windows;
+        let mut redraw = false;
+        self.events_loop
+            .poll_events(|global_event| match &global_event {
+                Event::WindowEvent { window_id, event } => {
+                    if let Some(window) = windows.get(&window_id) {
+                        match window.upgrade() {
+                            Some(window) => {
+                                let mut window = window.borrow_mut();
+                                redraw |= window.handle_event(&global_event);
+                            }
+                            None => {
+                                windows.remove(&window_id);
+                            }
+                        }
+                    }
+                }
+                _ => {
+                    //println!("Another event: {:?}", global_event);
+                }
+            });
+        redraw
+    }
+
+    fn drop_texture(context: &Rc<BackendContext<Self>>, texture: &BackendTexture<Self>) {
+        texture.drop_for(context);
     }
 }
 
@@ -198,7 +243,14 @@ impl BackendWindow for WinitGlWindow {
     type Back = WinitGlBackend;
     //fn change(pos: Some<(i32, i32)>, size: Option<(u32, u32)>, show: Option<bool>) -> bool;
     fn show(&mut self) {
-        window!(self).show();
+        //window!(self).show();
+        use glutin::os::windows::WindowExt;
+        use winapi::um::winuser;
+
+        let hwnd = window!(self).get_hwnd();
+        unsafe {
+            winuser::ShowWindow(hwnd as _, winuser::SW_SHOWNOACTIVATE);
+        }
     }
     fn hide(&mut self) {
         window!(self).hide();
@@ -210,7 +262,42 @@ impl BackendWindow for WinitGlWindow {
         unsafe { winuser::BringWindowToTop(hwnd as _) };
     }
     fn set_position(&mut self, x: i32, y: i32) {
-        window!(self).set_position((x, y).into());
+        //window!(self).set_position((x, y).into());
+        /*use winapi::{
+            shared::windef,
+            um::{errhandlingapi as err, wingdi, winuser},
+        };
+        let handle = self.window_handle() as _;
+        unsafe {
+            winuser::SetWindowPos(
+                handle,
+                0 as _,
+                x,
+                y,
+                0,
+                0,
+                winuser::SWP_NOZORDER | winuser::SWP_NOZORDER,
+            );
+        }*/
+        use glutin::os::windows::WindowExt;
+        use winapi::um::winuser;
+
+        let hwnd = window!(self).get_hwnd();
+        unsafe {
+            winuser::SetWindowPos(
+                hwnd as _,
+                std::ptr::null_mut(),
+                x,
+                y,
+                0,
+                0,
+                winuser::SWP_ASYNCWINDOWPOS
+                    | winuser::SWP_NOZORDER
+                    | winuser::SWP_NOSIZE
+                    | winuser::SWP_NOACTIVATE,
+            );
+            winuser::UpdateWindow(hwnd as _);
+        }
     }
     fn set_size(&mut self, x: u32, y: u32) {
         window!(self).set_inner_size((x, y).into());
@@ -284,7 +371,7 @@ impl BackendWindow for WinitGlWindow {
             &imgui::Ui,
             &Rc<BackendContext<Self::Back>>,
             &mut ImGuiTextures<Self::Back>,
-        ) -> bool,
+        ) -> Vec<imgui::TextureId>,
     {
         if let Some(gui) = self.gui.as_mut() {
             gui.draw(&self.display, run_ui)
@@ -292,12 +379,19 @@ impl BackendWindow for WinitGlWindow {
             Err(WinitGlError::ImGuiInit)
         }
     }
-    fn handle_event(&mut self, event: &BackendEvent<Self::Back>) {
+    fn handle_event(&mut self, event: &BackendEvent<Self::Back>) -> bool {
         let window_gl = self.display.gl_window();
         let window = window_gl.window();
 
+        /*println!(
+            "window: {:?}, event: {:?}, gui: {}",
+            window.id(),
+            &event,
+            self.gui.is_some()
+        );*/
+
         if let Some(gui) = self.gui.as_mut() {
-            match event {
+            /*match event {
                 Event::WindowEvent {
                     window_id,
                     event: WindowEvent::Focused(false),
@@ -312,8 +406,30 @@ impl BackendWindow for WinitGlWindow {
                     }
                 }
                 _ => {}
+            }*/
+            match event {
+                Event::WindowEvent {
+                    window_id,
+                    event: WindowEvent::Focused(focused),
+                } if *window_id == window.id() => {
+                    gui.focused = *focused;
+                }
+                _ => {}
             }
-            gui.platform.handle_event(gui.imgui.io_mut(), window, event);
+
+            let imgui = gui.imgui.activate().expect("Can't acivate imgui context");
+            gui.platform.handle_event(imgui.io_mut(), window, event);
+            gui.imgui.suspend();
+
+            false
+        } else {
+            match event {
+                Event::WindowEvent {
+                    window_id,
+                    event: WindowEvent::Refresh,
+                } if *window_id == window.id() => true,
+                _ => false,
+            }
         }
     }
     fn window_handle(&self) -> *mut () {
@@ -333,11 +449,42 @@ pub enum WinitGlError {
     Platform(String),
 }
 
+enum GuiContext {
+    Active(imgui::Context),
+    Suspended(imgui::SuspendedContext),
+    Invalid,
+}
+
+impl GuiContext {
+    fn suspend(&mut self) {
+        let context = std::mem::replace(self, GuiContext::Invalid);
+        *self = match context {
+            GuiContext::Active(context) => GuiContext::Suspended(context.suspend()),
+            _ => context,
+        };
+    }
+    fn activate(&mut self) -> Result<&mut imgui::Context, ()> {
+        let context = std::mem::replace(self, GuiContext::Invalid);
+        *self = match context {
+            GuiContext::Suspended(context) => match context.activate() {
+                Ok(context) => GuiContext::Active(context),
+                Err(context) => GuiContext::Suspended(context),
+            },
+            _ => context,
+        };
+        match self {
+            GuiContext::Active(context) => Ok(context),
+            _ => Err(()),
+        }
+    }
+}
+
 struct Gui {
-    imgui: imgui::Context,
+    imgui: GuiContext,
     platform: WinitPlatform,
     renderer: Renderer,
     last_frame: Instant,
+    focused: bool,
 }
 impl Gui {
     fn init<F>(display: &mut Display, mut f: F) -> Result<Self, WinitGlError>
@@ -361,32 +508,40 @@ impl Gui {
         let mut renderer =
             Renderer::init(&mut imgui, &*display).map_err(WinitGlError::GliumRenderer)?;
 
+        let imgui = GuiContext::Suspended(imgui.suspend());
         Ok(Gui {
             imgui,
             platform,
             renderer,
             last_frame: Instant::now(),
+            focused: false,
         })
     }
     fn draw<F>(&mut self, display: &Display, mut run_ui: F) -> Result<(), WinitGlError>
     where
-        F: FnMut(&Ui, &Rc<Context>, &mut ImGuiTextures<WinitGlBackend>) -> bool,
+        F: FnMut(&Ui, &Rc<Context>, &mut ImGuiTextures<WinitGlBackend>) -> Vec<imgui::TextureId>,
     {
+        let used_textures;
         let draw_data = {
+            let imgui = self.imgui.activate().expect("Can't activate context");
+
             let gl_window = display.gl_window();
             let window = gl_window.window();
 
-            let io = self.imgui.io_mut();
+            let io = imgui.io_mut();
             self.platform
                 .prepare_frame(io, &window)
                 .map_err(WinitGlError::ImGuiPrepareFrame)?;
             self.last_frame = io.update_delta_time(self.last_frame);
 
-            let ui = self.imgui.frame();
+            let ui = imgui.frame();
 
-            if !run_ui(&ui, display.get_context(), self.renderer.textures()) {}
+            used_textures = run_ui(&ui, display.get_context(), self.renderer.textures());
+            //if self.focused {
             self.platform.prepare_render(&ui, &window);
+            //}
             let draw_data = ui.render();
+
             draw_data
         };
 
@@ -396,6 +551,17 @@ impl Gui {
         self.renderer
             .render(&mut target, draw_data)
             .map_err(WinitGlError::GliumRenderer)?;
+        {
+            let textures = self.renderer.textures();
+            let context = display.get_context();
+            for texture in used_textures {
+                if let Some(texture) = textures.remove(texture) {
+                    WinitGlBackend::drop_texture(context, &*texture);
+                }
+            }
+            *self.renderer.textures() = imgui::Textures::new();
+        }
+        self.imgui.suspend();
         target.finish().map_err(WinitGlError::SwapBuffers)
     }
 }

@@ -28,3 +28,5 @@ imgui-glium-renderer = { git = "https://github.com/Gekkio/imgui-rs.git", optiona
 imgui-winit-support = { git = "https://github.com/Gekkio/imgui-rs.git", optional = true }
 glium = { version = "0.25", default-features = true, optional = true }
 colorsys = "0.5.1"
+clap = "2.33"
+legion = {path = "D:/rust/legion", default-features = false }

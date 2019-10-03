@@ -39,8 +39,7 @@ $bg-rust:       #383020;
 @mixin border3d {
     border: 3px solid #bc9054;
     border-image:
-    linear-gradient(
-      190deg,
+    linear-gradient( 190deg,
       #1c1c1cFF 0%,
       #201800FF 10%,
       #483804C0 50%,

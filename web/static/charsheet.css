@@ -290,7 +290,7 @@ span {
   text-align: center;
   vertical-align: bottom;
   border: 3px solid #bc9054;
-  border-image: linear-gradient( 190deg, #1c1c1cFF 0%, #201800FF 10%, #483804C0 50%, #947c6080 70%, #ac8044B0 90%, #f8d4a480 100%) 1;
+  border-image: linear-gradient(190deg, #1c1c1cFF 0%, #201800FF 10%, #483804C0 50%, #947c6080 70%, #ac8044B0 90%, #f8d4a480 100%) 1;
 }
 
 .client-cell-name {
@@ -402,7 +402,7 @@ span {
   vertical-align: top;
   margin: 10px;
   border: 3px solid #bc9054;
-  border-image: linear-gradient( 190deg, #1c1c1cFF 0%, #201800FF 10%, #483804C0 50%, #947c6080 70%, #ac8044B0 90%, #f8d4a480 100%) 1;
+  border-image: linear-gradient(190deg, #1c1c1cFF 0%, #201800FF 10%, #483804C0 50%, #947c6080 70%, #ac8044B0 90%, #f8d4a480 100%) 1;
   color: #48fc00f0;
   font-family: FoDisplay, Terminus, sans-serif;
   font-size: 8px;

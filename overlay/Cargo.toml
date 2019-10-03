@@ -15,10 +15,10 @@ static-link = ["backend-sdl2", "sdl2/static-link"]
 #orbclient = "0.3.22"
 #sdl2 = { path = "../rust-sdl2", features = ["bundled", "use-bindgen"] }
 sdl2 = { version = "0.32" , features = ["bundled", "use-bindgen", "unsafe_textures"], optional = true }
-winapi = { version = "0.3.7", features = ["winuser"] }
-crossbeam = "0.7.1"
-reqwest = "0.9.18"
-image = { version = "0.21.2", default-features = false, features = ["png_codec"] }
+winapi = { version = "0.3", features = ["winuser"] }
+crossbeam = "0.7"
+reqwest = "0.9"
+image = { version = "0.22", default-features = false, features = ["png_codec"] }
 tnf_common = { path = "../common", features = ["bridge"] }
 #imgui = { path = "../../../rust/imgui-rs", default-features = false, features = ["glium"], optional = true }
 #imgui-glium-renderer = { path = "../../../rust/imgui-rs/imgui-glium-renderer", optional = true }
@@ -27,6 +27,6 @@ imgui = { git = "https://github.com/Gekkio/imgui-rs.git", default-features = fal
 imgui-glium-renderer = { git = "https://github.com/Gekkio/imgui-rs.git", optional = true }
 imgui-winit-support = { git = "https://github.com/Gekkio/imgui-rs.git", optional = true }
 glium = { version = "0.25", default-features = true, optional = true }
-colorsys = "0.5.1"
+colorsys = "0.5"
 clap = "2.33"
 legion = {path = "D:/rust/legion", default-features = false }

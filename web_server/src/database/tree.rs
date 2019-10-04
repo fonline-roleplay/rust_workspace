@@ -1,7 +1,7 @@
 use super::{
     tools::slice_to_u32,
     versioned::{get_value, new_leaf, update_branch, VersionedError},
-    SledDb, TreeRoot,
+    SledDb,
 };
 use bytes::Bytes;
 use std::convert::TryFrom;
@@ -9,14 +9,25 @@ use std::fmt::Write;
 use std::marker::PhantomData;
 use std::ops::Bound;
 
-pub struct Trunk<T> {
-    secret_branch: &'static str,
-    counter_branch: &'static str,
-    image_branch: &'static str,
-    trunk: &'static str,
-    id: u32,
-    versions: (Bound<u32>, Bound<u32>),
-    _marker: PhantomData<T>,
+#[derive(Clone)]
+pub struct Root {
+    tree: sled::Tree,
+}
+impl Root {
+    pub fn new(tree: sled::Tree) -> Self {
+        Root { tree }
+    }
+    pub fn tree(&self) -> &sled::Tree {
+        &self.tree
+    }
+    pub fn trunk<B: Bark>(&self, id: u32, max_ver: Option<u32>, bark: B) -> Trunk<B> {
+        Trunk {
+            id,
+            versions: versions(max_ver),
+            bark,
+            root: &self,
+        }
+    }
 }
 
 fn versions(ver: Option<u32>) -> (Bound<u32>, Bound<u32>) {
@@ -24,27 +35,26 @@ fn versions(ver: Option<u32>) -> (Bound<u32>, Bound<u32>) {
         .unwrap_or((Bound::Unbounded, Bound::Unbounded))
 }
 
-pub struct Char;
-pub type CharTrunk = Trunk<Char>;
-
-impl Trunk<Char> {
-    pub fn new(id: u32, max_ver: Option<u32>) -> Trunk<Char> {
-        Trunk {
-            secret_branch: "secret",
-            counter_branch: "ver",
-            image_branch: "avatar",
-            trunk: "char",
-            id,
-            versions: versions(max_ver),
-            _marker: PhantomData,
-        }
-    }
+pub trait Bark {
+    fn secret(&self) -> &str;
+    fn counter(&self) -> &str;
+    fn trunk(&self) -> &str;
 }
 
-impl<T> Trunk<T> {
+pub struct Trunk<'a, T: Bark> {
+    id: u32,
+    versions: (Bound<u32>, Bound<u32>),
+    bark: T,
+    root: &'a Root,
+}
+
+impl<'a, T: Bark> Trunk<'a, T> {
+    pub fn bark(&self) -> &T {
+        &self.bark
+    }
     fn branch_key(&self, branch: &str) -> Result<String, VersionedError> {
         let mut key = String::with_capacity(32);
-        write!(key, "{}/{:08X}/{}", self.trunk, self.id, branch)
+        write!(key, "{}/{:08X}/{}", self.bark.trunk(), self.id, branch)
             .map_err(VersionedError::WriteFmt)?;
         Ok(key)
     }
@@ -53,21 +63,20 @@ impl<T> Trunk<T> {
         write!(
             key,
             "{}/{:08X}/{}/{:08X}",
-            self.trunk, self.id, branch, leaf
+            self.bark.trunk(),
+            self.id,
+            branch,
+            leaf
         )
         .map_err(VersionedError::WriteFmt)?;
         Ok(key)
     }
-    fn check_secret(
-        &self,
-        tree: &TreeRoot,
-        input_key: Option<u32>,
-    ) -> Result<bool, VersionedError> {
+    fn check_secret(&self, input_key: Option<u32>) -> Result<bool, VersionedError> {
         let ver_secret = get_value(
-            tree,
-            self.trunk,
+            &self.root,
+            self.bark.trunk(),
             self.id,
-            self.secret_branch,
+            self.bark.secret(),
             self.versions,
             slice_to_u32,
         )?;
@@ -79,19 +88,19 @@ impl<T> Trunk<T> {
         })
     }
 
-    pub fn get_image(
+    pub fn get_versioned(
         &self,
-        tree: &TreeRoot,
+        branch: &str,
         input_key: Option<u32>,
     ) -> Result<Leaf<Bytes>, VersionedError> {
-        if !self.check_secret(tree, input_key)? {
+        if !self.check_secret(input_key)? {
             return Err(VersionedError::AccessDenied);
         }
         let (ver, data) = get_value(
-            tree,
-            self.trunk,
+            &self.root,
+            self.bark.trunk(),
             self.id,
-            self.image_branch,
+            branch,
             self.versions,
             |buf| Some(Bytes::from(buf.as_ref())),
         )?
@@ -103,7 +112,7 @@ impl<T> Trunk<T> {
         })
     }
 
-    pub fn set_image(&self, tree: &TreeRoot, data: Vec<u8>) -> Result<Leaf<()>, VersionedError> {
+    pub fn set_versioned(&self, branch: &str, data: Vec<u8>) -> Result<Leaf<()>, VersionedError> {
         let mut secret = 0u32;
         while secret == 0 {
             secret = rand::random();
@@ -111,11 +120,11 @@ impl<T> Trunk<T> {
         let secret_data = secret.to_be_bytes().to_vec();
 
         let ver = new_leaf(
-            tree,
-            self.trunk,
+            &self.root,
+            self.bark.trunk(),
             self.id,
-            self.counter_branch,
-            [(self.image_branch, data), (self.secret_branch, secret_data)],
+            self.bark.counter(),
+            [(branch, data), (self.bark.secret(), secret_data)],
         )?;
         println!(
             "new image, id: {}, ver: {}, secret: {}",
@@ -142,13 +151,10 @@ impl<T> Trunk<T> {
         )
     }*/
 
-    pub fn get_bare_branch(
-        &self,
-        tree: &TreeRoot,
-        branch: &str,
-    ) -> Result<sled::IVec, VersionedError> {
+    pub fn get_bare_branch(&self, branch: &str) -> Result<sled::IVec, VersionedError> {
         let key = self.branch_key(branch)?;
-        tree.root()
+        self.root
+            .tree()
             .get(&key)
             .map_err(VersionedError::Sled)?
             .ok_or(VersionedError::NotFound)
@@ -156,16 +162,15 @@ impl<T> Trunk<T> {
 
     pub fn get_bare_branch_or_default<F>(
         &self,
-        tree: &TreeRoot,
         branch: &str,
         default: &[u8],
         check: F,
     ) -> Result<Result<sled::IVec, ()>, VersionedError>
     where
-        F: for<'s> Fn(&'s [u8]) -> bool,
+        F: for<'l> Fn(&'l [u8]) -> bool,
     {
         let key = self.branch_key(branch)?;
-        let mut value = tree.root().get(&key).map_err(VersionedError::Sled)?;
+        let mut value = self.root.tree().get(&key).map_err(VersionedError::Sled)?;
         match &value {
             Some(value_ref) if check(value_ref.as_ref()) => {
                 return Ok(Ok(value.unwrap()));
@@ -173,8 +178,9 @@ impl<T> Trunk<T> {
             _ => {}
         }
         for _ in 0..10 {
-            match tree
-                .root()
+            match self
+                .root
+                .tree()
                 .cas(&key, value, Some(default))
                 .map_err(VersionedError::Sled)?
             {

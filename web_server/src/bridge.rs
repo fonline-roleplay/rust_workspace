@@ -17,7 +17,7 @@ use std::{
 use tokio_codec::{Decoder, Encoder, Framed};
 use tokio_tcp::TcpStream;
 //use crossbeam::atomic::AtomicCell;
-use crate::database::{CharTrunk, TreeRoot, VersionedError};
+use crate::database::{CharTrunk, Root, VersionedError};
 use parking_lot::RwLock;
 
 pub use tnf_common::message::server_dll_web::{ServerDllToWeb as MsgIn, ServerWebToDll as MsgOut};
@@ -61,7 +61,7 @@ impl Bridge {
     }*/
 }
 
-pub fn start(tree: TreeRoot) -> Bridge {
+pub fn start(tree: Root) -> Bridge {
     let num = Arc::new(AtomicUsize::new(0));
     let bridge = Bridge::new();
     let bridge_ret = bridge.clone();
@@ -122,17 +122,16 @@ pub fn start(tree: TreeRoot) -> Bridge {
 
 fn handle_message_async(
     msg_in: MsgIn,
-    tree: &TreeRoot,
+    root: &Root,
 ) -> impl Future<Item = MsgOut, Error = BridgeError> {
     match msg_in {
         MsgIn::PlayerAuth(cr_id) => {
-            let tree = tree.clone();
+            let root = root.clone();
             let fut = web::block(move || {
                 let default: [u8; 12] = rand::random();
-                let authkey = CharTrunk::new(cr_id, None)
-                    .get_bare_branch_or_default(&tree, "authkey", &default[..], |val| {
-                        val.len() == 12
-                    })
+                let authkey = root
+                    .trunk(cr_id, None, CharTrunk::default())
+                    .get_bare_branch_or_default("authkey", &default[..], |val| val.len() == 12)
                     .map_err(BridgeError::Versioned)?;
                 let authkey = match authkey {
                     Ok(authkey) => {

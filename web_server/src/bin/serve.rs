@@ -17,7 +17,7 @@ fn main() -> std::io::Result<()> {
     let mut db_path = PathBuf::new();
     db_path.push("db");
     db_path.push("sled");
-    let db = Db::start_default(db_path).expect("Can't open sled database");
+    let db = Db::open(db_path).expect("Can't open sled database");
 
     webserver::run(clients, db);
     //db.flush().expect("Can't flush sled database");

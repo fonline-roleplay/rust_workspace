@@ -1,6 +1,6 @@
 use crate::{
     bridge,
-    database::{CharTrunk, Leaf, TreeRoot, VersionedError},
+    database::{CharTrunk, Leaf, Root, VersionedError},
     templates,
 };
 use actix_web::body::Body;
@@ -54,9 +54,10 @@ fn parse_auth(auth: &Auth) -> Option<(ArrayVec<[u8; AUTH_LEN]>, String)> {
     Some((arr, auth_string))
 }
 
-pub fn check_auth(root: &TreeRoot, char_id: u32, auth: &[u8]) -> Result<(), AvatarUploadError> {
-    let authkey = CharTrunk::new(char_id, None)
-        .get_bare_branch(root, "authkey")
+pub fn check_auth(root: &Root, char_id: u32, auth: &[u8]) -> Result<(), AvatarUploadError> {
+    let authkey = root
+        .trunk(char_id, None, CharTrunk::default())
+        .get_bare_branch("authkey")
         .map_err(AvatarUploadError::SledVersioned)?;
     println!("stored:   {:?}", authkey.as_ref());
     println!("received: {:?}", auth);
@@ -155,7 +156,7 @@ pub fn upload(
     )
 }
 
-fn save_image(tree: &TreeRoot, char_id: u32, data: &[u8]) -> Result<Leaf<()>, AvatarUploadError> {
+fn save_image(root: &Root, char_id: u32, data: &[u8]) -> Result<Leaf<()>, AvatarUploadError> {
     let instant = std::time::Instant::now();
     let decoded =
         base64::decode_config(&data, base64::STANDARD).map_err(AvatarUploadError::Base64)?;
@@ -189,8 +190,9 @@ fn save_image(tree: &TreeRoot, char_id: u32, data: &[u8]) -> Result<Leaf<()>, Av
     println!("Writed in {:?}", instant2.elapsed());
     let instant2 = std::time::Instant::now();
 
-    let leaf = CharTrunk::new(char_id, None)
-        .set_image(tree, buffer)
+    let leaf = root
+        .trunk(char_id, None, CharTrunk::default())
+        .set_image(buffer)
         .map_err(AvatarUploadError::SledVersioned)?;
     println!("Saved to db in {:?}", instant2.elapsed());
 
@@ -236,7 +238,9 @@ pub fn show(
     Either::B(
         web::block(move || {
             let instant = std::time::Instant::now();
-            let leaf = CharTrunk::new(*path, ver).get_image(&root, secret)?;
+            let leaf = root
+                .trunk(*path, ver, CharTrunk::default())
+                .get_image(secret)?;
             println!("Getting image, completed in {:?}", instant.elapsed());
             Ok(leaf)
         })

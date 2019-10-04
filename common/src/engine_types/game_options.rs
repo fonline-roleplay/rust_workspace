@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[no_mangle]
-pub static mut FOnline: *const GameOptions = 0usize as *const GameOptions;
+pub static mut FOnline: *mut GameOptions = 0usize as *mut GameOptions;
 
 // not very safe
 pub fn game_state<'a>() -> Option<&'a GameOptions> {
@@ -109,6 +109,7 @@ pub fn get_sprites_hex(state: &GameOptions, hex_x: i32, hex_y: i32) -> Option<im
     let all_sprites = get_drawind_sprites(state)?;
     let sprites = all_sprites.iter()
         .filter_map(|s| *s)
+        .filter(|s| s.Valid)
         .filter(|s| s.HexX == hex_x && s.HexY == hex_y);
     Some(sprites)
 }
@@ -119,6 +120,7 @@ pub fn get_sprites_dot(state: &GameOptions, dot: i32) -> Vec<&Sprite> {
         all_sprites
             .into_iter()
             .filter_map(|s| *s)
+            .filter(|s| s.Valid)
             .filter(|s| s.DrawOrderType == dot)
             .collect()
     } else {

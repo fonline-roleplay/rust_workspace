@@ -52,18 +52,41 @@ pub extern "C" fn connect_to_overlay(url: &ScriptString, web: &ScriptString) {
 
         let mut path = PathBuf::new();
         path.push("overlay");
-        path.push("FOnlineOverlay");
-        let file_out = std::fs::File::create("FOnlineOverlay.log").expect("overlay log file");
-        let file_err = file_out.try_clone().expect("overlay err log file");
-        let res = std::process::Command::new(&path)
+        path.push("OverlayLauncher");
+        //let file_out = std::fs::File::create("FOnlineOverlay.log").expect("overlay log file");
+        //let file_err = file_out.try_clone().expect("overlay err log file");
+        /*let res = std::process::Command::new("cmd.exe")
+            .arg("/C")
+            .arg("start")
+            .arg("notepad.exe")
+            //.arg("/B")
+            //.arg(path)
+            //.arg(web_url)
+            //.arg("--pid")
+            //.arg(format!("{}", pid))
             .env("RUST_BACKTRACE", "1")
+            //.stdout(file_out)
+            //.stderr(file_err)
+            .creation_flags(
+                winbase::CREATE_NEW_PROCESS_GROUP
+                    | winbase::CREATE_NO_WINDOW
+                    | winbase::DETACHED_PROCESS,
+            )
+            .spawn();
+        println!("Spawn overlay: {:?}", res);
+        if let Ok(mut child) = res {
+            let res = child.wait();
+            println!("Waiting a child: {:?}", res);
+        }*/
+        let res = subprocess::Exec::cmd(path)
             .arg(web_url)
             .arg("--pid")
             .arg(format!("{}", pid))
-            .stdout(file_out)
-            .stderr(file_err)
-            .creation_flags(winbase::CREATE_NEW_PROCESS_GROUP | winbase::CREATE_NO_WINDOW)
-            .spawn();
+            //.env("RUST_BACKTRACE", "1")
+            .detached()
+            .inherit_handles(false)
+            .standalone()
+            .popen();
         println!("Spawn overlay: {:?}", res);
     } else {
         println!("Reuse old overlay process");
@@ -174,6 +197,11 @@ pub extern "C" fn message_in(
         });
         bridge.send(msg)
     });
+}
+
+#[no_mangle]
+pub extern "C" fn disconnect_from_overlay(finish: bool) {
+    let _ = BRIDGE.finish(finish);
 }
 
 pub fn finish() {

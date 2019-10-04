@@ -29,4 +29,5 @@ imgui-winit-support = { git = "https://github.com/Gekkio/imgui-rs.git", optional
 glium = { version = "0.25", default-features = true, optional = true }
 colorsys = "0.5"
 clap = "2.33"
+clipboard = "0.5"
 legion = {path = "D:/rust/legion", default-features = false }

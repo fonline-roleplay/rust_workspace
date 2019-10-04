@@ -13,7 +13,7 @@ clients_db = { path = "../clients_db" }
 # actix
 actix-web = "1.0"
 actix = "0.8"
-actix-server = "0.6"
+actix-server = "0.7"
 actix-service = "0.4"
 actix-codec = "0.1"
 actix-files = "0.1"

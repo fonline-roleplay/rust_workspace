@@ -61,7 +61,7 @@ impl<T: BridgeTask> BridgeCell<BridgeHandle<T>> {
             if let Some(handle) = bridge.take() {
                 println!("BridgeCell: about to finish");
                 let res = handle.finish(join);
-                println!("BridgeCell: finished");
+                println!("BridgeCell: finished {:?}", res);
                 res
             } else {
                 Ok(())

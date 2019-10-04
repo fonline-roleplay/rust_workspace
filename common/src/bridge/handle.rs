@@ -44,9 +44,11 @@ impl<T: BridgeTask> BridgeHandle<T> {
             .map_err(|_| BridgeError::ChannelDropped);
         println!("BridgeHandle: shutdown sent: {:?}", res);
         if join {
+            println!("Thread join...");
             let _res2 = self.thread.join();
         } else {
-            sleep(Duration::from_millis(1000));
+            println!("Skip thread join.");
+            //sleep(Duration::from_millis(1000));
         }
         println!("BridgeHandle: finished");
 

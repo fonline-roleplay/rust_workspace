@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 use clap::{App, Arg, SubCommand};
 
 mod overlay;

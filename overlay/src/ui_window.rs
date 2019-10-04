@@ -84,7 +84,7 @@ impl ToggleButton {
 }
 
 impl UiLogic for Bar {
-    const INITIAL_SIZE: (u32, u32) = (120, 40);
+    const INITIAL_SIZE: (u32, u32) = (100, 40);
     const FIXED: bool = true;
     const TITLE_BAR: bool = false;
     fn title(&self) -> ImString {
@@ -94,12 +94,12 @@ impl UiLogic for Bar {
         let size = [0.0, 24.0];
         if self
             .button
-            .toggle(ui, im_str!("Chat"), size, &mut self.show_chat)
+            .toggle(ui, im_str!("Чат"), size, &mut self.show_chat)
         {}
         ui.same_line(0.0);
         if self
             .button
-            .toggle(ui, im_str!("Faces"), size, &mut self.show_faces)
+            .toggle(ui, im_str!("Лица"), size, &mut self.show_faces)
         {}
     }
     fn sticky_pos(&self) -> Option<(i32, i32)> {
@@ -220,6 +220,32 @@ impl SayType {
             _ => im_str!("{}", text),
         }
     }
+    fn push_str(self, str: &mut String, text: &str) {
+        use SayType::*;
+        match self {
+            Shout => {
+                str.push_str("!!!");
+                str.push_str(&text.to_uppercase());
+                str.push_str("!!!");
+            }
+            Emote => {
+                str.push_str("**");
+                str.push_str(text);
+                str.push_str("**");
+            }
+            Whisper => {
+                str.push_str("...");
+                str.push_str(&text.to_lowercase());
+                str.push_str("...");
+            }
+            Radio => {
+                str.push_str("..");
+                str.push_str(text);
+                str.push_str("..");
+            }
+            _ => str.push_str(text),
+        }
+    }
 }
 
 impl Color {
@@ -316,6 +342,13 @@ impl UiLogic for Chat {
         });
 
         ui.same_line(0.0);
+        let mut copy_text = if ui.small_button(&im_str!("Копировать")) {
+            Some(String::with_capacity(1024))
+        } else {
+            None
+        };
+
+        ui.same_line(0.0);
         ui.text(im_str!("Фильтр: "));
         ui.same_line(0.0);
 
@@ -372,6 +405,7 @@ impl UiLogic for Chat {
                         }
                         None => {}
                     }
+                    let name = message.name.as_ref().map(String::as_str).unwrap_or("???");
                     if last_msg.is_none() {
                         ui.spacing();
                         ui.columns(2, im_str!("columns"), false);
@@ -388,7 +422,6 @@ impl UiLogic for Chat {
                             ui.same_line(0.0);
                         }
                         ui.next_column();
-                        let name = message.name.as_ref().map(String::as_str).unwrap_or("???");
                         let label = im_str!("{}##name_{}", name, i);
                         {
                             if color.small_button(ui, &label) {
@@ -407,12 +440,23 @@ impl UiLogic for Chat {
                     }
 
                     say_type.text_wrapped(ui, say_type.format(&message.text));
+                    if let Some(log) = &mut copy_text {
+                        log.push_str(name);
+                        log.push_str(": ");
+                        say_type.push_str(log, &message.text);
+                        log.push('\n');
+                    }
                 }
                 stick_bottom(ui);
             });
         /*if debug {
             texture_for_char.debug();
         }*/
+        if let Some(log) = copy_text {
+            use clipboard::{ClipboardContext, ClipboardProvider};
+            let mut ctx: ClipboardContext = ClipboardProvider::new().expect("clipboard provider");
+            let _res = ctx.set_contents(log);
+        }
     }
 }
 

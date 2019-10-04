@@ -222,6 +222,11 @@ impl<B: Backend> Overlay<B> {
                     }
                 }
             }
+        } else {
+            if !self.avatars.is_empty() {
+                self.avatars.clear();
+                self.dirty = true;
+            }
         }
     }
 

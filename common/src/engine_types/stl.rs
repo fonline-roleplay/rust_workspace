@@ -13,6 +13,12 @@ pub struct Spinlock {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct Mutex {
+    pub Locker: [::std::os::raw::c_int; 6usize],
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct stlp_std_pair<_T1, _T2> {
     pub first: _T1,
     pub second: _T2,
@@ -24,9 +30,12 @@ pub struct stlp_std_pair<_T1, _T2> {
 #[derive(Debug)]
 pub struct stlp_std_allocator;
 
-pub type Uint16Pair = stlp_std_pair<uint16, uint16>;
 pub type IntVec = stlp_std_vector<::std::os::raw::c_int, stlp_std_allocator>;
+pub type UintVec = stlp_std_vector<uint, stlp_std_allocator>;
+pub type UintPair = stlp_std_pair<uint, uint>;
+pub type UintPairVec = stlp_std_vector<UintPair, stlp_std_allocator>;
 pub type Uint16Vec = stlp_std_vector<uint16, stlp_std_allocator>;
+pub type Uint16Pair = stlp_std_pair<uint16, uint16>;
 pub type Uint16PairVec = stlp_std_vector<Uint16Pair, stlp_std_allocator>;
 
 #[repr(C)]

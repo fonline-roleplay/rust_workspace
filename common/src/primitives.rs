@@ -9,3 +9,34 @@ pub type ulong = ::std::os::raw::c_ulong;
 pub type ushort = ::std::os::raw::c_ushort;
 pub type uint = ::std::os::raw::c_uint;
 pub type int = ::std::os::raw::c_int;
+
+pub trait Validate {
+    fn is_valid(&self) -> bool;
+}
+
+#[repr(C)]
+pub struct MaybeInvalid<T: Validate>(T);
+
+impl<T: Validate> MaybeInvalid<T> {
+    pub fn validate(&self) -> Option<&T> {
+        if self.0.is_valid() {
+            Some(&self.0)
+        } else {
+            None
+        }
+    }
+    pub fn validate_mut(&mut self) -> Option<&mut T> {
+        if self.0.is_valid() {
+            Some(&mut self.0)
+        } else {
+            None
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct Hex {
+    pub x: u16,
+    pub y: u16,
+}

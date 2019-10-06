@@ -47,12 +47,12 @@ impl<_Tp: std::fmt::Debug+Copy, _Alloc: std::fmt::Debug> stlp_std_priv__String_b
 */
 
 #[repr(C)]
-struct stlp_std_basic_string<_CharT: Copy, _Alloc> {
+pub struct stlp_std_basic_string<_CharT: Copy, _Alloc> {
     _base: stlp_std_priv__String_base<_CharT, _Alloc>,
     _phantom_0: ::std::marker::PhantomData<::std::cell::UnsafeCell<_CharT>>,
     _phantom_1: ::std::marker::PhantomData<::std::cell::UnsafeCell<_Alloc>>,
 }
-type stlp_std_string = stlp_std_basic_string<::std::os::raw::c_char, stlp_std_allocator>;
+pub type stlp_std_string = stlp_std_basic_string<::std::os::raw::c_char, stlp_std_allocator>;
 
 #[repr(C)]
 struct ScriptString__bindgen_vtable(::std::os::raw::c_void);

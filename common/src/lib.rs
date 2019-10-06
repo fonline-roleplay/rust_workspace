@@ -4,6 +4,8 @@ pub mod engine_types;
 #[allow(non_camel_case_types)]
 pub mod primitives;
 
+pub mod utils;
+
 pub mod message;
 
 #[cfg(feature = "bridge")]

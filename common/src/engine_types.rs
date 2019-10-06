@@ -18,6 +18,9 @@ pub mod critter;
 #[allow(non_camel_case_types, non_snake_case, dead_code)]
 pub mod game_options;
 
+#[allow(non_camel_case_types, non_snake_case, dead_code)]
+pub mod map;
+
 #[cfg(feature = "server")]
 pub mod mutual {
     /*

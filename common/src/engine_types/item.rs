@@ -19,6 +19,13 @@ pub struct Item {
     pub RefCounter: int16,
     pub IsNotValid: bool,
 }
+
+impl Validate for Item {
+    fn is_valid(&self) -> bool {
+        !self.IsNotValid
+    }
+}
+
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub union Item__bindgen_ty_1 {

@@ -10,12 +10,12 @@ use crate::{
 };
 
 #[no_mangle]
-pub static mut FOnline: *mut GameOptions = 0usize as *mut GameOptions;
+pub static mut FOnline: *mut GameOptions = std::ptr::null_mut();
 
 // not very safe
 pub fn game_state<'a>() -> Option<&'a GameOptions> {
     let state = unsafe { FOnline };
-    if state as usize == 0usize {
+    if state.is_null() {
         eprintln!("GameOptions is null!");
         None
     } else {

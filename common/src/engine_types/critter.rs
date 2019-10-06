@@ -162,6 +162,12 @@ pub struct Critter {
     pub RefCounter: ::std::os::raw::c_int,
 }
 
+impl Validate for Critter {
+    fn is_valid(&self) -> bool {
+        !self.IsNotValid
+    }
+}
+
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct Critter__bindgen_ty_1 {
@@ -269,4 +275,113 @@ pub struct CritterCl {
     pub ParamLocked: ::std::os::raw::c_int,
     pub IsRuning: bool,
     pub MoveSteps: Uint16PairVec,
+}
+
+pub type ClVec = stlp_std_vector<*mut Client, stlp_std_allocator>;
+
+#[repr(C)]
+pub struct Client {
+    pub _base: Critter,
+    pub Name: [::std::os::raw::c_char; 31usize],
+    pub PassHash: [::std::os::raw::c_char; 32usize],
+    pub Access: uint8,
+    pub LanguageMsg: uint,
+}
+
+pub type PcVec = stlp_std_vector<*mut Npc, stlp_std_allocator>;
+
+#[repr(C)]
+pub struct Npc {
+    pub _base: Critter,
+    pub NextRefreshBagTick: uint,
+    pub AiPlanes: NpcPlaneVec,
+    pub Reserved: uint,
+}
+
+pub type NpcPlaneVec = stlp_std_vector<*mut NpcPlane, stlp_std_allocator>;
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct NpcPlane {
+    pub Type: ::std::os::raw::c_int,
+    pub Priority: uint,
+    pub Identifier: ::std::os::raw::c_int,
+    pub IdentifierExt: uint,
+    pub ChildPlane: *const NpcPlane,
+    pub IsMove: bool,
+    pub __bindgen_anon_1: NpcPlane__bindgen_ty_1,
+    pub Move: NpcPlane__bindgen_ty_2,
+    pub Assigned: bool,
+    pub RefCounter: ::std::os::raw::c_int,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union NpcPlane__bindgen_ty_1 {
+    pub Misc: NpcPlane__bindgen_ty_1__bindgen_ty_1,
+    pub Attack: NpcPlane__bindgen_ty_1__bindgen_ty_2,
+    pub Walk: NpcPlane__bindgen_ty_1__bindgen_ty_3,
+    pub Pick: NpcPlane__bindgen_ty_1__bindgen_ty_4,
+    pub Buffer: NpcPlane__bindgen_ty_1__bindgen_ty_5,
+    _bindgen_union_align: [u32; 8usize],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct NpcPlane__bindgen_ty_1__bindgen_ty_1 {
+    pub IsRun: bool,
+    pub WaitSecond: uint,
+    pub ScriptBindId: ::std::os::raw::c_int,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct NpcPlane__bindgen_ty_1__bindgen_ty_2 {
+    pub IsRun: bool,
+    pub TargId: uint,
+    pub MinHp: ::std::os::raw::c_int,
+    pub IsGag: bool,
+    pub GagHexX: uint16,
+    pub GagHexY: uint16,
+    pub LastHexX: uint16,
+    pub LastHexY: uint16,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct NpcPlane__bindgen_ty_1__bindgen_ty_3 {
+    pub IsRun: bool,
+    pub HexX: uint16,
+    pub HexY: uint16,
+    pub Dir: uint8,
+    pub Cut: uint,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct NpcPlane__bindgen_ty_1__bindgen_ty_4 {
+    pub IsRun: bool,
+    pub HexX: uint16,
+    pub HexY: uint16,
+    pub Pid: uint16,
+    pub UseItemId: uint,
+    pub ToOpen: bool,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct NpcPlane__bindgen_ty_1__bindgen_ty_5 {
+    pub Buffer: [uint; 8usize],
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct NpcPlane__bindgen_ty_2 {
+    pub PathNum: uint,
+    pub Iter: uint,
+    pub IsRun: bool,
+    pub TargId: uint,
+    pub HexX: uint16,
+    pub HexY: uint16,
+    pub Cut: uint,
+    pub Trace: uint,
 }

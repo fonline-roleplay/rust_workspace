@@ -22,6 +22,38 @@ pub extern "C" fn getParam_Strength(cr: &CritterMutual, _: uint) -> int {
 
 #[no_mangle]
 #[allow(non_snake_case)]
+pub extern "C" fn getParam_Perception(cr: &CritterMutual, _: uint) -> int {
+    let mut val: int = if cr.bparam(PAR::DAMAGE_EYE) {
+        1
+    } else {
+        cr.param(PAR::ST_PERCEPTION) + cr.param(PAR::ST_PERCEPTION_EXT)
+    };
+    if cr.bparam(PAR::TRAIT_NIGHT_PERSON) {
+        val += get_night_person_bonus();
+    }
+    clamp(val, 1, 10)
+}
+
+fn get_night_person_bonus() -> int {
+    if let Some(game_options) = game_state() {
+        let hour = game_options.Hour;
+        let minute = game_options.Minute;
+        if hour < 6 || hour > 18 {
+            1
+        } else if hour == 6 && minute == 0 {
+            1
+        } else if hour == 18 && minute > 0 {
+            1
+        } else {
+            -1
+        }
+    } else {
+        0
+    }
+}
+
+#[no_mangle]
+#[allow(non_snake_case)]
 pub extern "C" fn getParam_Timeout(cr: &CritterMutual, index: uint) -> int {
     let full_second = game_state().map(|g| g.FullSecond).unwrap_or(0);
     let param = cr.Params[index as usize] as uint;

@@ -2,8 +2,9 @@ pub mod map {
     use crate::primitives::*;
     const SQRT3T2_FLOAT: f32 = 3.4641016151;
     const SQRT3_FLOAT: f32 = 1.732050807568877;
+    const RAD2DEG: f32 = 57.29577951;
 
-    pub fn get_distance(x1: i32, y1: i32, x2: i32, y2: i32, hexagonal: bool) -> u32 {
+    fn get_distance(x1: i32, y1: i32, x2: i32, y2: i32, hexagonal: bool) -> u32 {
         if hexagonal {
             let dx = if x1 > x2 { x1 - x2 } else { x2 - x1 };
             let rx = if x1 & 1 == 0 {
@@ -32,6 +33,61 @@ pub mod map {
             begin_hex.y as i32,
             end_hex.x as i32,
             end_hex.y as i32,
+            hexagonal,
+        )
+    }
+
+    fn get_far_dir(x1: i32, y1: i32, x2: i32, y2: i32, hexagonal: bool) -> u8 {
+        if hexagonal {
+            let hx = x1 as f32;
+            let hy = y1 as f32;
+            let tx = x2 as f32;
+            let ty = y2 as f32;
+            let nx = 3.0 * (tx - hx);
+            let ny = (ty - hy) * SQRT3T2_FLOAT - ((x2 & 1) as f32 - (x1 & 1) as f32) * SQRT3_FLOAT;
+            let dir = 180.0 + RAD2DEG * f32::atan2(ny, nx);
+
+            if dir >= 60.0 && dir < 120.0 {
+                5
+            } else if dir >= 120.0 && dir < 180.0 {
+                4
+            } else if dir >= 180.0 && dir < 240.0 {
+                3
+            } else if dir >= 240.0 && dir < 300.0 {
+                2
+            } else if dir >= 300.0 {
+                1
+            } else {
+                0
+            }
+        } else {
+            /*float dir = 180.0f + RAD2DEG* atan2( (float) ( x2 - x1 ), (float) ( y2 - y1 ) );
+
+            if( dir >= 22.5f  && dir < 67.5f )
+            return 7;
+            if( dir >= 67.5f  && dir < 112.5f )
+            return 0;
+            if( dir >= 112.5f && dir < 157.5f )
+            return 1;
+            if( dir >= 157.5f && dir < 202.5f )
+            return 2;
+            if( dir >= 202.5f && dir < 247.5f )
+            return 3;
+            if( dir >= 247.5f && dir < 292.5f )
+            return 4;
+            if( dir >= 292.5f && dir < 337.5f )
+            return 5;
+            return 6;*/
+            unimplemented!()
+        }
+    }
+
+    pub fn get_direction(from_hex: Hex, to_hex: Hex, hexagonal: bool) -> u8 {
+        get_far_dir(
+            from_hex.x as i32,
+            from_hex.y as i32,
+            to_hex.x as i32,
+            to_hex.y as i32,
             hexagonal,
         )
     }
@@ -159,7 +215,6 @@ pub mod map {
             x1 = (float) hx + 0.5f;
             y1 = (float) hy + 0.5f;*/
             } else {
-                const RAD2DEG: f32 = 57.29577951;
                 const BIAS_FLOAT: f32 = 0.02;
 
                 let nx = 3.0 * (to.x as f32 - from.x as f32);

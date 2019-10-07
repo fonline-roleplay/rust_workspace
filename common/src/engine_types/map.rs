@@ -30,8 +30,12 @@ use crate::{
 */
 const FH_CRITTER: u8 = 0b00000001;
 const FH_DEAD_CRITTER: u8 = 0b00000010;
-const FH_NOSHOOT: u16 = 0b0010000000000010;
-const FH_NOWAY: u16 = 0b0001000100000001;
+const FH_NOWAY: u16 = bin16(0b00010001, 0b00000001);
+const FH_NOSHOOT: u16 = bin16(0b00100000, 0b00000010);
+
+const fn bin16(a: u16, b: u16) -> u16 {
+    (a << 8) | b
+}
 
 impl Map {
     pub fn get_max_hex(&self) -> Hex {
@@ -42,27 +46,27 @@ impl Map {
             y: header.MaxHexY,
         }
     }
-    pub fn is_hex_passed(&self, hex: Hex) -> bool {
+    pub fn is_hex_critter(&self, hex: Hex) -> bool {
         (self.get_hex_flags(hex) & (FH_CRITTER | FH_DEAD_CRITTER)) != 0
     }
-    pub fn is_hex_raked(&self, hex: Hex) -> bool {
-        (self.get_hex_flags_with_proto(hex) & FH_NOSHOOT) == 0
+    pub fn is_hex_passed(&self, hex: Hex) -> bool {
+        (self.get_hex_flags_with_proto(hex) & FH_NOWAY) == 0
     }
-    pub fn is_hex_critter(&self, hex: Hex) -> bool {
+    pub fn is_hex_raked(&self, hex: Hex) -> bool {
         (self.get_hex_flags_with_proto(hex) & FH_NOSHOOT) == 0
     }
 
     pub fn get_hex_flags(&self, hex: Hex) -> u8 {
         let max_hex = self.get_max_hex();
         assert!(hex.x < max_hex.x && hex.y < max_hex.y);
-        let index = (hex.y * max_hex.x + hex.x) as isize;
+        let index = hex.y as isize * max_hex.x as isize + hex.x as isize;
         unsafe { *self.HexFlags.offset(index) }
     }
 
     pub fn get_hex_flags_with_proto(&self, hex: Hex) -> u16 {
         let max_hex = self.get_max_hex();
         assert!(hex.x < max_hex.x && hex.y < max_hex.y);
-        let index = (hex.y * max_hex.x + hex.x) as isize;
+        let index = hex.y as isize * max_hex.x as isize + hex.x as isize;
         let map_flags = unsafe { *self.HexFlags.offset(index) } as u16;
         let proto_flags =
             unsafe { *self.proto().expect("Map prototype").HexFlags.offset(index) } as u16;
@@ -70,6 +74,10 @@ impl Map {
     }
     pub fn proto(&self) -> Option<&ProtoMap> {
         unsafe { std::mem::transmute(self.Proto) }
+    }
+    pub fn proto_id(&self) -> u16 {
+        //self.proto().expect("Map prototype").Pid
+        self.Data.MapPid
     }
 }
 

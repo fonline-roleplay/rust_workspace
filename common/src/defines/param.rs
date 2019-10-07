@@ -5,6 +5,9 @@ pub trait CritterParam {
     fn uparam(&self, p: Param) -> u32 {
         self.param(p) as u32
     }
+    fn bparam(&self, p: Param) -> bool {
+        self.param(p) != 0
+    }
     fn params_range(&self, range: std::ops::Range<Param>) -> &[i32] {
         &self.params_all()[range.start as usize..range.end as usize]
     }

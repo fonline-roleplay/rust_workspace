@@ -1,5 +1,8 @@
 use crate::{
-    defines::param::CritterParam,
+    defines::{
+        fos,
+        param::{CritterParam, Param},
+    },
     engine_types::{
         item::{Item, ItemVec},
         stl::{
@@ -31,6 +34,28 @@ impl CritterParam for CritterCl {
 }
 
 pub type CrVec = stlp_std_vector<*mut Critter, stlp_std_allocator>;
+
+impl Critter {
+    pub fn hex(&self) -> Hex {
+        Hex {
+            x: self.HexX,
+            y: self.HexY,
+        }
+    }
+    pub fn is_dead(&self) -> bool {
+        self.Cond == crate::defines::fos::COND_DEAD
+    }
+    pub fn is_npc(&self) -> bool {
+        self.CritterIsNpc
+    }
+    pub fn is_player(&self) -> bool {
+        !self.CritterIsNpc
+    }
+    pub fn have_gm_vision(&self) -> bool {
+        self.uparam(Param::ST_ACCESS_LEVEL) >= fos::ACCESS_MODER
+            && self.uparam(Param::QST_VISION) > 0
+    }
+}
 
 #[repr(C)]
 pub struct Critter {

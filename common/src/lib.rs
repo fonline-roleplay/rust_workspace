@@ -12,10 +12,11 @@ pub mod message;
 pub mod bridge;
 
 #[cfg(all(windows, feature = "dll"))]
-mod dll {
+pub mod dll {
     pub mod init;
-    mod param_getters;
+    pub mod param_getters;
 }
+
 #[cfg(all(windows, feature = "dll"))]
 pub use dll::init::console_init;
 

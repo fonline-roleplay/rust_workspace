@@ -40,3 +40,12 @@ pub struct Hex {
     pub x: u16,
     pub y: u16,
 }
+
+impl Hex {
+    pub fn get_distance(self, other: Hex) -> u32 {
+        crate::utils::map::get_distance_hex(self, other, true)
+    }
+    pub fn get_direction(self, other: Hex) -> u8 {
+        crate::utils::map::get_direction(self, other, true)
+    }
+}

@@ -1,3 +1,4 @@
+use crate::config::config;
 use tnf_common::{
     dll::param_getters,
     engine_types::{critter::Critter, map::Map},
@@ -110,8 +111,6 @@ player.StatBase[ ST_ACCESS_LEVEL ] = ACCESS_MODER;
 return player.StatBase[ ST_ACCESS_LEVEL ] >= ACCESS_MODER && ( checkVision ? player.ParamBase[ QST_VISION ] > 0 : true );
 }*/
 
-const MAP_UTILITY_START: u16 = 92;
-
 #[no_mangle]
 pub extern "C" fn check_look(
     map: Option<&MaybeInvalid<Map>>,
@@ -123,7 +122,9 @@ pub extern "C" fn check_look(
     let cr = validate!(cr, false);
     let opponent = validate!(opponent, false);
 
-    if map.proto_id() == MAP_UTILITY_START
+    let config = config();
+
+    if map.proto_id() == config.check_look.map_utility_start
         && opponent.is_player()
         && cr.is_player()
         && !cr.have_gm_vision()
@@ -158,8 +159,8 @@ pub extern "C" fn check_look(
         if cr.is_dead() {
             return false;
         }
-        if cr.ProtoId >= 2200 {
-            // ???
+        let cfg_npc = &config.check_look.npc;
+        if cfg_npc.fast && cr.ProtoId >= cfg_npc.fast_from && cr.ProtoId <= cfg_npc.fast_to {
             return (10 + cr_perception * 5) >= dist;
         }
     }

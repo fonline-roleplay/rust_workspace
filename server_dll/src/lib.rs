@@ -1,6 +1,7 @@
 #![cfg(windows)]
 
 mod bridge;
+pub mod config;
 mod engine_functions;
 mod hooks;
 mod param;

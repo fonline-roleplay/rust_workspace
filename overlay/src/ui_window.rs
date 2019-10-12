@@ -472,23 +472,25 @@ pub struct UiWindow<B: Backend, L: UiLogic> {
 impl<B: Backend, L: UiLogic> UiWindow<B, L> {
     pub fn new(logic: L, back: BackendRef<B>) -> Result<Self, B::Error> {
         let size = L::INITIAL_SIZE;
-        let mut inner = back
-            .borrow_mut()
-            .new_popup("FOnlineChat".into(), size.0, size.1)?;
-        {
-            let mut window = inner.borrow_mut();
-            window.init_gui(|imgui, info| {
-                imgui_init_fonts(imgui, info.hidpi_factor);
-                let style = imgui.style_mut();
-                style.window_rounding = 0.0;
-                imgui
-                    .io_mut()
-                    .config_flags
-                    .set(imgui::ConfigFlags::NO_MOUSE_CURSOR_CHANGE, true);
-                Ok(())
-            })?;
-            window.show();
-        }
+        let inner = {
+            let mut back_ref = back.borrow_mut();
+            let mut inner = back_ref.new_popup("FOnlineChat".into(), size.0, size.1)?;
+            {
+                let mut window = inner.borrow_mut();
+                window.init_gui(&mut *back_ref, |imgui, info| {
+                    //imgui_init_fonts(imgui, info.hidpi_factor);
+                    let style = imgui.style_mut();
+                    style.window_rounding = 0.0;
+                    imgui
+                        .io_mut()
+                        .config_flags
+                        .set(imgui::ConfigFlags::NO_MOUSE_CURSOR_CHANGE, true);
+                    Ok(())
+                })?;
+                window.show();
+            }
+            inner
+        };
         Ok(UiWindow {
             inner,
             back,
@@ -598,7 +600,7 @@ impl<B: Backend, L: UiLogic> UiWindow<B, L> {
         &mut self.logic
     }
 }
-
+/*
 fn imgui_init_fonts(imgui: &mut imgui::Context, hidpi_factor: f64) {
     dbg!(hidpi_factor);
     let font_size = (16.0 * hidpi_factor) as f32;
@@ -628,7 +630,7 @@ fn imgui_init_fonts(imgui: &mut imgui::Context, hidpi_factor: f64) {
 
     imgui.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
 }
-
+*/
 impl<B: Backend, L: UiLogic> crate::windowing::OverlayWindow<B> for UiWindow<B, L> {
     fn backend_window(&self) -> &WindowRef<B> {
         &self.inner

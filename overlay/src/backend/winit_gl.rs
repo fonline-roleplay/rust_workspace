@@ -10,6 +10,7 @@ use imgui_glium_renderer::Renderer;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use std::{
     borrow::Cow,
+    cell::RefCell,
     collections::{HashMap, HashSet},
     rc::{Rc, Weak},
     time::Instant,
@@ -22,7 +23,7 @@ pub struct WinitGlBackend {
     events_loop: EventsLoop,
     headless: glutin::Context<NotCurrent>,
     windows: HashMap<WindowId, WindowWeak<Self>>,
-    //redraw_windows: HashSet<WindowId>,
+    font_atlas: Option<FontAtlasRef>, //redraw_windows: HashSet<WindowId>,
 }
 
 fn context_builder<'a>() -> glutin::ContextBuilder<'a, NotCurrent> {
@@ -108,6 +109,7 @@ impl Backend for WinitGlBackend {
             events_loop,
             headless,
             windows: HashMap::new(),
+            font_atlas: None,
             //redraw_windows: HashSet::new(),
         }
     }
@@ -209,6 +211,42 @@ impl Backend for WinitGlBackend {
 
     fn drop_texture(context: &Rc<BackendContext<Self>>, texture: &BackendTexture<Self>) {
         texture.drop_for(context);
+    }
+    fn font_atlas(&mut self, hidpi_factor: f64) -> FontAtlasRef {
+        dbg!(hidpi_factor);
+        if let Some(atlas) = &self.font_atlas {
+            return Rc::clone(atlas);
+        }
+        let font_size = (16.0 * hidpi_factor) as f32;
+        /*
+            imgui.fonts().add_default_font_with_config(
+                ImFontConfig::new()
+                    .oversample_h(1)
+                    .pixel_snap_h(true)
+                    .size_pixels(font_size),
+            );
+        */
+        let config = imgui::FontConfig {
+            oversample_h: 1,
+            pixel_snap_h: true,
+            //size_pixels: font_size,
+            //rasterizer_multiply: 1.75,
+            glyph_ranges: imgui::FontGlyphRanges::cyrillic(),
+            ..Default::default()
+        };
+        let font = imgui::FontSource::TtfData {
+            config: Some(config),
+            data: include_bytes!("../../resources/clacon.ttf"),
+            //data: include_bytes!("../../resources/fallout_display.ttf"),
+            size_pixels: font_size,
+        };
+        //imgui.fonts().add_font(&[font]);
+        let mut atlas = imgui::SharedFontAtlas::create();
+        atlas.add_font(&[font]);
+        //imgui.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
+        let atlas_ref = Rc::new(RefCell::new(atlas));
+        self.font_atlas = Some(Rc::clone(&atlas_ref));
+        atlas_ref
     }
 }
 
@@ -351,7 +389,11 @@ impl BackendWindow for WinitGlWindow {
         target.finish().map_err(WinitGlError::SwapBuffers)
     }
 
-    fn init_gui<F>(&mut self, init_context: F) -> BackendResult<(), Self::Back>
+    fn init_gui<F>(
+        &mut self,
+        back: &mut Self::Back,
+        init_context: F,
+    ) -> BackendResult<(), Self::Back>
     where
         F: FnMut(&mut imgui::Context, GuiInfo) -> Result<(), ()>,
     {
@@ -360,7 +402,7 @@ impl BackendWindow for WinitGlWindow {
             self.gui = Some(Box::new(gui));
         }*/
         //let gui = self.gui.as_mut().unwrap();
-        let gui = Gui::init(&mut self.display, init_context)?;
+        let gui = Gui::init(&mut self.display, back, init_context)?;
         self.gui = Some(Box::new(gui));
         Ok(())
     }
@@ -487,21 +529,29 @@ struct Gui {
     focused: bool,
 }
 impl Gui {
-    fn init<F>(display: &mut Display, mut f: F) -> Result<Self, WinitGlError>
+    fn init<F>(
+        display: &mut Display,
+        back: &mut WinitGlBackend,
+        mut f: F,
+    ) -> Result<Self, WinitGlError>
     where
         F: FnMut(&mut imgui::Context, GuiInfo) -> Result<(), ()>,
     {
         let gl_window = display.gl_window();
         let window = gl_window.window();
+        let hidpi_factor = window.get_hidpi_factor();
 
-        let mut imgui = imgui::Context::create();
+        let atlas = back.font_atlas(hidpi_factor);
+        //let mut imgui = imgui::Context::create();
+        let mut imgui = imgui::Context::create_with_shared_font_atlas(atlas);
         imgui.set_ini_filename(None);
 
         let mut platform = WinitPlatform::init(&mut imgui);
         platform.attach_window(imgui.io_mut(), &window, HiDpiMode::Rounded);
 
-        let hidpi_factor = platform.hidpi_factor();
+        //let hidpi_factor = platform.hidpi_factor();
         let info = GuiInfo { hidpi_factor };
+        imgui.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
 
         f(&mut imgui, info).map_err(|_| WinitGlError::ImGuiInit)?;
 

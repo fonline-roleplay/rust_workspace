@@ -14,6 +14,7 @@ pub type ImGuiTextures<B> = imgui::Textures<Rc<BackendTexture<B>>>;
 pub type BackendRef<B> = Rc<RefCell<B>>;
 pub type WindowRef<B> = Rc<RefCell<<B as Backend>::Window>>;
 pub type WindowWeak<B> = Weak<RefCell<<B as Backend>::Window>>;
+pub type FontAtlasRef = Rc<RefCell<imgui::SharedFontAtlas>>;
 
 pub trait Backend
 where
@@ -41,6 +42,7 @@ where
     where
         F: FnMut(Self::Event);
     fn drop_texture(context: &Rc<BackendContext<Self>>, texture: &BackendTexture<Self>) {}
+    fn font_atlas(&mut self, hidpi_factor: f64) -> FontAtlasRef;
 }
 
 pub trait BackendWindow {
@@ -62,7 +64,11 @@ pub trait BackendWindow {
         src: &Rect,
         dst: &Rect,
     ) -> BackendResult<(), Self::Back>;
-    fn init_gui<F>(&mut self, init_context: F) -> BackendResult<(), Self::Back>
+    fn init_gui<F>(
+        &mut self,
+        back: &mut Self::Back,
+        init_context: F,
+    ) -> BackendResult<(), Self::Back>
     where
         F: FnMut(&mut imgui::Context, GuiInfo) -> Result<(), ()>;
     fn draw_gui<F>(&mut self, run_ui: F) -> BackendResult<(), Self::Back>

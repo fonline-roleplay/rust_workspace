@@ -12,11 +12,11 @@ clients_db = { path = "../clients_db" }
 
 # actix
 actix-web = "1.0"
-actix = "0.8"
 actix-server = "0.7"
 actix-service = "0.4"
 actix-codec = "0.1"
 actix-files = "0.1"
+actix-rt = "0.2"
 #actix-form-data = "0.4.0"
 #actix-multipart = "0.1.2"
 
@@ -36,6 +36,7 @@ image = { version = "0.22", default-features = false, features = ["png_codec"] }
 #url = "1.7.2"
 
 # other
+arc-swap = "0.4"
 arrayvec = "0.5"
 bytes = "0.4"
 custom_error = "1.7"

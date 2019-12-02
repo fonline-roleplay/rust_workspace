@@ -1,4 +1,4 @@
-use super::{AppState, GetClientInfo, GetCritterInfo};
+use super::AppState;
 use crate::templates;
 use actix_web::{web, Error, HttpRequest, HttpResponse};
 use clients_db::CritterInfo;
@@ -123,7 +123,7 @@ impl<'a> Stats<'a> {
         }
     }
 }
-
+/*
 pub fn stats(
     req: HttpRequest,
     data: web::Data<AppState>,
@@ -157,6 +157,7 @@ pub fn stats(
         Either::B(fut_ok("Get out!".into()))
     }
 }
+*/
 
 pub fn gm_stats(
     req: HttpRequest,
@@ -169,26 +170,21 @@ pub fn gm_stats(
     });
     if let Some(name) = name {
         println!("gm_stats: {:?}", name);
+        let name = name.to_string();
         Either::A(
-            data.get_ref()
-                .critters_db
-                .send(GetClientInfo {
-                    name: name.to_string(),
-                })
-                .from_err()
-                .and_then(|res| {
-                    match res {
-                        //Ok(Some(cr_info)) => Ok(format!("Your info: {:?}", cr_info).into()),
-                        Ok(cr_info) => match Stats::new(&cr_info).render() {
-                            Ok(body) => Ok(HttpResponse::Ok().content_type("text/html").body(body)),
-                            Err(err) => {
-                                eprintln!("GM Stats error: {:#?}", err);
-                                Ok(HttpResponse::InternalServerError().into())
-                            }
-                        },
-                        Err(_) => Ok(HttpResponse::InternalServerError().into()),
-                    }
-                }),
+            web::block(move || data.get_ref().critters_db.client_info(&name)).then(|res| {
+                match res {
+                    //Ok(Some(cr_info)) => Ok(format!("Your info: {:?}", cr_info).into()),
+                    Ok(cr_info) => match Stats::new(&cr_info).render() {
+                        Ok(body) => Ok(HttpResponse::Ok().content_type("text/html").body(body)),
+                        Err(err) => {
+                            eprintln!("GM Stats error: {:#?}", err);
+                            Ok(HttpResponse::InternalServerError().into())
+                        }
+                    },
+                    Err(_) => Ok(HttpResponse::InternalServerError().into()),
+                }
+            }),
         )
     } else {
         Either::B(fut_ok("Get out!".into()))

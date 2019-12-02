@@ -49,9 +49,11 @@ impl Map {
     pub fn is_hex_critter(&self, hex: Hex) -> bool {
         (self.get_hex_flags(hex) & (FH_CRITTER | FH_DEAD_CRITTER)) != 0
     }
+    #[cfg(feature = "server")]
     pub fn is_hex_passed(&self, hex: Hex) -> bool {
         (self.get_hex_flags_with_proto(hex) & FH_NOWAY) == 0
     }
+    #[cfg(feature = "server")]
     pub fn is_hex_raked(&self, hex: Hex) -> bool {
         (self.get_hex_flags_with_proto(hex) & FH_NOSHOOT) == 0
     }
@@ -63,6 +65,7 @@ impl Map {
         unsafe { *self.HexFlags.offset(index) }
     }
 
+    #[cfg(feature = "server")]
     pub fn get_hex_flags_with_proto(&self, hex: Hex) -> u16 {
         let max_hex = self.get_max_hex();
         assert!(hex.x < max_hex.x && hex.y < max_hex.y);

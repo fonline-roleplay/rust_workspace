@@ -16,8 +16,8 @@ bridge = ["bincode", "parking_lot", "once_cell"]
 winapi = { optional=true, version = "0.3.6", features = ["consoleapi"] }
 serde = { version = "1.0", features = ["derive"] }
 
-bincode = { version = "1.1", optional = true }
-parking_lot = { version = "0.9", optional = true }
+bincode = { version = "1.2", optional = true }
+parking_lot = { version = "0.10", optional = true }
 once_cell = { version = "1.2", optional = true }
 
 

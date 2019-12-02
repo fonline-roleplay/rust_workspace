@@ -31,7 +31,7 @@ fo_save_format = { git = "https://github.com/qthree/fo_save_format.git" }
 tera = "0.11"
 rsass = "0.11"
 percent-encoding = "2.1"
-base64 = "0.10"
+base64 = "0.11"
 image = { version = "0.22", default-features = false, features = ["png_codec"] }
 #url = "1.7.2"
 
@@ -43,6 +43,6 @@ env_logger = "0.7"
 #itertools = "0.8"
 lazy_static = "1.4"
 log = "0.4"
-parking_lot = "0.9"
+parking_lot = "0.10"
 rand = "0.7"
-sled = "0.28"
+sled = "0.29"

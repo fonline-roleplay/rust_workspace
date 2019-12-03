@@ -1,12 +1,17 @@
-use actix_codec::{AsyncRead, AsyncWrite};
-use actix_server::{Io, Server};
-use actix_service::{service_fn, IntoService, NewService};
-use actix_web::error::BlockingError;
-use actix_web::web;
+use crate::database::{CharTrunk, Root, VersionedError};
+use actix_codec::{AsyncRead, AsyncWrite, Decoder, Encoder, Framed};
+use actix_rt::net::TcpStream;
+use actix_server::{FromStream, Server};
+use actix_service::{service_fn, IntoService};
+use actix_web::{error::BlockingError, web};
 use bytes::BytesMut;
-use futures::stream::Stream;
-use futures::sync::mpsc::{channel, Receiver, Sender, TrySendError};
-use futures::{future, future::Either, Future};
+use futures::{
+    channel::mpsc::{channel, Receiver, Sender, TrySendError},
+    future,
+    future::Either,
+    Future, FutureExt, Sink, SinkExt, Stream, StreamExt, TryFutureExt, TryStreamExt,
+};
+use parking_lot::RwLock;
 use std::{
     convert::TryInto,
     sync::{
@@ -14,16 +19,13 @@ use std::{
         Arc,
     },
 };
-use tokio_codec::{Decoder, Encoder, Framed};
-use tokio_tcp::TcpStream;
-//use crossbeam::atomic::AtomicCell;
-use crate::database::{CharTrunk, Root, VersionedError};
-use parking_lot::RwLock;
 
 pub use tnf_common::message::server_dll_web::{ServerDllToWeb as MsgIn, ServerWebToDll as MsgOut};
 pub type MsgOutSender = Sender<MsgOut>;
 //pub type MsgOutSendError = SendError<MsgOut>;
 pub type MsgOutSendError = TrySendError<MsgOut>;
+
+type BridgeResult<T> = Result<T, BridgeError>;
 
 /// Simple logger service, it just prints fact of the new connections
 /*fn logger<T: AsyncRead + AsyncWrite + std::fmt::Debug>(
@@ -75,9 +77,8 @@ pub fn start(tree: Root) -> Bridge {
                 let bridge = bridge.clone();
                 let tree = tree.clone();
                 // service for converting incoming TcpStream to a SslStream<TcpStream>
-                service_fn(move |stream: Io<tokio_tcp::TcpStream>| {
+                service_fn(move |tcp_stream: TcpStream| {
                     use futures::future::Either;
-                    use futures::sink::Sink;
 
                     let tree = tree.clone();
 
@@ -86,21 +87,23 @@ pub fn start(tree: Root) -> Bridge {
 
                     let num = num.fetch_add(1, Ordering::Relaxed);
                     println!("got connection {:?}", num);
-                    let framed = Framed::new(stream.into_parts().0, WebSide);
-                    let (sink, stream) = framed.split();
-                    stream
-                        .map_err(BridgeError::Io)
-                        //.filter_map(handle_message)
-                        .and_then(move |msg| handle_message_async(msg, &tree))
-                        .filter(drop_nop)
-                        .select(receiver.map_err(|_| BridgeError::SenderDropped))
-                        .map_err(|err| {
-                            std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", err))
-                        })
-                        .fold(sink, |sink, msg| {
-                            println!("Sending: {:?}", msg);
-                            sink.send(msg)
-                        })
+                    let framed = Framed::new(tcp_stream, WebSide);
+                    let (mut sink, mut stream) = framed.split();
+
+                    futures::stream::select(
+                        stream
+                            .map_err(BridgeError::Io)
+                            //.filter_map(handle_message)
+                            .and_then(move |msg| handle_message_async(msg, &tree))
+                            .boxed(),
+                        receiver.map(Result::Ok), //.map_err(|_| BridgeError::SenderDropped),
+                    )
+                    .try_filter(drop_nop)
+                    .map_err(|err| {
+                        std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", err))
+                    })
+                    .inspect_ok(|msg| println!("Sending: {:?}", msg))
+                    .forward(sink)
                 })
 
                 /*// .and_then() combinator uses other service to convert incoming `Request` to a
@@ -120,10 +123,7 @@ pub fn start(tree: Root) -> Bridge {
     bridge_ret
 }
 
-fn handle_message_async(
-    msg_in: MsgIn,
-    root: &Root,
-) -> impl Future<Item = MsgOut, Error = BridgeError> {
+fn handle_message_async(msg_in: MsgIn, root: &Root) -> impl Future<Output = BridgeResult<MsgOut>> {
     match msg_in {
         MsgIn::PlayerAuth(cr_id) => {
             let root = root.clone();
@@ -144,19 +144,20 @@ fn handle_message_async(
                 let authkey: [u32; 3] = unsafe { std::mem::transmute(authkey) };
                 Ok(authkey)
             })
-            .from_err()
-            .map(move |authkey| MsgOut::SendKeyToPlayer(cr_id, authkey));
-            Either::A(fut)
+            //.from_err()
+            .err_into()
+            .map_ok(move |authkey| MsgOut::SendKeyToPlayer(cr_id, authkey));
+            Either::Left(fut)
         }
-        _ => Either::B(future::ok(MsgOut::Nop)),
+        _ => Either::Right(future::ok(MsgOut::Nop)),
     }
 }
 
-fn drop_nop(msg_out: &MsgOut) -> bool {
-    match msg_out {
+fn drop_nop(msg_out: &MsgOut) -> impl Future<Output = bool> {
+    future::ready(match msg_out {
         MsgOut::Nop => false,
         _ => true,
-    }
+    })
 }
 
 /*

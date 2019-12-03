@@ -25,9 +25,9 @@ impl Mailbox {
 }
 */
 
-fn nope(_req: HttpRequest) -> impl Responder {
+fn nope(_req: HttpRequest) -> impl Future<Output = actix_web::Result<String>> {
     //let to = req.match_info().get("name").unwrap_or("World");
-    format!("Hello there and go to hell!")
+    fut_ok(format!("Hello there and go to hell!"))
 }
 
 /*
@@ -101,10 +101,9 @@ pub fn run(clients: PathBuf, db: sled::Db) {
             .service(web::resource("/").route(web::get().to(nope)))
             .service(
                 web::scope("/gm")
-                    .service(web::resource("/clients").route(web::get().to_async(gm::clients)))
+                    .service(web::resource("/clients").route(web::get().to(gm::clients)))
                     .service(
-                        web::resource("/client/{client}")
-                            .route(web::get().to_async(stats::gm_stats)),
+                        web::resource("/client/{client}").route(web::get().to(stats::gm_stats)),
                     ),
             )
             .service(actix_files::Files::new("/static", STATIC_PATH))
@@ -113,11 +112,11 @@ pub fn run(clients: PathBuf, db: sled::Db) {
                     .service(
                         web::scope("/edit").service(
                             web::resource("/avatar")
-                                .route(web::get().to_async(avatar::edit))
-                                .route(web::post().to_async(avatar::upload)),
+                                .route(web::get().to(avatar::edit))
+                                .route(web::post().to(avatar::upload)),
                         ),
                     )
-                    .service(web::resource("/avatar").route(web::get().to_async(avatar::show))),
+                    .service(web::resource("/avatar").route(web::get().to(avatar::show))),
             )
         //.service(
         //    web::resource("/{crid}").route(web::get().to_async(stats::gm_stats))

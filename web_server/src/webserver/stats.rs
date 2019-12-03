@@ -1,10 +1,42 @@
 use super::AppState;
 use crate::templates;
-use actix_web::{web, Error, HttpRequest, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse};
 use clients_db::CritterInfo;
-use futures::{future::ok as fut_ok, future::Either, Future};
+use futures::{future::ok as fut_ok, future::Either, Future, FutureExt};
 use serde::Serialize;
 use tnf_common::defines::param::{CritterParam, Param};
+
+pub fn gm_stats(
+    req: HttpRequest,
+    data: web::Data<AppState>,
+) -> impl Future<Output = actix_web::Result<HttpResponse>> {
+    let name = req.match_info().get("client").and_then(|client| {
+        percent_encoding::percent_decode(client.as_bytes())
+            .decode_utf8()
+            .ok()
+    });
+    if let Some(name) = name {
+        println!("gm_stats: {:?}", name);
+        let name = name.to_string();
+        Either::Left(
+            web::block(move || data.get_ref().critters_db.client_info(&name)).map(|res| {
+                match res {
+                    //Ok(Some(cr_info)) => Ok(format!("Your info: {:?}", cr_info).into()),
+                    Ok(cr_info) => match Stats::new(&cr_info).render() {
+                        Ok(body) => Ok(HttpResponse::Ok().content_type("text/html").body(body)),
+                        Err(err) => {
+                            eprintln!("GM Stats error: {:#?}", err);
+                            Ok(HttpResponse::InternalServerError().into())
+                        }
+                    },
+                    Err(_) => Ok(HttpResponse::InternalServerError().into()),
+                }
+            }),
+        )
+    } else {
+        Either::Right(fut_ok("Get out!".into()))
+    }
+}
 
 #[derive(Debug, Serialize)]
 struct Stats<'a> {
@@ -158,35 +190,3 @@ pub fn stats(
     }
 }
 */
-
-pub fn gm_stats(
-    req: HttpRequest,
-    data: web::Data<AppState>,
-) -> impl Future<Item = HttpResponse, Error = Error> {
-    let name = req.match_info().get("client").and_then(|client| {
-        percent_encoding::percent_decode(client.as_bytes())
-            .decode_utf8()
-            .ok()
-    });
-    if let Some(name) = name {
-        println!("gm_stats: {:?}", name);
-        let name = name.to_string();
-        Either::A(
-            web::block(move || data.get_ref().critters_db.client_info(&name)).then(|res| {
-                match res {
-                    //Ok(Some(cr_info)) => Ok(format!("Your info: {:?}", cr_info).into()),
-                    Ok(cr_info) => match Stats::new(&cr_info).render() {
-                        Ok(body) => Ok(HttpResponse::Ok().content_type("text/html").body(body)),
-                        Err(err) => {
-                            eprintln!("GM Stats error: {:#?}", err);
-                            Ok(HttpResponse::InternalServerError().into())
-                        }
-                    },
-                    Err(_) => Ok(HttpResponse::InternalServerError().into()),
-                }
-            }),
-        )
-    } else {
-        Either::B(fut_ok("Get out!".into()))
-    }
-}

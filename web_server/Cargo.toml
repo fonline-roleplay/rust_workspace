@@ -11,19 +11,20 @@ tnf_common = { path = "../common", features = ["server"] }
 clients_db = { path = "../clients_db" }
 
 # actix
-actix-web = "1.0"
-actix-server = "0.7"
-actix-service = "0.4"
-actix-codec = "0.1"
-actix-files = "0.1"
-actix-rt = "0.2"
+actix-web = "2.0.0-alpha.2"
+actix-server = "1.0.0-alpha.2"
+actix-service = "1.0.0-alpha.2"
+actix-codec = "0.2.0-alpha.2"
+actix-files = "0.2.0-alpha.2"
+actix-rt = "1.0.0-alpha.2"
 #actix-form-data = "0.4.0"
 #actix-multipart = "0.1.2"
 
 # futures & tokio
-futures = "0.1"
-tokio-tcp = "0.1"
-tokio-codec = "0.1"
+futures = "0.3"
+#tokio-net = "0.2.0-alpha.6"
+#tokio-codec = "0.2.0-alpha.6"
+#tokio-util = { version = "0.2", features = ["codec"] }
 
 # parsing, encoding & decoding
 serde = "1.0"

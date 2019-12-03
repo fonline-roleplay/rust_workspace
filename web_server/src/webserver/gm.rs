@@ -1,7 +1,7 @@
-use super::{web, AppState, Error, HttpResponse};
+use super::{web, AppState, HttpResponse};
 use crate::templates;
 use clients_db::{fix_encoding::os_str_debug, ClientRecord, CritterInfo};
-use futures::Future;
+use futures::{Future, FutureExt};
 use serde::Serialize;
 use std::{borrow::Cow, net::Ipv4Addr, time::Duration};
 use tnf_common::defines::{
@@ -9,10 +9,10 @@ use tnf_common::defines::{
     param::{CritterParam, Param},
 };
 
-pub fn clients(data: web::Data<AppState>) -> impl Future<Item = HttpResponse, Error = Error> {
+pub fn clients(data: web::Data<AppState>) -> impl Future<Output = actix_web::Result<HttpResponse>> {
     web::block(move || -> Result<_, ()> { Ok(data.get_ref().critters_db.list_clients()) })
         //.from_err()
-        .then(|res| match res {
+        .map(|res| match res {
             Ok(clients) => match ClientsList::new(clients.clients().iter()).render() {
                 Ok(body) => Ok(HttpResponse::Ok().content_type("text/html").body(body)),
                 Err(err) => {

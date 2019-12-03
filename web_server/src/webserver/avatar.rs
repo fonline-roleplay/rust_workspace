@@ -8,7 +8,7 @@ use actix_web::{error::BlockingError, web, HttpRequest, HttpResponse, Responder}
 use arrayvec::ArrayVec;
 use futures::{
     future::{err as fut_err, ok as fut_ok, Either},
-    Future,
+    Future, FutureExt, TryFutureExt,
 };
 use serde::{Deserialize, Serialize};
 use std::io::Write;
@@ -79,17 +79,17 @@ pub fn edit(
     path: web::Path<u32>,
     query: web::Query<Auth>,
     data: web::Data<super::AppState>,
-) -> impl Future<Item = HttpResponse, Error = actix_web::Error> {
+) -> impl Future<Output = actix_web::Result<HttpResponse>> {
     let char_id = *path;
 
     let (auth, auth_string) = match parse_auth(&*query) {
-        None => return Either::A(fut_ok(HttpResponse::Forbidden().finish())),
+        None => return Either::Left(fut_ok(HttpResponse::Forbidden().finish())),
         Some(auth) => auth,
     };
 
     let root = data.sled_db.root.clone();
 
-    Either::B(
+    Either::Right(
         web::block(move || {
             check_auth(&root, char_id, auth.as_slice())?;
             templates::render(
@@ -101,7 +101,7 @@ pub fn edit(
             )
             .map_err(AvatarUploadError::Template)
         })
-        .from_err()
+        .err_into()
         .then(|res| match res {
             Err(AvatarUploadError::Template(err)) => {
                 eprintln!("AvatarEditor template error: {:#?}", err);
@@ -120,9 +120,9 @@ pub fn upload(
     query: web::Query<Auth>,
     data: web::Data<super::AppState>,
     payload: web::Bytes,
-) -> impl Future<Item = HttpResponse, Error = AvatarUploadError> {
+) -> impl Future<Output = Result<HttpResponse, AvatarUploadError>> {
     let (auth, auth_string) = match parse_auth(&*query) {
-        None => return Either::A(fut_ok(HttpResponse::Forbidden().finish())),
+        None => return Either::Left(fut_ok(HttpResponse::Forbidden().finish())),
         Some(auth) => auth,
     };
 
@@ -133,26 +133,26 @@ pub fn upload(
     const PREFIX: &[u8; PREFIX_LEN] = b"data:image/png;base64,";
 
     if payload.len() <= PREFIX_LEN || !payload.starts_with(PREFIX) {
-        return Either::A(fut_err(AvatarUploadError::DataUrl));
+        return Either::Left(fut_err(AvatarUploadError::DataUrl));
     }
 
     let data_len = payload.len() - PREFIX_LEN;
     if data_len < MIN_LEN || data_len > MAX_LEN {
-        return Either::A(fut_err(AvatarUploadError::DataLength(data_len)));
+        return Either::Left(fut_err(AvatarUploadError::DataLength(data_len)));
     }
 
     let char_id = *path;
     let root = data.sled_db.root.clone();
     let sender = data.bridge.get_sender();
-    Either::B(
+    Either::Right(
         web::block(move || {
             check_auth(&root, char_id, auth.as_slice())?;
             let data = &payload[PREFIX_LEN..];
             save_image(&root, char_id, data)
         })
-        .from_err()
-        .and_then(move |leaf| update_char_leaf(sender, char_id, leaf))
-        .map(|_| HttpResponse::Ok().finish()),
+        .err_into()
+        .map(move |res| res.and_then(|leaf| update_char_leaf(sender, char_id, leaf)))
+        .map_ok(|_| HttpResponse::Ok().finish()),
     )
 }
 
@@ -227,15 +227,15 @@ pub fn show(
     path: web::Path<u32>,
     query: web::Query<VersionSecret>,
     data: web::Data<super::AppState>,
-) -> impl Future<Item = HttpResponse, Error = actix_web::Error> {
+) -> impl Future<Output = actix_web::Result<HttpResponse>> {
     let VersionSecret { ver, secret } = *query;
 
     if secret.is_none() {
-        return Either::A(fut_ok(HttpResponse::Forbidden().finish()));
+        return Either::Left(fut_ok(HttpResponse::Forbidden().finish()));
     }
 
     let root = data.sled_db.root.clone();
-    Either::B(
+    Either::Right(
         web::block(move || {
             let instant = std::time::Instant::now();
             let leaf = root
@@ -244,7 +244,7 @@ pub fn show(
             println!("Getting image, completed in {:?}", instant.elapsed());
             Ok(leaf)
         })
-        .from_err()
+        .err_into()
         .then(|res| match res {
             Ok(image) => HttpResponse::Ok()
                 .header("q-ver", image.ver as u64)

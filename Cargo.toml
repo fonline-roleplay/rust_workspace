@@ -1,6 +1,6 @@
 [workspace]
 members = ["client_dll", "server_dll", "common", "web_server", "clients_db", "overlay",
-    "overlay_launcher", "formula", "fo_param", "fo_param_fo4rp"]
+    "overlay_launcher", "fo_map_format", "nom_prelude", "fo_data", "formula", "fo_param", "fo_param_fo4rp"]
 
 [profile.release]
 #lto = true

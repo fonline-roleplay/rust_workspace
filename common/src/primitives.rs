@@ -5,6 +5,7 @@ pub type uint16 = ::std::os::raw::c_ushort;
 pub type uint64 = u64;
 pub type int64 = i64;
 
+pub type uchar = ::std::os::raw::c_uchar;
 pub type ulong = ::std::os::raw::c_ulong;
 pub type ushort = ::std::os::raw::c_ushort;
 pub type uint = ::std::os::raw::c_uint;
@@ -42,6 +43,9 @@ pub struct Hex {
 }
 
 impl Hex {
+    pub fn new(x: u16, y: u16) -> Self {
+        Hex { x, y }
+    }
     pub fn get_distance(self, other: Hex) -> u32 {
         crate::utils::map::get_distance_hex(self, other, true)
     }

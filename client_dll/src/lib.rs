@@ -8,7 +8,8 @@ use tnf_common::engine_types::{ScriptArray, ScriptString};
 });*/
 
 mod bridge;
-//mod engine_functions;
+#[allow(non_snake_case)]
+mod engine_functions;
 
 #[no_mangle]
 #[allow(non_snake_case)]

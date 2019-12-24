@@ -29,6 +29,7 @@ pub trait CritterParamMut {
 }
 
 #[derive(PartialOrd, Ord, PartialEq, Eq, Clone, Copy)]
+#[allow(bad_style)]
 pub enum Param {
     //STAT_BEGIN = 0,
     //STAT_END = 199,

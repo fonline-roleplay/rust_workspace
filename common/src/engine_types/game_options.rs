@@ -13,13 +13,13 @@ use crate::{
 pub static mut FOnline: *mut GameOptions = std::ptr::null_mut();
 
 // not very safe
-pub fn game_state<'a>() -> Option<&'a GameOptions> {
+pub fn game_state<'a>() -> Option<&'a mut GameOptions> {
     let state = unsafe { FOnline };
     if state.is_null() {
         eprintln!("GameOptions is null!");
         None
     } else {
-        unsafe { Some(&*state) }
+        unsafe { Some(&mut *state) }
     }
 }
 
@@ -34,7 +34,7 @@ pub fn critter_change_param(state: &GameOptions, cr: &mut Critter, param: u32) -
 }
 
 #[cfg(feature = "client")]
-pub fn get_drawind_sprites(state: &GameOptions) -> Option<&[Option<&Sprite>]> {
+pub fn get_drawing_sprites(state: &GameOptions) -> Option<&[Option<&Sprite>]> {
     state.GetDrawingSprites.and_then(|f| {
         let mut count = 0;
         unsafe {
@@ -116,7 +116,7 @@ pub fn get_sprites_hex(state: &GameOptions, hex_x: i32, hex_y: i32) -> Option<im
 */
 #[cfg(feature = "client")]
 pub fn get_sprites_dot(state: &GameOptions, dot: i32) -> Vec<&Sprite> {
-    if let Some(all_sprites) = get_drawind_sprites(state) {
+    if let Some(all_sprites) = get_drawing_sprites(state) {
         all_sprites
             .into_iter()
             .filter_map(|s| *s)
@@ -126,6 +126,109 @@ pub fn get_sprites_dot(state: &GameOptions, dot: i32) -> Vec<&Sprite> {
     } else {
         Vec::new()
     }
+}
+
+#[cfg(feature = "client")]
+impl GameOptions {
+    pub fn fields(&self) -> &[Field] {
+        if self.ClientMap.is_null() {
+            return &[];
+        }
+        unsafe {
+            std::slice::from_raw_parts(
+                self.ClientMap,
+                (self.ClientMapWidth * self.ClientMapHeight) as usize,
+            )
+        }
+    }
+    pub fn fields_mut(&mut self) -> &mut [Field] {
+        if self.ClientMap.is_null() {
+            return &mut [];
+        }
+        unsafe {
+            std::slice::from_raw_parts_mut(
+                self.ClientMap,
+                (self.ClientMapWidth * self.ClientMapHeight) as usize,
+            )
+        }
+    }
+    fn field_index(&self, hex_x: u16, hex_y: u16) -> Option<usize> {
+        if hex_x as u32 >= self.ClientMapWidth || hex_y as u32 >= self.ClientMapHeight {
+            return None;
+        }
+        Some(hex_y as usize * self.ClientMapWidth as usize + hex_x as usize)
+    }
+    fn field_index_offset(&self, hex_x: u16, hex_y: u16, ox: i16, oy: i16) -> Option<usize> {
+        self.field_index(add(hex_x, ox), add(hex_y, oy))
+    }
+    pub fn get_field(&self, hex_x: u16, hex_y: u16) -> Option<&Field> {
+        let index = self.field_index(hex_x, hex_y)?;
+        self.fields().get(index)
+    }
+    pub fn get_field_offset(&self, hex_x: u16, hex_y: u16, ox: i16, oy: i16) -> Option<&Field> {
+        let index = self.field_index_offset(hex_x, hex_y, ox, oy)?;
+        self.fields().get(index)
+    }
+    pub fn get_field_mut(&mut self, hex_x: u16, hex_y: u16) -> Option<&mut Field> {
+        let index = self.field_index(hex_x, hex_y)?;
+        self.fields_mut().get_mut(index)
+    }
+    pub fn get_field_offset_mut(
+        &mut self,
+        hex_x: u16,
+        hex_y: u16,
+        ox: i16,
+        oy: i16,
+    ) -> Option<&mut Field> {
+        let index = self.field_index_offset(hex_x, hex_y, ox, oy)?;
+        self.fields_mut().get_mut(index)
+    }
+
+    /*pub fn max_roof_num(&self) -> Option<u16> {
+        self.fields().iter().map(|field| field.RoofNum as u16).max()
+    }*/
+
+    fn spread_roof_num(&mut self, hex_x: u16, hex_y: u16, num: u16) -> u16 {
+        if let Some(field) = self.get_field(hex_x, hex_y) {
+            if field.Roofs.is_empty() || field.RoofNum != 0 {
+                return num;
+            }
+        } else {
+            return num;
+        }
+
+        let skip_size = self.MapRoofSkipSize as i16;
+        for oy in 0..skip_size {
+            for ox in 0..skip_size {
+                if let Some(field) = self.get_field_offset_mut(hex_x, hex_y, ox, oy) {
+                    field.RoofNum = num as _;
+                }
+            }
+        }
+
+        self.spread_roof_num(add(hex_x, skip_size), hex_y, num);
+        self.spread_roof_num(add(hex_x, -skip_size), hex_y, num);
+        self.spread_roof_num(hex_x, add(hex_y, skip_size), num);
+        self.spread_roof_num(hex_x, add(hex_y, -skip_size), num);
+
+        return num + 1;
+    }
+
+    pub fn regroup_roofs(&mut self) {
+        for field in self.fields_mut() {
+            field.RoofNum = 0;
+        }
+        let mut roof_num = 1;
+        for hex_y in 0..self.ClientMapHeight as u16 {
+            for hex_x in 0..self.ClientMapWidth as u16 {
+                roof_num = self.spread_roof_num(hex_x, hex_y, roof_num);
+            }
+        }
+    }
+}
+
+fn add(a: u16, b: i16) -> u16 {
+    b.wrapping_add(a as i16) as u16
 }
 
 #[repr(C)]

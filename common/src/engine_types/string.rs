@@ -113,9 +113,9 @@ const FORWARD_TABLE: &'static [u16] = &[
 ]; // 128 entries
 
 fn cp1251_to_utf8(ptr: *mut ::std::os::raw::c_char) -> String {
-    let c_str = unsafe { ::std::ffi::CString::from_raw(ptr) };
+    let c_str = unsafe { ::std::ffi::CStr::from_ptr(ptr) };
     let string: String = c_str
-        .as_bytes()
+        .to_bytes()
         .iter()
         .map(|&code| {
             use std::convert::TryInto;
@@ -128,6 +128,5 @@ fn cp1251_to_utf8(ptr: *mut ::std::os::raw::c_char) -> String {
             }
         })
         .collect();
-    ::std::mem::forget(c_str);
     string
 }

@@ -9,10 +9,14 @@ publish = false
 winapi = { version = "0.3", features = ["consoleapi"] }
 tnf_common = { path = "../common", features = ["client", "bridge"] }
 webbrowser = "0.5"
-heim = {version = "0.0.8", default-features = false, features = ["process"] }
+heim = {version = "0.0.9", default-features = false, features = ["process"] }
 futures = "0.3"
 subprocess = "0.1"
+dlopen = "0.1"
+dlopen_derive = "0.1"
+once_cell = { version = "1.2"}
 #crossbeam = "0.7.1"
+#human-panic = "1.0"
 
 [lib]
 crate-type = ["cdylib"]

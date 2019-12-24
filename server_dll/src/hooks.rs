@@ -1,7 +1,7 @@
 //use crate::webserver;
 use crate::bridge;
 use lazy_static::lazy_static;
-use std::io::Write;
+use std::{ffi::CStr, io::Write};
 use tnf_common::engine_types::critter::Critter;
 use tnf_common::engine_types::{ScriptArray, ScriptString};
 
@@ -9,10 +9,8 @@ use tnf_common::engine_types::{ScriptArray, ScriptString};
 //    static ref WEBSERVER: webserver::Mailbox = { webserver::run() };
 //}
 
-#[no_mangle]
-pub extern "C" fn init_compat(offset: usize) {
-    crate::engine_functions::init(offset);
-}
+//const FUNC_LINK_OPEN_WITH_KEY: &'static CStr =
+//    unsafe { CStr::from_bytes_with_nul_unchecked(b"link@OpenWithKey\0") };
 
 #[no_mangle]
 pub extern "C" fn main_loop() {
@@ -39,12 +37,17 @@ pub extern "C" fn main_loop() {
             }
             MsgIn::SendKeyToPlayer(cr_id, key) => {
                 if let Some(cr) = get_critter(cr_id) {
+                    #[allow(bad_style)]
+                    let FUNC_LINK_OPEN_WITH_KEY = CStr::from_bytes_with_nul(b"link@OpenWithKey\0")
+                        .expect("Static null terminated string");
                     run_client_script(
                         cr,
-                        "link@OpenWithKey",
+                        FUNC_LINK_OPEN_WITH_KEY,
                         key[0] as i32,
                         key[1] as i32,
                         key[2] as i32,
+                        None,
+                        None,
                     );
                 }
             }

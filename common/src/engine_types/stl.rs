@@ -51,6 +51,12 @@ pub struct stlp_std_vector<_Tp, _Alloc> {
     _phantom_1: ::std::marker::PhantomData<_Alloc>,
 }
 
+impl<_Tp, _Alloc> stlp_std_vector<_Tp, _Alloc> {
+    pub fn is_empty(&self) -> bool {
+        self.start.is_null() || (self.end as usize - self.start as usize) == 0
+    }
+}
+
 #[repr(C)]
 pub struct stlp_std_set([u8; 24]);
 pub type UintSet = stlp_std_set;

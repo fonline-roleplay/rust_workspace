@@ -1,170 +1,70 @@
-use std::io::Write;
-use tnf_common::engine_types::{critter::Critter, stl::IntVec, ScriptArray, ScriptString};
+use dlopen::wrapper::{Container, WrapperApi};
+use dlopen_derive::WrapperApi;
+use once_cell::sync::Lazy;
+use std::{
+    ffi::CStr,
+    os::raw::{c_char, c_int},
+    ptr::{null, null_mut},
+};
+use tnf_common::{
+    engine_types::{critter::Critter, item::Item, stl::IntVec, ScriptArray, ScriptString},
+    primitives::*,
+};
 
-const PTR_OFFSET: usize = 0x00400000;
-
-const CL_RUN_CLIENT_SCRIPT: &[u8] = b"?Cl_RunClientScript@SScriptFunc@FOServer@@SAXPAVCritter@@AAVScriptString@@HHHPAV4@PAVScriptArray@@@Z";
-type FnRunClientScript = unsafe extern "C" fn(
-    &Critter,
-    &ScriptString,
-    i32,
-    i32,
-    i32,
-    *const ScriptString,
-    *const ScriptArray,
-);
-
-const GLOBAL_GET_CRITTER: &[u8] = b"?Global_GetCritter@SScriptFunc@FOServer@@SAPAVCritter@@I@Z";
-type FnGetCritter = unsafe extern "C" fn(u32) -> *mut Critter;
-
-struct FuncPointers {
-    get_critter: FnGetCritter,
-    run_client_script: FnRunClientScript,
-}
-
-static mut FUNC_POINTERS: Option<FuncPointers> = None;
-static mut COMPAT_POINTERS: Option<ASCompat> = None;
-
-#[repr(C)]
-#[derive(Clone)]
-struct ASCompat {
-    new_script_string: unsafe fn(*const u8, usize) -> *mut ScriptString,
-    release_script_string: unsafe fn(*mut ScriptString),
-    int_vec_push_back: unsafe fn(*mut IntVec, i32),
-}
-
-pub fn inv_vec_push_box(vec: &mut IntVec, val: i32) {
-    unsafe {
-        let func = COMPAT_POINTERS
-            .as_ref()
-            .expect("Compat pointers")
-            .int_vec_push_back;
-        func(vec as *mut IntVec, val);
-    }
-}
-
-pub struct ScriptStringBox {
-    inner: *mut ScriptString,
-}
-
-impl ScriptStringBox {
-    fn new(str: &str) -> Self {
-        let inner = unsafe {
-            let func = COMPAT_POINTERS
-                .as_ref()
-                .expect("Compat pointers")
-                .new_script_string;
-            func(str.as_ptr(), str.len())
-        };
-        ScriptStringBox { inner }
-    }
-}
-
-impl Drop for ScriptStringBox {
-    fn drop(&mut self) {
-        unsafe {
-            let func = COMPAT_POINTERS
-                .as_ref()
-                .expect("Compat pointers")
-                .release_script_string;
-            func(self.inner);
+macro_rules! dynamic_ffi {
+    ($api:ident, $(pub fn $fun:ident($($arg:ident: $typ:ty$ (,)?)*) $(-> $ret:ty)? ;)*) => {
+        #[derive(WrapperApi)]
+        struct $api {
+            $($fun: unsafe extern "C" fn($($arg: $typ,)*) $(-> $ret)? ,)*
         }
     }
 }
 
-impl AsRef<ScriptString> for ScriptStringBox {
-    fn as_ref(&self) -> &ScriptString {
-        unsafe { std::mem::transmute(self.inner) }
-    }
+include!("../../ffi/API_Server.rs");
+static SERVER_API: Lazy<Container<ServerApi>> =
+    Lazy::new(|| unsafe { Container::load_self() }.expect("Can't load api"));
+
+#[derive(Debug)]
+pub enum ServerAPIError {
+    CritterIsNotValid,
+    CritterIsNotPlayer,
 }
 
-pub fn init(compat: usize) {
-    unsafe {
-        FUNC_POINTERS = Some(
-            load_func_pointers()
-                .expect("pdb error")
-                .expect("Can't load all function pointers"),
-        );
-
-        let ptr = compat as *const () as *const ASCompat;
-        COMPAT_POINTERS = Some((&*ptr).clone());
+pub fn run_client_script(
+    cr: &mut Critter,
+    func_name: &CStr,
+    p0: i32,
+    p1: i32,
+    p2: i32,
+    p3: Option<&CStr>,
+    p4: Option<&[u32]>,
+) -> Result<(), ServerAPIError> {
+    if cr.IsNotValid {
+        Err(ServerAPIError::CritterIsNotValid)
+    } else if !cr.is_player() {
+        Err(ServerAPIError::CritterIsNotPlayer)
+    } else {
+        unsafe {
+            SERVER_API.Cl_RunClientScript(
+                cr,
+                func_name.as_ptr(),
+                p0,
+                p1,
+                p2,
+                p3.map(CStr::as_ptr).unwrap_or_else(null),
+                p4.map(<[_]>::as_ptr).unwrap_or_else(null),
+                p4.map(<[_]>::len).unwrap_or(0),
+            );
+        }
+        Ok(())
     }
 }
 
 pub fn get_critter<'a>(id: u32) -> Option<&'a mut Critter> {
-    unsafe { std::mem::transmute((FUNC_POINTERS.as_ref().expect("Func pointers").get_critter)(id)) }
+    unsafe { std::mem::transmute(SERVER_API.Global_GetCritter(id)) }
 }
 
-pub fn run_client_script<'a>(cr: &mut Critter, func: &str, p0: i32, p1: i32, p2: i32) {
-    use std::ptr::null;
-    let string = ScriptStringBox::new(func);
-    unsafe {
-        (FUNC_POINTERS
-            .as_ref()
-            .expect("Func pointers")
-            .run_client_script)(cr, string.as_ref(), p0, p1, p2, null(), null())
-    }
-}
-
-/*
-#[derive(Debug)]
-enum GetPtrError {
-    FileOpen(std::io::Error),
-}
-*/
-
-fn load_func_pointers() -> pdb::Result<Option<FuncPointers>> {
-    let file = std::fs::File::open("FOnlineServer.pdb")?; //.map_err(GetPtrError::FileOpen())?;
-    let mut pdb = pdb::PDB::open(file)?;
-    let symbol_table = pdb.global_symbols()?;
-    let address_map = pdb.address_map()?;
-
-    macro_rules! transmute_fn {
-        ($($fn_static:ident: $fn_const:expr),+) => {
-            FuncPointers{
-                $(
-                    $fn_static: {
-                        if let Some(ptr) = get_ptr(&symbol_table, &address_map, $fn_const)? {
-                            unsafe {
-                                 std::mem::transmute(ptr as usize + PTR_OFFSET)
-                            }
-                        } else {
-                            return Ok(None);
-                        }
-                    },
-                )+
-            }
-        };
-    }
-    Ok(Some(transmute_fn! {
-        get_critter: GLOBAL_GET_CRITTER,
-        run_client_script: CL_RUN_CLIENT_SCRIPT
-    }))
-}
-
-fn get_ptr(
-    symbol_table: &pdb::SymbolTable,
-    address_map: &pdb::AddressMap,
-    func_name: &[u8],
-) -> pdb::Result<Option<u32>> {
-    let mut symbols = symbol_table.iter();
-    use pdb::FallibleIterator;
-    while let Some(symbol) = symbols.next()? {
-        match symbol.parse()? {
-            pdb::SymbolData::PublicSymbol(data) => {
-                let name = symbol.name()?.as_bytes();
-                if name == func_name {
-                    if let Some(ptr) = data.offset.to_rva(&address_map) {
-                        return Ok(Some(ptr.into()));
-                    } else {
-                        return Ok(None);
-                    }
-                }
-            }
-            _ => {
-                // ignore everything else
-            }
-        }
-    }
-    Ok(None)
+#[no_mangle]
+pub extern "C" fn item_get_lexems(item: *mut Item) -> *mut ScriptString {
+    unsafe { std::mem::transmute(SERVER_API.Item_GetLexems(item)) }
 }

@@ -1,5 +1,6 @@
 [workspace]
-members = ["client_dll", "server_dll", "common", "web_server", "clients_db", "overlay", "overlay_launcher"]
+members = ["client_dll", "server_dll", "common", "web_server", "clients_db", "overlay",
+    "overlay_launcher", "formula", "fo_param", "fo_param_fo4rp"]
 
 [profile.release]
 #lto = true
@@ -8,4 +9,7 @@ members = ["client_dll", "server_dll", "common", "web_server", "clients_db", "ov
 #glium  = { git = 'https://github.com/qthree/glium.git' }
 glium  = { path = 'D:\rust\glium' }
 subprocess = { path = 'D:\rust\rust-subprocess'}
-heim = { git = 'https://github.com/heim-rs/heim.git' }
+#actix-rt = {git = 'https://github.com/Dispersia/actix-net.git'}
+#actix-server = {git = 'https://github.com/Dispersia/actix-net.git'}
+serde_with = {path = 'D:\rust\serde_with'}
+reqwest = { version = "0.10.0-alpha.2", git = "https://github.com/seanmonstar/reqwest" }

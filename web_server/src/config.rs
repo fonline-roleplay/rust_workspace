@@ -56,6 +56,8 @@ pub struct Host {
     pub web_tls: Option<Cert>,
     pub web: Url,
     pub files: Url,
+    #[serde(default)]
+    pub overlay_use_files: bool,
 }
 
 impl Host {
@@ -79,6 +81,14 @@ impl Host {
     }
     pub fn files_port(&self) -> u16 {
         self.files.port.unwrap_or(80)
+    }
+
+    pub fn overlay_urls(&self) -> String {
+        if self.overlay_use_files {
+            format!("{}|{}\0", self.web_url(""), self.files_url(""))
+        } else {
+            self.web_url("\0")
+        }
     }
 }
 

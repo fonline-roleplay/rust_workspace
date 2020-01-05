@@ -23,24 +23,36 @@ impl GameWindow {
         }
         struct EnumWindowsData {
             pid: u32,
-            hwnd: Option<windef::HWND>,
+            hwnd: Vec<(windef::HWND, String)>,
         };
-        let mut data = EnumWindowsData { pid, hwnd: None };
+        let mut data = EnumWindowsData { pid, hwnd: vec![] };
         unsafe extern "system" fn find_by_pid(hwnd: windef::HWND, data: isize) -> i32 {
             let data = &mut *(data as *mut EnumWindowsData);
             let mut process_id = 0;
             let _thread_id = winuser::GetWindowThreadProcessId(hwnd, &mut process_id);
             if process_id == data.pid {
-                data.hwnd = Some(hwnd);
-                0
-            } else {
-                1
+                let mut buf = [0u8; 128];
+                let len = winuser::GetClassNameA(hwnd, buf.as_mut_ptr() as _, buf.len() as i32);
+                if len > 0 {
+                    let name = std::str::from_utf8(&buf[0..len as usize]);
+                    if let Ok(name) = name {
+                        data.hwnd.push((hwnd, name.to_owned()));
+                    }
+                }
             }
+            1
         }
         unsafe {
             winuser::EnumWindows(Some(find_by_pid), (&mut data) as *mut _ as _);
         }
-        data.hwnd.map(|hwnd| Self::from_handle(hwnd))
+        println!("Found windows: {}", data.hwnd.len());
+        for window in &data.hwnd {
+            println!("Window class: {}", &window.1);
+        }
+        data.hwnd
+            .iter()
+            .find(|(_hwnd, name)| &*name == "FLTK")
+            .map(|(hwnd, _name)| Self::from_handle(*hwnd))
     }
     pub fn find() -> Option<Self> {
         let ret = unsafe { winuser::FindWindowA(0 as _, "FOnline\0".as_ptr() as _) };

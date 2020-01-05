@@ -69,7 +69,7 @@ impl Bridge {
             thread,
         }
     }
-    fn run(sender: Sender<MsgIn>, receiver: &mut Receiver<MsgOut>) -> std::io::Result<()> {
+    fn run(sender: Sender<MsgIn>, receiver: &mut Receiver<MsgOut>) -> bincode::Result<()> {
         let stream = std::net::TcpStream::connect_timeout(
             &"127.0.0.1:33852".parse().unwrap(),
             Duration::from_millis(500),
@@ -79,12 +79,13 @@ impl Bridge {
         let mut reader = stream;
         let mut writer = reader.try_clone()?;
 
-        let read_thread = thread::spawn(move || -> std::io::Result<_> {
+        let read_thread = thread::spawn(move || -> bincode::Result<_> {
             loop {
-                let mut buf = [0u8; std::mem::size_of::<MsgIn>()];
+                let msg: MsgIn = bincode::deserialize_from(&mut reader)?;
+                /*let mut buf = [0u8; std::mem::size_of::<MsgIn>()];
                 //assert_eq!(std::mem::align_of_val(&buf), std::mem::align_of::<MsgIn>());
                 reader.read_exact(&mut buf)?;
-                let msg: MsgIn = unsafe { std::mem::transmute(buf) };
+                let msg: MsgIn = unsafe { std::mem::transmute(buf) };*/
                 if let Err(err) = sender.send(msg) {
                     return Ok(err);
                 }

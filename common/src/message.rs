@@ -1,10 +1,11 @@
 use serde::{Deserialize, Serialize};
+use std::ffi::CString;
 
 pub mod server_dll_web {
     use super::*;
 
     pub const HANDSHAKE: u16 = 0xBABA;
-    pub const VERSION: u16 = 1;
+    pub const VERSION: u16 = 2;
 
     #[repr(C)]
     #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -14,10 +15,11 @@ pub mod server_dll_web {
     }
 
     #[repr(C)]
-    #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+    #[derive(Debug, Clone, Deserialize, Serialize)]
     pub enum ServerWebToDll {
         UpdateCharLeaf { id: u32, ver: u32, secret: u32 },
         SendKeyToPlayer(u32, [u32; 3]),
+        SendConfig { player_id: u32, url: CString },
         Nop,
     }
 }

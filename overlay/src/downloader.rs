@@ -17,7 +17,7 @@ const MAX_LEN: usize = 128 * 1024;
 
 struct Downloader {
     url: String,
-    client: reqwest::Client,
+    client: reqwest::blocking::Client,
 }
 
 pub type ImageRequester = Requester<Char, Image, DownloaderError>;
@@ -26,7 +26,7 @@ pub fn start(url: String) -> ImageRequester {
     let responder = Arc::new(Responder::new());
     let requester = responder.clone();
     let thread = thread::spawn(move || {
-        let client = reqwest::ClientBuilder::new()
+        let client = reqwest::blocking::ClientBuilder::new()
             .timeout(Duration::from_secs(10))
             .build()
             .expect("reqwest client");
@@ -65,7 +65,7 @@ impl Downloader {
 
     fn download(&self, char: Char) -> Result<Vec<u8>, DownloaderError> {
         let url = format!(
-            "http://{}/char/{}/avatar?ver={}&secret={}",
+            "{}/char/{}/avatar?ver={}&secret={}",
             self.url, char.id, char.ver, char.secret
         );
 

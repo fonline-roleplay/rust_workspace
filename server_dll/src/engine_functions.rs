@@ -14,13 +14,19 @@ use tnf_common::{
 macro_rules! dynamic_ffi {
     ($api:ident, $(pub fn $fun:ident($($arg:ident: $typ:ty$ (,)?)*) $(-> $ret:ty)? ;)*) => {
         #[derive(WrapperApi)]
-        struct $api {
+        pub struct $api {
             $($fun: unsafe extern "C" fn($($arg: $typ,)*) $(-> $ret)? ,)*
         }
     }
 }
 
-include!("../../ffi/API_Server.rs");
+#[allow(bad_style)]
+mod ffi {
+    use super::*;
+    include!("../../ffi/API_Server.rs");
+}
+use ffi::ServerApi;
+
 static SERVER_API: Lazy<Container<ServerApi>> =
     Lazy::new(|| unsafe { Container::load_self() }.expect("Can't load api"));
 

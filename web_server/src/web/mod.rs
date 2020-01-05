@@ -160,7 +160,8 @@ impl AppState {
         }
     }
     fn start_bridge(&self) {
-        self.bridge.start(self.sled_db.root.clone());
+        self.bridge
+            .start(self.sled_db.root.clone(), self.config.host.clone());
     }
 }
 

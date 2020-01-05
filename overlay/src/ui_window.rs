@@ -8,8 +8,8 @@ use crate::{
     Rect,
 };
 use imgui::{
-    im_str, ChildWindow, FontConfig, FontGlyphRanges, FontSource, ImStr, ImString, StyleColor, Ui,
-    Window,
+    im_str, ChildWindow, FontConfig, FontGlyphRanges, FontSource, ImStr, ImString, StyleColor,
+    StyleVar, Ui, Window,
 };
 use std::rc::Rc;
 use tnf_common::message::client_dll_overlay::Message;
@@ -84,13 +84,15 @@ impl ToggleButton {
 }
 
 impl UiLogic for Bar {
-    const INITIAL_SIZE: (u32, u32) = (100, 40);
+    const INITIAL_SIZE: (u32, u32) = (90, 35);
     const FIXED: bool = true;
     const TITLE_BAR: bool = false;
     fn title(&self) -> ImString {
         im_str!("FOnline Bar").into()
     }
     fn draw(&mut self, ui: &imgui::Ui, texture_for_char: &mut impl TextureForChar) {
+        //WIP: Remove
+        ui.same_line(4.0);
         let size = [0.0, 24.0];
         if self
             .button
@@ -322,6 +324,9 @@ impl UiLogic for Chat {
         im_str!("FOnline Chat").into()
     }
     fn draw(&mut self, ui: &imgui::Ui, texture_for_char: &mut impl TextureForChar) {
+        //WIP: Remove
+        ui.same_line(8.0);
+
         let filter = &mut self.filter;
         let messages = &mut self.messages;
 
@@ -377,6 +382,7 @@ impl UiLogic for Chat {
         }
 
         let mut size = ui.content_region_avail();
+        size[1] -= 5.0;
         ChildWindow::new("Сообщения")
             .size(size.into())
             .border(true)
@@ -465,6 +471,7 @@ pub struct UiWindow<B: Backend, L: UiLogic> {
     back: BackendRef<B>,
     logic: L,
     drag: Option<[f32; 2]>,
+    resize: Option<[f32; 2]>,
     hidden: bool,
     last_size: (u32, u32),
 }
@@ -480,7 +487,18 @@ impl<B: Backend, L: UiLogic> UiWindow<B, L> {
                 window.init_gui(&mut *back_ref, |imgui, info| {
                     //imgui_init_fonts(imgui, info.hidpi_factor);
                     let style = imgui.style_mut();
+                    /*
+                    dbg!(&style.window_border_size);
+                    dbg!(&style.display_window_padding);
+                    dbg!(&style.display_safe_area_padding);
+                    dbg!(&style.window_padding);
+                    */
+
                     style.window_rounding = 0.0;
+                    //style.window_border_size = 0.0;
+                    //style.window_padding[0] = 0.0;
+                    //style.display_window_padding = [0.0, 0.0];
+                    //style.display_safe_area_padding = [0.0, 0.0];
                     imgui
                         .io_mut()
                         .config_flags
@@ -498,6 +516,7 @@ impl<B: Backend, L: UiLogic> UiWindow<B, L> {
             drag: None,
             hidden: false,
             last_size: size,
+            resize: None,
         })
     }
     pub fn draw(
@@ -535,6 +554,7 @@ impl<B: Backend, L: UiLogic> UiWindow<B, L> {
         let mut move_window = None;
         let mut resize_window = None;
         let drag = &mut self.drag;
+        let resize = &mut self.resize;
 
         let fixed = L::FIXED;
 
@@ -547,14 +567,19 @@ impl<B: Backend, L: UiLogic> UiWindow<B, L> {
             std::mem::swap(textures, &mut windowing.textures);
             //windowing.textures = imgui::Textures::new();
             //windowing.char_textures.clear();
+            let style = ui.push_style_var(StyleVar::WindowPadding([0.0, 5.0]));
             Window::new(&title)
                 .title_bar(bar)
-                .size([size.0 as f32, size.1 as f32], Condition::Once)
+                //.size([size.0 as f32, size.1 as f32], Condition::Once)
+                .size([size.0 as f32, size.1 as f32], Condition::Always)
                 .position([0.0, 0.0], Condition::Always)
-                .resizable(!fixed)
+                //.resizable(!fixed)
+                .resizable(false)
                 .movable(false)
                 .collapsible(false)
+                .scroll_bar(false)
                 .build(ui, || {
+                    style.pop(ui);
                     if !fixed {
                         //is window title hovered
                         if bar
@@ -567,12 +592,31 @@ impl<B: Backend, L: UiLogic> UiWindow<B, L> {
                         } else if let Some(drag) = drag.as_mut() {
                             let pos = ui.io().mouse_pos;
                             move_window = Some((pos[0] - drag[0], pos[1] - drag[1]));
-                        } else {
-                            let new_size = ui.window_size();
-                            resize_window = Some((new_size[0] as u32, new_size[1] as u32));
-                        }
+                        } /*else {
+                              let new_size = ui.window_size();
+                              let width = (new_size[0] as u32 / 32 + 1).max(1) * 32;
+                              let height = (new_size[1] as u32 / 32 + 1).max(2) * 32;
+                              resize_window = Some((width, height));
+                          }*/
                     }
                     logic.draw(ui, windowing);
+                    if !fixed && drag.is_none() {
+                        let [width, height] = ui.window_size();
+                        //ui.new_line();
+                        //ui.same_line(width - 20.0);
+                        ui.set_cursor_pos([width - 10.0, height - 10.0]);
+                        ui.button(&im_str!("##resize"), [10.0, 10.0]);
+                        if ui.is_item_hovered() && ui.is_item_clicked(imgui::MouseButton::Left) {
+                            *resize = Some(ui.io().mouse_pos);
+                        } else if !ui.is_mouse_down(imgui::MouseButton::Left) {
+                            *resize = None
+                        } else if let Some(resize) = resize.as_mut() {
+                            let new_size = ui.io().mouse_pos;
+                            let width = (new_size[0] as i32 / 32 + 1).max(1).min(64) as u32 * 32;
+                            let height = (new_size[1] as i32 / 32 + 1).max(2).min(64) as u32 * 32;
+                            resize_window = Some((width, height));
+                        }
+                    }
                 });
             //println!("windows: {:?}", windowing.windows.len());
             //println!("tex: {:?}", windowing.textures);

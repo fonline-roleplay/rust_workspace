@@ -51,6 +51,15 @@ pub extern "C" fn main_loop() {
                     );
                 }
             }
+            MsgIn::SendConfig { player_id, url } => {
+                println!("SendConfig: {:?}", url.as_bytes_with_nul());
+                if let Some(player) = get_critter(player_id) {
+                    #[allow(bad_style)]
+                    let FUNC_LINK_UPDATE_URL = CStr::from_bytes_with_nul(b"link@UpdateUrl\0")
+                        .expect("Static null terminated string");
+                    run_client_script(player, FUNC_LINK_UPDATE_URL, 0, 0, 0, Some(&url), None);
+                }
+            }
             MsgIn::Nop => {
                 eprintln!("Msg::In received, probably bug");
             }
@@ -64,6 +73,16 @@ pub extern "C" fn critter_init(cr: &Critter, first_time: bool) {
         println!("Critter is player: {}", cr.Id);
         bridge::send_one(bridge::MsgOut::PlayerConnected(cr.Id));
     }
+}
+
+#[no_mangle]
+pub extern "C" fn player_login(ip: u32, name: &ScriptString, id: u32) -> bool {
+    true
+}
+
+#[no_mangle]
+pub extern "C" fn player_after_login(player: &Critter) {
+    bridge::send_one(bridge::MsgOut::PlayerConnected(player.Id));
 }
 
 #[no_mangle]

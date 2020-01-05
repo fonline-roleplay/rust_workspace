@@ -1,3 +1,4 @@
+use crate::config;
 use crate::database::{CharTrunk, Root, VersionedError};
 use actix_codec::{AsyncRead, AsyncWrite, Decoder, Encoder, Framed};
 use actix_rt::net::TcpStream;
@@ -14,6 +15,7 @@ use futures::{
 use parking_lot::RwLock;
 use std::{
     convert::TryInto,
+    ffi::{CStr, CString},
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
@@ -55,8 +57,13 @@ impl Bridge {
             _ => None,
         }
     }
-    pub fn start(&self, tree: Root) {
-        start_impl(self, tree);
+    pub fn start(&self, tree: Root, host: config::Host) {
+        let data = BridgeData {
+            bridge: self.clone(),
+            tree,
+            host,
+        };
+        start_impl(data);
     }
     /*pub send(sender: MsgOutSende, msg: MsgOut) -> Option<> {
         match sender.start_send(msg) {
@@ -66,29 +73,31 @@ impl Bridge {
     }*/
 }
 
-fn start_impl(bridge: &Bridge, tree: Root) {
+#[derive(Clone)]
+struct BridgeData {
+    bridge: Bridge,
+    tree: Root,
+    host: config::Host,
+}
+
+fn start_impl(data: BridgeData) {
     let num = Arc::new(AtomicUsize::new(0));
-    let bridge = bridge.clone();
     Server::build()
         .bind(
             // configure service pipeline
             "bridge",
             "127.0.0.1:33852",
             move || {
-                let num = num.clone();
-                let bridge = bridge.clone();
-                let tree = tree.clone();
+                let data = data.clone();
                 // service for converting incoming TcpStream to a SslStream<TcpStream>
                 fn_service(move |tcp_stream: TcpStream| {
                     use futures::future::Either;
 
-                    let tree = tree.clone();
+                    let data = data.clone();
 
                     let (sender, receiver) = channel(128);
-                    bridge.set_sender(sender);
+                    data.bridge.set_sender(sender);
 
-                    let num = num.fetch_add(1, Ordering::Relaxed);
-                    println!("got connection {:?}", num);
                     let framed = Framed::new(tcp_stream, WebSide);
                     let (mut sink, mut stream) = framed.split();
 
@@ -96,61 +105,61 @@ fn start_impl(bridge: &Bridge, tree: Root) {
                         stream
                             .map_err(BridgeError::Io)
                             //.filter_map(handle_message)
-                            .and_then(move |msg| handle_message_async(msg, &tree))
+                            .and_then(move |msg| handle_message_async(msg, data.clone()))
                             .boxed(),
                         receiver.map(Result::Ok), //.map_err(|_| BridgeError::SenderDropped),
                     )
                     .try_filter(drop_nop)
                     .map_err(|err| {
-                        std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", err))
+                        std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", err)).into()
                     })
                     .inspect_ok(|msg| println!("Sending: {:?}", msg))
                     .forward(sink)
                 })
-
-                /*// .and_then() combinator uses other service to convert incoming `Request` to a
-                // `Response` and then uses that response as an input for next
-                // service. in this case, on success we use `logger` service
-                .and_then(logger)
-                // Next service counts number of connections
-                .and_then(move |_| {
-                    let num = num.fetch_add(1, Ordering::Relaxed);
-                    println!("got ssl connection {:?}", num);
-                    future::ok(())
-                })*/
             },
         )
         .unwrap()
         .start();
 }
 
-fn handle_message_async(msg_in: MsgIn, root: &Root) -> impl Future<Output = BridgeResult<MsgOut>> {
-    match msg_in {
-        MsgIn::PlayerAuth(cr_id) => {
-            let root = root.clone();
-            let fut = web::block(move || {
-                let default: [u8; 12] = rand::random();
-                let authkey = root
-                    .trunk(cr_id, None, CharTrunk::default())
-                    .get_bare_branch_or_default("authkey", &default[..], |val| val.len() == 12)
-                    .map_err(BridgeError::Versioned)?;
-                let authkey = match authkey {
-                    Ok(authkey) => {
-                        let slice = authkey.as_ref();
-                        let bytes: [u8; 12] = slice.try_into().map_err(|_| BridgeError::TryInto)?;
-                        bytes
-                    }
-                    Err(()) => default,
-                };
-                let authkey: [u32; 3] = unsafe { std::mem::transmute(authkey) };
-                Ok(authkey)
-            })
-            //.from_err()
-            .err_into()
-            .map_ok(move |authkey| MsgOut::SendKeyToPlayer(cr_id, authkey));
-            Either::Left(fut)
+fn handle_message_async(
+    msg_in: MsgIn,
+    data: BridgeData,
+) -> impl Future<Output = BridgeResult<MsgOut>> {
+    async move {
+        match msg_in {
+            MsgIn::PlayerConnected(player_id) => Ok(MsgOut::SendConfig {
+                player_id,
+                url: CStr::from_bytes_with_nul(data.host.overlay_urls().as_bytes())
+                    .expect("Can't fail, null byte supplied")
+                    .to_owned(),
+            }),
+            MsgIn::PlayerAuth(cr_id) => {
+                let root = data.tree;
+                let fut = web::block(move || {
+                    let default: [u8; 12] = rand::random();
+                    let authkey = root
+                        .trunk(cr_id, None, CharTrunk::default())
+                        .get_bare_branch_or_default("authkey", &default[..], |val| val.len() == 12)
+                        .map_err(BridgeError::Versioned)?;
+                    let authkey = match authkey {
+                        Ok(authkey) => {
+                            let slice = authkey.as_ref();
+                            let bytes: [u8; 12] =
+                                slice.try_into().map_err(|_| BridgeError::TryInto)?;
+                            bytes
+                        }
+                        Err(()) => default,
+                    };
+                    let authkey: [u32; 3] = unsafe { std::mem::transmute(authkey) };
+                    Ok(authkey)
+                })
+                //.from_err()
+                .err_into()
+                .map_ok(move |authkey| MsgOut::SendKeyToPlayer(cr_id, authkey));
+                fut.await
+            } //_ => MsgOut::Nop,
         }
-        _ => Either::Right(future::ok(MsgOut::Nop)),
     }
 }
 
@@ -189,11 +198,13 @@ impl Decoder for WebSide {
 
 impl Encoder for WebSide {
     type Item = MsgOut;
-    type Error = std::io::Error;
+    type Error = bincode::Error;
 
     fn encode(&mut self, item: Self::Item, dst: &mut BytesMut) -> Result<(), Self::Error> {
-        const LEN: usize = std::mem::size_of::<MsgOut>();
-        let buf: [u8; LEN] = unsafe { std::mem::transmute(item) };
+        //const LEN: usize = std::mem::size_of::<MsgOut>();
+        //let buf: [u8; LEN] = unsafe { std::mem::transmute(item) };
+        //dst.extend_from_slice(&buf);
+        let buf = bincode::serialize(&item)?;
         dst.extend_from_slice(&buf);
         Ok(())
     }

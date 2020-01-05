@@ -17,7 +17,7 @@ static-link = ["backend-sdl2", "sdl2/static-link"]
 sdl2 = { version = "0.32" , features = ["bundled", "use-bindgen", "unsafe_textures"], optional = true }
 winapi = { version = "0.3", features = ["winuser"] }
 crossbeam = "0.7"
-reqwest = "0.9"
+reqwest = { version = "0.10", default-features = false, features = ["rustls-tls", "blocking"] }
 image = { version = "0.22", default-features = false, features = ["png_codec"] }
 tnf_common = { path = "../common", features = ["bridge"] }
 imgui = { path = "../../../rust/imgui-rs", default-features = false, features = ["glium"], optional = true }
@@ -30,4 +30,4 @@ glium = { version = "0.25", default-features = true, optional = true }
 colorsys = "0.5"
 clap = "2.33"
 clipboard = "0.5"
-legion = {path = "D:/rust/legion", default-features = false }
+#legion = {path = "D:/rust/legion", default-features = false }

@@ -13,7 +13,7 @@ map_viewer = ["fo_data", "fo_map_format", "fo_proto_format", "nom_prelude"]
 
 [dependencies]
 # sub-crates
-tnf_common = { path = "../common", features = ["server"] }
+tnf_common = { path = "../common" }
 clients_db = { path = "../clients_db" }
 fo_data = { path = "../fo_data", optional = true }
 fo_map_format = { path = "../fo_map_format", optional = true }

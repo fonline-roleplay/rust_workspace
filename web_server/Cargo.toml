@@ -7,7 +7,7 @@ publish = false
 default-run = "serve"
 
 [features]
-default = ["live_reload", "map_viewer"]
+default = ["map_viewer"]
 live_reload = []
 map_viewer = ["fo_data", "fo_map_format", "fo_proto_format", "nom_prelude"]
 

@@ -1,6 +1,5 @@
 use actix_web::Error;
 use arc_swap::ArcSwapAny;
-use fo_save_format::ClientSaveData;
 use std::{
     collections::{btree_map::Entry, BTreeMap, HashMap},
     ffi::{OsStr, OsString},

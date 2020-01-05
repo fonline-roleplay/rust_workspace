@@ -15,10 +15,10 @@ map_viewer = ["fo_data", "fo_map_format", "fo_proto_format", "nom_prelude"]
 # sub-crates
 tnf_common = { path = "../common", features = ["server"] }
 clients_db = { path = "../clients_db" }
-fo_save_format = { git = "https://github.com/qthree/fo_save_format.git" }
 fo_data = { path = "../fo_data", optional = true }
 fo_map_format = { path = "../fo_map_format", optional = true }
-fo_proto_format = { path = "../../fo_proto_format", optional = true }
+fo_proto_format = { git = "https://github.com/fonline-roleplay/fo_proto_format.git", optional = true }
+#fo_save_format = { git = "https://github.com/fonline-roleplay/fo_save_format.git" }
 nom_prelude = { path = "../nom_prelude", optional = true }
 mrhandy = { path = "../mrhandy" }
 

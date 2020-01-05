@@ -263,7 +263,7 @@ pub fn run(state: AppState) {
             .data(state.clone())
             .wrap(middleware::Compress::default())
             .wrap(middleware::Logger::default())
-            .wrap_fn(restrict_files)
+            //.wrap_fn(restrict_files)
             .wrap(
                 middleware::DefaultHeaders::new()
                     .header("Access-Control-Allow-Origin", state.config.host.web_url("")),
@@ -272,6 +272,13 @@ pub fn run(state: AppState) {
             .service(actix_files::Files::new("/static", STATIC_PATH))
             .service(
                 web::scope("/char/{id}")
+                    .service(
+                        web::scope("/edit").service(
+                            web::resource("/avatar")
+                                .route(web::get().to(avatar::edit))
+                                .route(web::post().to(avatar::upload)),
+                        ),
+                    )
                     .service(web::resource("/avatar").route(web::get().to(avatar::show))),
             )
     })

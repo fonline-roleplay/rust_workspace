@@ -1,6 +1,16 @@
 [workspace]
-members = ["client_dll", "server_dll", "common", "web_server", "clients_db", "overlay",
-    "overlay_launcher", "fo_map_format", "nom_prelude", "fo_data", "formula", "fo_param", "fo_param_fo4rp", "mrhandy"]
+members = [
+# dll stuff
+    "client_dll", "server_dll", "common",
+# web server stuff
+    "web_server", "clients_db", "mrhandy",
+# formula stuff
+    "formula", "fo_param", "fo_param_fo4rp",
+# data&formats stuff
+    "nom_prelude", "fo_map_format", "fo_data",
+# overlay stuff
+    "overlay", "overlay_launcher"
+]
 
 [profile.release]
 #lto = true
@@ -11,4 +21,3 @@ glium  = { path = 'D:\rust\glium' }
 subprocess = { path = 'D:\rust\rust-subprocess'}
 #actix-rt = {git = 'https://github.com/Dispersia/actix-net.git'}
 #actix-server = {git = 'https://github.com/Dispersia/actix-net.git'}
-serde_with = {path = 'D:\rust\serde_with'}

@@ -19,7 +19,7 @@ macro_rules! encode_file_name {
     };
 }
 
-fn directory_listing(dir: &Directory, req: &HttpRequest) -> Result<ServiceResponse, io::Error> {
+pub fn directory_listing(dir: &Directory, req: &HttpRequest) -> Result<ServiceResponse, io::Error> {
     let index_of = format!("Index of {}", req.path());
     let mut body = String::new();
     let base = Path::new(req.path());

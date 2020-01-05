@@ -260,7 +260,8 @@ pub fn run(state: AppState) {
                     for (name, path) in name_path {
                         private = private.service(
                             actix_files::Files::new(&format!("/{}", name), path)
-                                .show_files_listing(),
+                                .show_files_listing()
+                                .files_listing_renderer(dir::directory_listing),
                         );
                     }
                     private

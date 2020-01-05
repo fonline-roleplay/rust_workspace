@@ -134,6 +134,8 @@ impl AppState {
         let reqwest = reqwest::Client::builder()
             // Following redirects opens the client up to SSRF vulnerabilities.
             .redirect(reqwest::redirect::Policy::none())
+            .timeout(std::time::Duration::from_secs(2))
+            .use_rustls_tls()
             .build()
             .expect("Build reqwest client");
 

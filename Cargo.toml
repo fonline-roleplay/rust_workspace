@@ -1,6 +1,6 @@
 [workspace]
 members = ["client_dll", "server_dll", "common", "web_server", "clients_db", "overlay",
-    "overlay_launcher", "fo_map_format", "nom_prelude", "fo_data", "formula", "fo_param", "fo_param_fo4rp"]
+    "overlay_launcher", "fo_map_format", "nom_prelude", "fo_data", "formula", "fo_param", "fo_param_fo4rp", "mrhandy"]
 
 [profile.release]
 #lto = true
@@ -12,4 +12,3 @@ subprocess = { path = 'D:\rust\rust-subprocess'}
 #actix-rt = {git = 'https://github.com/Dispersia/actix-net.git'}
 #actix-server = {git = 'https://github.com/Dispersia/actix-net.git'}
 serde_with = {path = 'D:\rust\serde_with'}
-reqwest = { version = "0.10.0-alpha.2", git = "https://github.com/seanmonstar/reqwest" }

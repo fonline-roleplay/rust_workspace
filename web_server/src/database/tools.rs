@@ -1,5 +1,9 @@
 use std::convert::TryInto;
 
+pub fn ivec_to_u32(ivec: sled::IVec) -> Result<u32, sled::IVec> {
+    slice_to_u32(ivec.as_ref()).ok_or(ivec)
+}
+
 pub fn slice_to_u32(slice: &[u8]) -> Option<u32> {
     let bytes: &[u8; 4] = slice.try_into().ok()?;
     Some(u32::from_be_bytes(*bytes))

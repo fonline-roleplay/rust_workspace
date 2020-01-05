@@ -11,15 +11,8 @@ fn main() -> std::io::Result<()> {
     let config = config::setup().expect("config.toml file");
     //println!("{:?}", config);
 
-    let items = fo_proto_format::build_btree("../../FO4RP/proto/items/items.lst");
-
-    let fo_data = fo_data::FoData::init("../../CL4RP", "../../test_assets/COLOR.PAL")
-        .expect("FoData loading");
-    println!(
-        "FoData loaded, archives: {}, files: {}",
-        fo_data.count_archives(),
-        fo_data.count_files()
-    );
+    let items = Default::default();
+    let fo_data = fo_data::FoData::stub();
 
     let mut db_path = PathBuf::new();
     db_path.push("db");

@@ -1,7 +1,8 @@
+use crate::config::Host;
 use custom_error::custom_error;
 use lazy_static::lazy_static;
 use serde::Serialize;
-use tera::{compile_templates, Tera};
+use tera::Tera;
 
 const TEMPLATES_PATH: &'static str = "templates/**/*";
 const CSS_PATH: &'static str = "static/charsheet.css";
@@ -22,7 +23,7 @@ custom_error! {pub TemplatesError
 impl Templates {
     fn new() -> Self {
         let css = Self::compile_css().unwrap();
-        let tera = compile_templates!(TEMPLATES_PATH);
+        let tera = Tera::new(TEMPLATES_PATH).unwrap();
         let templates = Templates { tera, css };
         templates.write_css().unwrap();
         templates
@@ -45,14 +46,14 @@ impl Templates {
     }
 }
 
-#[cfg(not(debug_assertions))]
+#[cfg(not(feature = "live_reload"))]
 lazy_static! {
     static ref TEMPLATES: Templates = {
         let mut templates = Templates::new();
         templates
     };
 }
-#[cfg(debug_assertions)]
+#[cfg(feature = "live_reload")]
 lazy_static! {
     static ref TEMPLATES: std::sync::Mutex<Templates> = {
         let mut templates = Templates::new();
@@ -60,15 +61,27 @@ lazy_static! {
     };
 }
 
-#[cfg(not(debug_assertions))]
-pub fn render<T: Serialize>(template: &str, data: &T) -> Result<String, TemplatesError> {
-    Ok(TEMPLATES.tera.render(template, data)?)
+#[cfg(not(feature = "live_reload"))]
+pub fn render<T: Serialize>(
+    template: &str,
+    data: &T,
+    host: &Host,
+) -> Result<String, TemplatesError> {
+    let mut context = tera::Context::from_serialize(data)?;
+    context.insert("files_url", &host.files_url(""));
+    Ok(TEMPLATES.tera.render(template, &context)?)
 }
-#[cfg(debug_assertions)]
-pub fn render<T: Serialize>(template: &str, data: &T) -> Result<String, TemplatesError> {
+#[cfg(feature = "live_reload")]
+pub fn render<T: Serialize>(
+    template: &str,
+    data: &T,
+    host: &Host,
+) -> Result<String, TemplatesError> {
     let mut templates = TEMPLATES.lock().unwrap();
+    let mut context = tera::Context::from_serialize(data)?;
+    context.insert("files_url", &host.files_url(""));
     templates.remake()?;
-    Ok(templates.tera.render(template, data)?)
+    Ok(templates.tera.render(template, &context)?)
 }
 
 pub fn init() {

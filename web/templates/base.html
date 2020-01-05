@@ -3,7 +3,7 @@
 <head>
     {% block head %}
     <meta charset = "UTF-8">
-    <link rel = "stylesheet" type = "text/css" href = "/static/charsheet.css" />
+    <link rel = "stylesheet" type = "text/css" href = "{{ files_url | safe }}/static/charsheet.css" />
     <title>{% block title %}{% endblock title %}</title>
     {% endblock head %}
 </head>

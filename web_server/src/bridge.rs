@@ -2,7 +2,7 @@ use crate::database::{CharTrunk, Root, VersionedError};
 use actix_codec::{AsyncRead, AsyncWrite, Decoder, Encoder, Framed};
 use actix_rt::net::TcpStream;
 use actix_server::{FromStream, Server};
-use actix_service::{service_fn, IntoService};
+use actix_service::{fn_service, IntoService};
 use actix_web::{error::BlockingError, web};
 use bytes::BytesMut;
 use futures::{
@@ -40,7 +40,7 @@ pub struct Bridge {
     sender: Arc<RwLock<Option<MsgOutSender>>>,
 }
 impl Bridge {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Bridge {
             sender: Arc::new(RwLock::new(None)), //Arc::new(AtomicCell::new(None))
         }
@@ -55,6 +55,9 @@ impl Bridge {
             _ => None,
         }
     }
+    pub fn start(&self, tree: Root) {
+        start_impl(self, tree);
+    }
     /*pub send(sender: MsgOutSende, msg: MsgOut) -> Option<> {
         match sender.start_send(msg) {
             Ok()
@@ -63,10 +66,9 @@ impl Bridge {
     }*/
 }
 
-pub fn start(tree: Root) -> Bridge {
+fn start_impl(bridge: &Bridge, tree: Root) {
     let num = Arc::new(AtomicUsize::new(0));
-    let bridge = Bridge::new();
-    let bridge_ret = bridge.clone();
+    let bridge = bridge.clone();
     Server::build()
         .bind(
             // configure service pipeline
@@ -77,7 +79,7 @@ pub fn start(tree: Root) -> Bridge {
                 let bridge = bridge.clone();
                 let tree = tree.clone();
                 // service for converting incoming TcpStream to a SslStream<TcpStream>
-                service_fn(move |tcp_stream: TcpStream| {
+                fn_service(move |tcp_stream: TcpStream| {
                     use futures::future::Either;
 
                     let tree = tree.clone();
@@ -120,7 +122,6 @@ pub fn start(tree: Root) -> Bridge {
         )
         .unwrap()
         .start();
-    bridge_ret
 }
 
 fn handle_message_async(msg_in: MsgIn, root: &Root) -> impl Future<Output = BridgeResult<MsgOut>> {

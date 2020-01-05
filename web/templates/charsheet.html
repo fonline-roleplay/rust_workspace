@@ -2,12 +2,7 @@
 {% block title %}Stat list - {{nickname}}{% endblock title %}
 {% block content %}
 <body>
-<img class="bg" src="/static/character.png"/>
-<!---<div class="row1">
-    <div class="lb name"><label>QTHREE</label></div>
-    <div class="lb age"><label>28</label></div>
-    <div class="lb sex"><label>M</label></div>
-</div>-->
+<img class="bg" src="{{ files_url | safe }}/static/character.png"/>
 <div class="row1">
     <div class="cell name"><span>{{nickname}}</span></div>
     <div class="cell age"><span>{{age}}</span></div>

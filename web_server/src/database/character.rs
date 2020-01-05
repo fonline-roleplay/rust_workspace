@@ -1,6 +1,7 @@
 use super::{
     tree::{Bark, Leaf, Root, Trunk},
     versioned::VersionedError,
+    ArcSlice,
 };
 use bytes::Bytes;
 
@@ -28,7 +29,7 @@ impl Bark for CharTrunk {
 }
 
 impl<'a> Trunk<'a, CharTrunk> {
-    pub fn get_image(&self, input_key: Option<u32>) -> Result<Leaf<Bytes>, VersionedError> {
+    pub fn get_image(&self, input_key: Option<u32>) -> Result<Leaf<ArcSlice>, VersionedError> {
         self.get_versioned(self.bark().image_branch, input_key)
     }
     pub fn set_image(&self, data: Vec<u8>) -> Result<Leaf<()>, VersionedError> {

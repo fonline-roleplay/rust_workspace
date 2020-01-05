@@ -3,3 +3,4 @@
 **/*.rs.bk
 Cargo.lock
 ffi/*.rs_raw
+web_server/config.toml

@@ -1,8 +1,9 @@
 use super::{
     tools::slice_to_u32,
     versioned::{get_value, new_leaf, update_branch, VersionedError},
-    SledDb,
+    ArcSlice, SledDb,
 };
+use crate::database::tools::ivec_to_u32;
 use bytes::Bytes;
 use std::convert::TryFrom;
 use std::fmt::Write;
@@ -78,7 +79,7 @@ impl<'a, T: Bark> Trunk<'a, T> {
             self.id,
             self.bark.secret(),
             self.versions,
-            slice_to_u32,
+            ivec_to_u32,
         )?;
         Ok(match (ver_secret, input_key) {
             (_, None) => true,
@@ -92,7 +93,7 @@ impl<'a, T: Bark> Trunk<'a, T> {
         &self,
         branch: &str,
         input_key: Option<u32>,
-    ) -> Result<Leaf<Bytes>, VersionedError> {
+    ) -> Result<Leaf<ArcSlice>, VersionedError> {
         if !self.check_secret(input_key)? {
             return Err(VersionedError::AccessDenied);
         }
@@ -102,7 +103,7 @@ impl<'a, T: Bark> Trunk<'a, T> {
             self.id,
             branch,
             self.versions,
-            |buf| Some(Bytes::from(buf.as_ref())),
+            |buf| Ok(buf.into()),
         )?
         .ok_or(VersionedError::NotFound)?;
         Ok(Leaf {

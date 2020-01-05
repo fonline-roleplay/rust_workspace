@@ -1,10 +1,11 @@
 use super::{
     tools::{increment, slice_to_u32},
-    Root,
+    ArcSlice, Root,
 };
 use actix_web::error::BlockingError;
 use arrayvec::{Array, ArrayVec};
 use bytes::Bytes;
+use sled::IVec;
 use std::{
     fmt::Write,
     ops::{Bound, RangeBounds},
@@ -17,7 +18,7 @@ pub enum VersionedError {
     VersionEmpty,
     VersionUtf(std::str::Utf8Error),
     VersionParse(std::num::ParseIntError),
-    ValueParse,
+    ValueParse(ArcSlice),
     AccessDenied,
     CounterInvalid,
     UnexpectedOldValue,
@@ -40,7 +41,7 @@ impl From<BlockingError<VersionedError>> for VersionedError {
 const MIN_U32: &str = "00000000";
 const MAX_U32: &str = "FFFFFFFF";
 
-pub fn get_value<T, R: RangeBounds<u32>, F: Fn(&[u8]) -> Option<T>>(
+pub fn get_value<T, R: RangeBounds<u32>, F: Fn(IVec) -> Result<T, IVec>>(
     root: &Root,
     trunk: &str,
     id: u32,
@@ -99,7 +100,7 @@ pub fn get_value<T, R: RangeBounds<u32>, F: Fn(&[u8]) -> Option<T>>(
             eprintln!("Strange version: {:?}", key);
             continue;
         }
-        let value = parse(value.as_ref()).ok_or(VersionedError::ValueParse)?;
+        let value = parse(value).map_err(|ivec| VersionedError::ValueParse(ivec.into()))?;
         return Ok(Some((key, value)));
     }
     Ok(None)
@@ -111,10 +112,10 @@ pub fn update_branch<V, F>(
     id: u32,
     branch: &str,
     func: F,
-) -> Result<Option<sled::IVec>, VersionedError>
+) -> Result<Option<IVec>, VersionedError>
 where
     F: Fn(Option<&[u8]>) -> Option<V>,
-    sled::IVec: From<V>,
+    IVec: From<V>,
 {
     let mut key = String::with_capacity(32);
     write!(key, "{}/{:08X}/{}", trunk, id, branch).map_err(VersionedError::WriteFmt)?;
@@ -137,9 +138,9 @@ pub fn set_value<V>(
     branch: &str,
     ver: u32,
     value: V,
-) -> Result<Option<sled::IVec>, VersionedError>
+) -> Result<Option<IVec>, VersionedError>
 where
-    sled::IVec: From<V>,
+    IVec: From<V>,
 {
     let mut key = String::with_capacity(32);
     write!(key, "{}/{:08X}/{}/{:08X}", trunk, id, branch, ver).map_err(VersionedError::WriteFmt)?;
@@ -155,7 +156,7 @@ pub fn new_leaf<'a, V, A: Array<Item = (&'a str, V)>>(
     branch_values: A,
 ) -> Result<u32, VersionedError>
 where
-    sled::IVec: From<V>,
+    IVec: From<V>,
 {
     let ver = inc_counter(root, trunk, id, counter)?;
     let branch_values = ArrayVec::from(branch_values);

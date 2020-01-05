@@ -4,42 +4,55 @@ version = "0.1.0"
 authors = ["qthree <qthree3@gmail.com>"]
 edition = "2018"
 publish = false
+default-run = "serve"
+
+[features]
+default = ["live_reload", "map_viewer"]
+live_reload = []
+map_viewer = ["fo_data", "fo_map_format", "fo_proto_format", "nom_prelude"]
 
 [dependencies]
 # sub-crates
 tnf_common = { path = "../common", features = ["server"] }
 clients_db = { path = "../clients_db" }
+fo_save_format = { git = "https://github.com/qthree/fo_save_format.git" }
+fo_data = { path = "../fo_data", optional = true }
+fo_map_format = { path = "../fo_map_format", optional = true }
+fo_proto_format = { path = "../../fo_proto_format", optional = true }
+nom_prelude = { path = "../nom_prelude", optional = true }
+mrhandy = { path = "../mrhandy" }
 
 # actix
-actix-web = "2.0.0-alpha.2"
-actix-server = "1.0.0-alpha.2"
-actix-service = "1.0.0-alpha.2"
-actix-codec = "0.2.0-alpha.2"
-actix-files = "0.2.0-alpha.2"
-actix-rt = "1.0.0-alpha.2"
+actix-web = {version = "2.0", features = ["rustls"]}
+rustls = "0.16"
+actix-server = "1.0"
+actix-service = "1.0"
+actix-codec = "0.2"
+actix-files = "0.2"
+actix-rt = "1.0"
+actix-session = "0.3"
+actix-http = "1.0"
 #actix-form-data = "0.4.0"
 #actix-multipart = "0.1.2"
 
 # futures & tokio
 futures = "0.3"
-#tokio-net = "0.2.0-alpha.6"
-#tokio-codec = "0.2.0-alpha.6"
-#tokio-util = { version = "0.2", features = ["codec"] }
 
 # parsing, encoding & decoding
 serde = "1.0"
-fo_save_format = { git = "https://github.com/qthree/fo_save_format.git" }
-tera = "0.11"
-rsass = "0.11"
+serde_json = "1.0"
+toml = "0.5"
+tera = "1.0"
+rsass = "0.12"
 percent-encoding = "2.1"
 base64 = "0.11"
-image = { version = "0.22", default-features = false, features = ["png_codec"] }
+image = { version = "0.23.0-preview.0", default-features = false, features = ["png_codec"] }
 #url = "1.7.2"
 
 # other
 arc-swap = "0.4"
 arrayvec = "0.5"
-bytes = "0.4"
+bytes = "0.5"
 custom_error = "1.7"
 env_logger = "0.7"
 #itertools = "0.8"
@@ -47,4 +60,11 @@ lazy_static = "1.4"
 log = "0.4"
 parking_lot = "0.10"
 rand = "0.7"
-sled = "0.29"
+sled = "0.30"
+oauth2 = { version = "3.0.0-alpha.7", features = ["futures-03"], default-features = false } #"reqwest-010"
+http1 = { version = "0.1", package = "http" }
+reqwest = "0.10.0-alpha.2"
+
+[[bin]]
+name = "serve"
+required-features = ["map_viewer"]

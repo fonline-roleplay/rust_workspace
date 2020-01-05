@@ -51,7 +51,7 @@ $bg-rust:       #383020;
 
 
 label {
-    
+
 }
 
 img {
@@ -125,7 +125,7 @@ span {
     color: rgb(196, 160, 40);
     font-family: Gothic821, 'Comic Sans MS', cursive;
     font-size: 30px;
-    
+
     width: 35px;
     left: 20px;
 }
@@ -135,7 +135,7 @@ span {
     font-family: Crasng, Helvetica, sans-serif;
     font-size: 24px;
 
-    letter-spacing: 3px;    
+    letter-spacing: 3px;
     width: 25px;
     left: 63px;
 }
@@ -144,7 +144,7 @@ span {
     color: $color-small;
     font-family: $font-small;
     font-size: 8px;
-    
+
     width: 56px;
     left: 101px;
     top: 1px;
@@ -171,14 +171,14 @@ span {
 .skill-row div:nth-child(1){
     position: absolute;
     font-size: 8px;
-    
+
     width: 200px;
     left: 375px;
 }
 .skill-row div:nth-child(2){
     position: absolute;
     font-size: 8px;
-    
+
     width: 30px;
     left: 585px;
 }
@@ -232,7 +232,7 @@ span {
 
 .client-cell-name {
     text-align: left !important;
-    
+
     a {
         text-decoration: none !important;
         color: $color-small;
@@ -412,4 +412,50 @@ $description-padding:  10px;
 
 .grey {
     color: grey;
+}
+
+.gamemap {
+    position: absolute;
+}
+
+.gamemap-marker {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    background-color: red;
+    z-index: 2500000;
+}
+/*
+.tilemap tr td{
+    padding: 0px;
+    line-height: 0px;
+}
+.tilemap img{
+    position: relative;
+    display: inline-block;
+    width: 32px;
+    height: 32px;
+    padding: 0px;
+}*/
+.gamemap-tiles div{
+    position: absolute;
+    display: block;
+}
+.gamemap-tiles img {
+    position: absolute;
+    width:auto;
+    height:auto;
+    image-rendering: crisp-edges;
+    image-rendering: pixelated;
+}
+.gamemap-objects div{
+    position: absolute;
+    display: block;
+}
+.gamemap-objects img {
+    position: relative;
+    width:auto;
+    height:auto;
+    image-rendering: crisp-edges;
+    image-rendering: pixelated;
 }

@@ -1,5 +1,5 @@
 use super::AppState;
-use crate::templates;
+use crate::{config::Host, templates};
 use actix_web::{web, HttpRequest, HttpResponse};
 use clients_db::CritterInfo;
 use futures::{future::ok as fut_ok, future::Either, Future, FutureExt};
@@ -19,19 +19,22 @@ pub fn gm_stats(
         println!("gm_stats: {:?}", name);
         let name = name.to_string();
         Either::Left(
-            web::block(move || data.get_ref().critters_db.client_info(&name)).map(|res| {
-                match res {
-                    //Ok(Some(cr_info)) => Ok(format!("Your info: {:?}", cr_info).into()),
-                    Ok(cr_info) => match Stats::new(&cr_info).render() {
-                        Ok(body) => Ok(HttpResponse::Ok().content_type("text/html").body(body)),
-                        Err(err) => {
-                            eprintln!("GM Stats error: {:#?}", err);
-                            Ok(HttpResponse::InternalServerError().into())
-                        }
-                    },
-                    Err(_) => Ok(HttpResponse::InternalServerError().into()),
-                }
-            }),
+            web::block(move || data.critters_db.client_info(&name).map(|cr| (cr, data))).map(
+                |res| {
+                    match res {
+                        //Ok(Some(cr_info)) => Ok(format!("Your info: {:?}", cr_info).into()),
+                        Ok((cr_info, data)) => match Stats::new(&cr_info).render(&data.config.host)
+                        {
+                            Ok(body) => Ok(HttpResponse::Ok().content_type("text/html").body(body)),
+                            Err(err) => {
+                                eprintln!("GM Stats error: {:#?}", err);
+                                Ok(HttpResponse::InternalServerError().into())
+                            }
+                        },
+                        Err(_) => Ok(HttpResponse::InternalServerError().into()),
+                    }
+                },
+            ),
         )
     } else {
         Either::Right(fut_ok("Get out!".into()))
@@ -51,8 +54,8 @@ struct Stats<'a> {
 }
 
 impl<'a> Stats<'a> {
-    fn render(&self) -> Result<String, templates::TemplatesError> {
-        templates::render("charsheet.html", self)
+    fn render(&self, host: &Host) -> Result<String, templates::TemplatesError> {
+        templates::render("charsheet.html", self, host)
     }
 }
 

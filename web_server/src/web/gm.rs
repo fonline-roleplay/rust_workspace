@@ -1,7 +1,7 @@
 use super::{web, AppState, HttpResponse};
-use crate::templates;
+use crate::{config::Host, templates};
 use clients_db::{fix_encoding::os_str_debug, ClientRecord, CritterInfo};
-use futures::{Future, FutureExt};
+use futures::{future as fut, Future, FutureExt};
 use serde::Serialize;
 use std::{borrow::Cow, net::Ipv4Addr, time::Duration};
 use tnf_common::defines::{
@@ -10,16 +10,18 @@ use tnf_common::defines::{
 };
 
 pub fn clients(data: web::Data<AppState>) -> impl Future<Output = actix_web::Result<HttpResponse>> {
-    web::block(move || -> Result<_, ()> { Ok(data.get_ref().critters_db.list_clients()) })
+    web::block(move || -> Result<_, ()> { Ok((data.critters_db.list_clients(), data)) })
         //.from_err()
         .map(|res| match res {
-            Ok(clients) => match ClientsList::new(clients.clients().iter()).render() {
-                Ok(body) => Ok(HttpResponse::Ok().content_type("text/html").body(body)),
-                Err(err) => {
-                    eprintln!("GM Clients error: {:#?}", err);
-                    Ok(HttpResponse::InternalServerError().into())
+            Ok((clients, data)) => {
+                match ClientsList::new(clients.clients().iter()).render(&data.config.host) {
+                    Ok(body) => Ok(HttpResponse::Ok().content_type("text/html").body(body)),
+                    Err(err) => {
+                        eprintln!("GM Clients error: {:#?}", err);
+                        Ok(HttpResponse::InternalServerError().into())
+                    }
                 }
-            },
+            }
             Err(_) => Ok(HttpResponse::InternalServerError().into()),
         })
 }
@@ -80,8 +82,8 @@ impl<'a> ClientsList<'a> {
                 .collect(),
         }
     }
-    fn render(&self) -> Result<String, templates::TemplatesError> {
-        templates::render("gm_clients.html", self)
+    fn render(&self, host: &Host) -> Result<String, templates::TemplatesError> {
+        templates::render("gm_clients.html", self, host)
     }
 }
 

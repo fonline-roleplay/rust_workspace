@@ -1,4 +1,5 @@
 use std::sync::Arc;
+pub type ArcSlice = Arc<[u8]>;
 
 mod versioned;
 pub use self::versioned::VersionedError;

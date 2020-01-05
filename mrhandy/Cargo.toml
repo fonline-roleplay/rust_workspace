@@ -1,0 +1,10 @@
+[package]
+name = "mrhandy"
+version = "0.1.0"
+authors = ["qthree <qthree3@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+serenity = { version = "0.7", git = "https://github.com/serenity-rs/serenity.git", branch = "current", features = ["model"]}
+typemap = "0.3"
+parking_lot = "0.9"

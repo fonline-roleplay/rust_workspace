@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Tilemap{% endblock title %}
+{% block content %}
+<script>
+let images_cache = {};
+function apply_cache(element, cache) {
+    cache.el.push(element);
+    if( cache.src ) {
+        while(true) {
+            let image = cache.el.pop();
+            if (!image)
+                break;
+            image.style.left = cache.x;
+            image.style.top = cache.y;
+            image.src = cache.src;
+        }
+    }
+}
+
+function load_images() {
+    let images = document.getElementsByTagName("img");
+    for (let i = 0; i < images.length; i++) {
+        let image = images[i];
+        let path = image.getAttribute("path");
+        if ( path ) {
+            if ( images_cache[path] ) {
+                apply_cache(image, images_cache[path]);
+            } else {
+                images_cache[path] = {el: []};
+                let xhr = new XMLHttpRequest();
+                xhr.responseType = 'blob';
+                xhr.onload = function() {
+                    let offset_x = xhr.getResponseHeader("x-image-offset-x");
+                    let offset_y = xhr.getResponseHeader("x-image-offset-y");
+
+                    /*if( offset_x !== null && offset_y !== null) {
+                        localStorage[path] = JSON.stringify({ ox: offset_x, oy: offset_y });
+                    } else {
+                        let storage = JSON.parse(localStorage[path] || null);
+                        if( storage ) {
+                            offset_x = storage.ox;
+                            offset_y = storage.oy;
+                        }
+                    }*/
+
+                    let cache = images_cache[path];
+                    cache.x = offset_x+"px";
+                    cache.y = offset_y+"px";
+                    cache.src = window.URL.createObjectURL(xhr.response);
+                    apply_cache(image, cache);
+                }
+                xhr.open('GET', "{{ files_url | safe }}"+path);
+                xhr.send();
+            }
+        }
+    }
+}
+window.onload = load_images;
+</script>
+<div class="gamemap" style="left: {{(-1 * min_x) + 50}}px; top: {{(-1 * min_y) + 120}}px">
+    <div class="gamemap-marker"></div>
+    <div class="gamemap-tiles">
+    {% for tile in tiles %}
+        <!--hex_x: {{tile.hex_x}}, hex_y: {{tile.hex_y}} -->
+        <div style = "left: {{tile.x}}px; top: {{ tile.y}}px; z-index: {{tile.z}};">
+            <img path="/data/{{tile.path}}">
+        </div>
+    {% endfor %}
+    </div>
+    <div class="gamemap-objects">
+    {% for object in objects %}
+        <!--hex_x: {{object.hex_x}}, hex_y: {{object.hex_y}} -->
+        <div style = "left: {{object.x}}px; top: {{object.y}}px; z-index: {{object.z}};">
+            <img path="/data/{{object.path}}">
+        </div>
+    {% endfor %}
+    </div>
+</div>
+{% endblock content %}

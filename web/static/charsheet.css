@@ -486,3 +486,53 @@ span {
 .grey {
   color: grey;
 }
+
+.gamemap {
+  position: absolute;
+}
+
+.gamemap-marker {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  background-color: red;
+  z-index: 2500000;
+}
+
+/*
+.tilemap tr td{
+    padding: 0px;
+    line-height: 0px;
+}
+.tilemap img{
+    position: relative;
+    display: inline-block;
+    width: 32px;
+    height: 32px;
+    padding: 0px;
+}*/
+.gamemap-tiles div {
+  position: absolute;
+  display: block;
+}
+
+.gamemap-tiles img {
+  position: absolute;
+  width: auto;
+  height: auto;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}
+
+.gamemap-objects div {
+  position: absolute;
+  display: block;
+}
+
+.gamemap-objects img {
+  position: relative;
+  width: auto;
+  height: auto;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}

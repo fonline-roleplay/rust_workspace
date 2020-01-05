@@ -98,6 +98,7 @@ pub fn edit(
                     char_id,
                     auth: auth_string,
                 },
+                &data.config.host,
             )
             .map_err(AvatarUploadError::Template)
         })
@@ -157,16 +158,17 @@ pub fn upload(
 }
 
 fn save_image(root: &Root, char_id: u32, data: &[u8]) -> Result<Leaf<()>, AvatarUploadError> {
+    use image::{DynamicImage, GenericImageView, ImageFormat};
+
     let instant = std::time::Instant::now();
     let decoded =
         base64::decode_config(&data, base64::STANDARD).map_err(AvatarUploadError::Base64)?;
     println!("Decoded in {:?}", instant.elapsed());
     let instant2 = std::time::Instant::now();
     //std::fs::write("test.png", &decoded).map_err(|_| ())
-    let image = image::load_from_memory_with_format(&decoded, image::PNG)
+    let image = image::load_from_memory_with_format(&decoded, ImageFormat::Png)
         .map_err(AvatarUploadError::ImageLoad)?;
     println!("Loaded in {:?}", instant2.elapsed());
-    use image::DynamicImage;
     /*match &image {
         DynamicImage::ImageRgb8(_) => {println!("DynamicImage::ImageRgb8")},
         DynamicImage::ImageRgba8(_) => {println!("DynamicImage::ImageRgba8")},
@@ -175,17 +177,16 @@ fn save_image(root: &Root, char_id: u32, data: &[u8]) -> Result<Leaf<()>, Avatar
         _ => {println!("DynamicImage::...")},
     };*/
     let instant2 = std::time::Instant::now();
-    use image::GenericImageView;
     //println!("Width: {}, Height: {}", image.width(), image.height());
     if image.width() != IMAGE_SIZE || image.height() != IMAGE_SIZE {
         return Err(AvatarUploadError::ImageSize(image.width(), image.height()));
     }
-    let new_image = image::ImageRgb8(image.to_rgb());
+    let new_image = DynamicImage::ImageRgb8(image.to_rgb());
 
     let mut buffer = decoded;
     buffer.clear();
     new_image
-        .write_to(&mut buffer, image::PNG)
+        .write_to(&mut buffer, ImageFormat::Png)
         .map_err(AvatarUploadError::ImageWrite)?;
     println!("Writed in {:?}", instant2.elapsed());
     let instant2 = std::time::Instant::now();
@@ -250,7 +251,7 @@ pub fn show(
                 .header("q-ver", image.ver as u64)
                 .header("q-length", image.data.len())
                 .content_type("image/png")
-                .body(image.data),
+                .body(bytes::Bytes::copy_from_slice(image.data.as_ref())),
             Err(VersionedError::NotFound) => HttpResponse::NotFound().finish(),
             Err(err) => HttpResponse::InternalServerError().body(format!("Error: {:?}", err)),
         }),

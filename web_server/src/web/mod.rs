@@ -234,7 +234,11 @@ pub fn run(state: AppState) {
                             web::resource("/client/{client}").route(web::get().to(stats::gm_stats)),
                         ),
                 )
-                .service(web::resource("/data/{path:.+}").route(web::get().to(data::get)))
+                .service(
+                    web::resource("/data/{path:.+}")
+                        .wrap_fn(meta::restrict_gm)
+                        .route(web::get().to(data::get)),
+                )
                 .service(actix_files::Files::new("/static", STATIC_PATH))
                 .service(
                     web::scope("/char/{id}")

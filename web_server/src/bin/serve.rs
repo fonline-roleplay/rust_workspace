@@ -11,9 +11,9 @@ fn main() -> std::io::Result<()> {
     let config = config::setup().expect("config.toml file");
     //println!("{:?}", config);
 
-    let items = fo_proto_format::build_btree("../../FO4RP/proto/items/items.lst");
+    let items = fo_proto_format::build_btree(&config.paths.proto_items);
 
-    let fo_data = fo_data::FoData::init("../../CL4RP", "../../test_assets/COLOR.PAL")
+    let fo_data = fo_data::FoData::init(&config.paths.game_client, &config.paths.palette)
         .expect("FoData loading");
     println!(
         "FoData loaded, archives: {}, files: {}",

@@ -19,6 +19,18 @@ macro_rules! encode_file_name {
     };
 }
 
+fn _guess_encoding(path: &Path) -> Option<String> {
+    use clients_db::fix_encoding::decode_filename;
+    decode_filename(path.as_os_str())
+    /*
+    use encoding_rs::Encoding;
+    match path.to_str() {
+        Some(str) => str.to_owned(),
+        None => encoding_rs::WINDOWS_1251.decode(path.as_os_str()),
+    }
+    */
+}
+
 pub fn directory_listing(dir: &Directory, req: &HttpRequest) -> Result<ServiceResponse, io::Error> {
     let index_of = format!("Index of {}", req.path());
     let mut body = String::new();
@@ -35,8 +47,17 @@ pub fn directory_listing(dir: &Directory, req: &HttpRequest) -> Result<ServiceRe
     for entry in entries {
         if is_visible(&entry) {
             let p = match entry.path().strip_prefix(&dir.path) {
-                Ok(p) if cfg!(windows) => base.join(p).to_string_lossy().replace("\\", "/"),
-                Ok(p) => base.join(p).to_string_lossy().into_owned(),
+                Ok(p) => {
+                    if let Some(str) = base.join(p).to_str() {
+                        if cfg!(windows) {
+                            str.replace("\\", "/")
+                        } else {
+                            str.to_owned()
+                        }
+                    } else {
+                        continue;
+                    }
+                }
                 Err(_) => continue,
             };
 

@@ -46,6 +46,7 @@ tera = "1.0"
 rsass = "0.12"
 v_htmlescape = "0.4"
 percent-encoding = "2.1"
+#encoding_rs = "0.8"
 base64 = "0.11"
 image = { version = "0.23.0-preview.0", default-features = false, features = ["png_codec"] }
 #url = "1.7.2"

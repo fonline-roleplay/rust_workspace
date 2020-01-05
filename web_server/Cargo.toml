@@ -63,7 +63,7 @@ rand = "0.7"
 sled = "0.30"
 oauth2 = { version = "3.0.0-alpha.7", features = ["futures-03"], default-features = false } #"reqwest-010"
 http1 = { version = "0.1", package = "http" }
-reqwest = "0.10.0-alpha.2"
+reqwest = { version = "0.10", default-features = false, features = ["rustls-tls"] }
 
 [[bin]]
 name = "serve"

@@ -75,6 +75,13 @@ async fn index(
         .body(body))
 }
 
+async fn go_web(data: web::Data<AppState>) -> HttpResponse {
+    let url = data.config.host.web_url("/");
+    HttpResponse::MovedPermanently()
+        .header(actix_http::http::header::LOCATION, url)
+        .finish()
+}
+
 /*
 fn _info(
     req: HttpRequest,
@@ -227,6 +234,8 @@ pub fn run(state: AppState) {
                             web::resource("/client/{client}").route(web::get().to(stats::gm_stats)),
                         ),
                 )
+                .service(web::resource("/data/{path:.+}").route(web::get().to(data::get)))
+                .service(actix_files::Files::new("/static", STATIC_PATH))
                 .service(
                     web::scope("/char/{id}")
                         .service(
@@ -278,7 +287,7 @@ pub fn run(state: AppState) {
                 middleware::DefaultHeaders::new()
                     .header("Access-Control-Allow-Origin", state.config.host.web_url("")),
             )
-            .service(web::resource("/data/{path:.+}").route(web::get().to(data::get)))
+            .service(web::resource("/").route(web::get().to(go_web)))
             .service(actix_files::Files::new("/static", STATIC_PATH))
             .service(
                 web::scope("/char/{id}")

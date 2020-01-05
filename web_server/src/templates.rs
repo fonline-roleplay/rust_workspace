@@ -68,7 +68,7 @@ pub fn render<T: Serialize>(
     host: &Host,
 ) -> Result<String, TemplatesError> {
     let mut context = tera::Context::from_serialize(data)?;
-    context.insert("files_url", &host.files_url(""));
+    context.insert("files_url", &host.web_url(""));
     Ok(TEMPLATES.tera.render(template, &context)?)
 }
 #[cfg(feature = "live_reload")]
@@ -79,7 +79,7 @@ pub fn render<T: Serialize>(
 ) -> Result<String, TemplatesError> {
     let mut templates = TEMPLATES.lock().unwrap();
     let mut context = tera::Context::from_serialize(data)?;
-    context.insert("files_url", &host.files_url(""));
+    context.insert("files_url", &host.web_url(""));
     templates.remake()?;
     Ok(templates.tera.render(template, &context)?)
 }

@@ -33,7 +33,7 @@ pub async fn auth(
 
     let auth = format!("Bearer {}", token.access_token().secret());
     println!("get identity started");
-    let identity = oauth_reqwest::get(auth.clone(), path)
+    let identity = oauth_reqwest::get(&data.reqwest, auth.clone(), path)
         .await
         .map_err(internal_error)?;
     println!("get identity done");
@@ -124,12 +124,11 @@ mod oauth_reqwest {
             body: chunks.to_vec(),
         })
     }
-    pub async fn get(auth: String, path: String) -> Result<String, reqwest::Error> {
-        let client = reqwest::Client::builder()
-            // Following redirects opens the client up to SSRF vulnerabilities.
-            .redirect(reqwest::redirect::Policy::none())
-            .build()?;
-
+    pub async fn get(
+        client: &reqwest::Client,
+        auth: String,
+        path: String,
+    ) -> Result<String, reqwest::Error> {
         let request = client
             .request(reqwest::Method::GET, &path)
             .header("Authorization", auth)

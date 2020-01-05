@@ -112,6 +112,7 @@ pub struct AppState {
     bridge: bridge::Bridge,
     fo_data: Arc<FoData>,
     items: Arc<BTreeMap<u16, fo_proto_format::ProtoItem>>,
+    reqwest: reqwest::Client,
 }
 
 impl AppState {
@@ -130,6 +131,12 @@ impl AppState {
         let redirect = config.host.web_url("/meta/auth");
         let oauth = oauth2_client(&config.discord.oauth2, redirect).expect("oauth client");
 
+        let reqwest = reqwest::Client::builder()
+            // Following redirects opens the client up to SSRF vulnerabilities.
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .expect("Build reqwest client");
+
         Self {
             oauth,
             config,
@@ -139,6 +146,7 @@ impl AppState {
             bridge,
             fo_data: Arc::new(fo_data),
             items: Arc::new(items),
+            reqwest,
         }
     }
     fn start_bridge(&self) {

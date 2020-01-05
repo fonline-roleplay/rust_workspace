@@ -6,9 +6,11 @@ edition = "2018"
 
 [dependencies]
 fo_save_format = { git = "https://github.com/fonline-roleplay/fo_save_format.git" }
-tnf_common = { path = "../common" }
 arrayvec = "0.5"
 itertools = "0.8"
 
+[target.'cfg(not(windows))'.dependencies]
+tnf_common = { path = "../common", features = [] }
+
 [target.'cfg(windows)'.dependencies]
-tnf_common = { path = "../common", features = ["server"] }
+tnf_common = { path = "../common", features = ["engine_types"] }

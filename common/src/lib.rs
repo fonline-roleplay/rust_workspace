@@ -1,5 +1,5 @@
 pub mod defines;
-#[cfg(all(windows, feature = "dll"))]
+#[cfg(all(windows, feature = "engine_types"))]
 pub mod engine_types;
 #[allow(non_camel_case_types)]
 pub mod primitives;

@@ -15,6 +15,7 @@ pub async fn auth(
         "Auth: session: {:?}",
         session.get::<String>(DISCORD_CSRF_COOKIE_NAME)
     );*/
+    println!("auth requested");
     let res = match session.get::<CsrfToken>(DISCORD_CSRF_COOKIE_NAME) {
         Ok(Some(csrf)) if csrf.secret() == &params.state => data
             .oauth
@@ -31,9 +32,11 @@ pub async fn auth(
     let path = get_user_self();
 
     let auth = format!("Bearer {}", token.access_token().secret());
+    println!("get identity started");
     let identity = oauth_reqwest::get(auth.clone(), path)
         .await
         .map_err(internal_error)?;
+    println!("get identity done");
     let user: DiscordUser = serde_json::from_str(&identity).map_err(internal_error)?;
     let user_id: u64 = user.id.parse().map_err(internal_error)?;
 
@@ -81,6 +84,8 @@ mod oauth_reqwest {
     pub async fn async_http_client(request: HttpRequest) -> Result<HttpResponse, reqwest::Error> {
         assert_eq!(request.method.as_str(), "POST");
 
+        println!("oauth request started");
+
         let client = reqwest::Client::builder()
             // Following redirects opens the client up to SSRF vulnerabilities.
             .redirect(reqwest::redirect::Policy::none())
@@ -110,6 +115,8 @@ mod oauth_reqwest {
             })
             .collect();
         let chunks = response.bytes().await?;
+
+        println!("oauth request done");
 
         Ok(HttpResponse {
             status_code,

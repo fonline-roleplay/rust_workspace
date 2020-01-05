@@ -55,11 +55,15 @@ pub fn tilemap() -> impl Future<Output = actix_web::Result<HttpResponse>> {
 pub fn list() -> impl Future<Output = actix_web::Result<HttpResponse>> {
     web::block(|| -> Result<String, std::io::Error> {
         let dir = std::fs::read_dir("../../FO4RP/maps")?;
-        let response: String = dir
+        let mut maps: Vec<_> = dir
             .into_iter()
             .filter_map(|r| r.ok())
             .map(|entry| entry.path())
             .filter(|file| file.is_file() && file.extension() == Some("fomap".as_ref()))
+            .collect();
+        maps.sort();
+        let response: String = maps
+            .iter()
             .filter_map(|file| {
                 file.file_name()
                     .and_then(|str| str.to_str())

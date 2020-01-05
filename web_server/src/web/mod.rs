@@ -14,6 +14,7 @@ const STATIC_PATH: &'static str = "./static/";
 
 mod avatar;
 mod data;
+mod dir;
 mod gm;
 mod map_viewer;
 mod meta;

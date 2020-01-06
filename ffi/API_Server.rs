@@ -13,5 +13,12 @@ dynamic_ffi!(ServerApi,
 
     pub fn Global_GetCritter(crid: uint) -> *mut Critter;
 
+    pub fn Global_GetMsgStr(lang: usize, textMsg: usize, strNum: uint) -> *mut ScriptString;
+
     pub fn Item_GetLexems(item: *mut Item) -> *mut ScriptString;
+
+    pub fn ConstantsManager_GetValue(
+        collection: usize,
+        string: *mut ScriptString,
+    ) -> ::std::os::raw::c_int;
 );

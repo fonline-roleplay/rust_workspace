@@ -71,6 +71,17 @@ pub fn get_critter<'a>(id: u32) -> Option<&'a mut Critter> {
 }
 
 #[no_mangle]
-pub extern "C" fn item_get_lexems(item: *mut Item) -> *mut ScriptString {
-    unsafe { std::mem::transmute(SERVER_API.Item_GetLexems(item)) }
+pub extern "C" fn Global_GetMsgStr(lang: usize, textMsg: usize, strNum: u32) -> *mut ScriptString {
+    unsafe { SERVER_API.Global_GetMsgStr(lang, textMsg, strNum) }
 }
+
+#[no_mangle]
+pub extern "C" fn item_get_lexems(item: *mut Item) -> *mut ScriptString {
+    unsafe { SERVER_API.Item_GetLexems(item) }
+}
+/*
+#[no_mangle]
+pub extern "C" fn ConstantsManager_GetValue(collection: usize, string: *mut ScriptString) -> i32 {
+    unsafe { SERVER_API.ConstantsManager_GetValue(collection, string) }
+}
+*/

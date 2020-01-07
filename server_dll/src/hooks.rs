@@ -52,7 +52,6 @@ pub extern "C" fn main_loop() {
                 }
             }
             MsgIn::SendConfig { player_id, url } => {
-                println!("SendConfig: {:?}", url.as_bytes_with_nul());
                 if let Some(player) = get_critter(player_id) {
                     #[allow(bad_style)]
                     let FUNC_LINK_UPDATE_URL = CStr::from_bytes_with_nul(b"link@UpdateUrl\0")

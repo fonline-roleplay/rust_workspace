@@ -100,7 +100,7 @@ impl Bridge {
                         let buf: [u8; std::mem::size_of::<MsgOut>()] =
                             unsafe { std::mem::transmute(msg) };
                         writer.write(&buf)?;
-                        println!("writed: {:?}", &buf[..]);
+                        //println!("writed: {:?}", &buf[..]);
                     }
                     Err(err) => {
                         return Ok(err);

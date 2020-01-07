@@ -52,7 +52,10 @@ impl GameWindow {
         data.hwnd
             .iter()
             .find(|(_hwnd, name)| &*name == "FLTK")
-            .map(|(hwnd, _name)| Self::from_handle(*hwnd))
+            .map(|(hwnd, name)| {
+                println!("Selected: {}", name);
+                Self::from_handle(*hwnd)
+            })
     }
     pub fn find() -> Option<Self> {
         let ret = unsafe { winuser::FindWindowA(0 as _, "FOnline\0".as_ptr() as _) };

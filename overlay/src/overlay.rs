@@ -132,6 +132,9 @@ impl<B: Backend> Overlay<B> {
         self.update_downloader();
 
         let redraw = self.windowing.backend.borrow_mut().poll_events(|event| {});
+
+        self.dirty = self.windowing.is_dirty() || self.dirty;
+
         if self.dirty || redraw {
             self.redraw(redraw);
         }
@@ -258,11 +261,12 @@ impl<B: Backend> Overlay<B> {
                         match image {
                             AvatarImage::Image(image) => {
                                 //visible_avatars.push((image, avatar.pos));
+                                let size = self.windowing.size;
                                 match self.windowing.window_for_char(avatar.char.id) {
                                     Ok(window) => {
-                                        if window
-                                            .update(avatar, image, &self.rect, self.frame, redraw)
-                                        {
+                                        if window.update(
+                                            avatar, image, &self.rect, self.frame, redraw, size,
+                                        ) {
                                             popup_game_window = true;
                                         }
                                     }

@@ -16,6 +16,7 @@ pub struct AvatarWindow<B: Backend> {
     hidden: bool,
     pos: Option<(i32, i32)>,
     hide_until: Option<Instant>,
+    size: u16,
 }
 
 impl<B: Backend> AvatarWindow<B> {
@@ -24,7 +25,7 @@ impl<B: Backend> AvatarWindow<B> {
             .as_ref()
             .map(|char_texture| Rc::clone(&char_texture.1))
     }
-    pub fn new(inner: WindowRef<B>) -> Self {
+    pub fn new(inner: WindowRef<B>, size: u16) -> Self {
         AvatarWindow {
             inner,
             char_texture: None,
@@ -32,6 +33,7 @@ impl<B: Backend> AvatarWindow<B> {
             hidden: true,
             pos: None,
             hide_until: None,
+            size,
         }
     }
     pub fn maintain(&mut self, frame: u64, updated: bool) -> bool {
@@ -65,17 +67,24 @@ impl<B: Backend> AvatarWindow<B> {
         image: &mut ImageData,
         rect: &Rect,
         frame: u64,
-        redraw: bool,
+        mut redraw: bool,
+        size: u16,
     ) -> bool {
         if let Err(err) = self.update_char(avatar.char, image) {
             eprintln!("Update char window: {:?}", err);
             self.hide();
             return false;
         }
-        let x = avatar.pos.x - 32;
-        let y = avatar.pos.y - 64 - 16;
+        if size != self.size {
+            self.size = size;
+            self.inner.borrow_mut().set_size(size as u32, size as u32);
+            redraw = true;
+        }
+        let size = self.size as i32;
+        let x = avatar.pos.x - size / 2;
+        let y = avatar.pos.y - size - 16;
         let mut appeared = false;
-        if (rect.width as i32 - 64 > x && x > 0) && (rect.height as i32 - 64 > y && y > 0) {
+        if (rect.width as i32 - size > x && x > 0) && (rect.height as i32 - size > y && y > 0) {
             self.set_position(rect.x + x, rect.y + y);
             if self.show() || redraw {
                 appeared = true;
@@ -103,8 +112,9 @@ impl<B: Backend> AvatarWindow<B> {
     }
     fn draw(&mut self) -> Result<(), BackendError<B>> {
         if let Some((_, texture)) = &self.char_texture {
+            let size = self.size as u32;
             let src = Rect::new(0, 0, 128, 128);
-            let dst = Rect::new(0, 0, 64, 64);
+            let dst = Rect::new(0, 0, size, size);
             self.inner.borrow_mut().draw_texture(texture, &src, &dst)?;
         }
         Ok(())

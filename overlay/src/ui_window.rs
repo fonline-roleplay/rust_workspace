@@ -4,7 +4,7 @@ use crate::{
         winit_gl::{WinitGlBackend, WinitGlError, WinitGlWindow},
         Backend, BackendRef, BackendWindow, WindowRef,
     },
-    windowing::{TextureForChar, Windowing},
+    windowing::{Windowing, WindowingExt},
     Rect,
 };
 use imgui::{
@@ -19,7 +19,7 @@ pub trait UiLogic {
     const FIXED: bool;
     const TITLE_BAR: bool;
     fn title(&self) -> ImString;
-    fn draw(&mut self, ui: &imgui::Ui, texture_for_char: &mut impl TextureForChar);
+    fn draw(&mut self, ui: &imgui::Ui, windowing: &mut impl WindowingExt);
     fn sticky_pos(&self) -> Option<(i32, i32)> {
         None
     }
@@ -90,7 +90,7 @@ impl UiLogic for Bar {
     fn title(&self) -> ImString {
         im_str!("FOnline Bar").into()
     }
-    fn draw(&mut self, ui: &imgui::Ui, texture_for_char: &mut impl TextureForChar) {
+    fn draw(&mut self, ui: &imgui::Ui, windowing: &mut impl WindowingExt) {
         //WIP: Remove
         ui.same_line(4.0);
         let size = [0.0, 24.0];
@@ -112,6 +112,7 @@ impl UiLogic for Bar {
 pub struct Chat {
     messages: Vec<(Message, SayType, Color)>,
     filter: ChatFilter,
+    avatars_sizes_index: usize,
     //size: (u32, u32)
 }
 
@@ -125,6 +126,8 @@ impl ChatFilter {
     }
 }
 
+const AVATARS_SIZES: [u16; 8] = [16, 32, 48, 64, 80, 96, 112, 128];
+
 impl Chat {
     pub fn new() -> Self {
         Chat {
@@ -133,6 +136,7 @@ impl Chat {
                 add: false,
                 names: vec![],
             },
+            avatars_sizes_index: 3,
         }
     }
     pub fn push_message(&mut self, message: Message) {
@@ -323,7 +327,7 @@ impl UiLogic for Chat {
     fn title(&self) -> ImString {
         im_str!("FOnline Chat").into()
     }
-    fn draw(&mut self, ui: &imgui::Ui, texture_for_char: &mut impl TextureForChar) {
+    fn draw(&mut self, ui: &imgui::Ui, windowing: &mut impl WindowingExt) {
         //WIP: Remove
         ui.same_line(8.0);
 
@@ -336,10 +340,19 @@ impl UiLogic for Chat {
         }
         //let debug = ui.small_button(im_str!("Дебаг"));
 
+        let avatars_sizes_index = &mut self.avatars_sizes_index;
+
         ui.popup_modal(settings).always_auto_resize(true).build(|| {
             if ui.small_button(&im_str!("Очистить")) {
                 messages.clear();
                 ui.close_current_popup();
+            }
+            if ui.small_button(&im_str!(
+                "Размер аватарок: {}",
+                AVATARS_SIZES[*avatars_sizes_index]
+            )) {
+                *avatars_sizes_index = (*avatars_sizes_index + 1) % AVATARS_SIZES.len();
+                windowing.set_avatars_size(AVATARS_SIZES[*avatars_sizes_index]);
             }
             if ui.small_button(im_str!("Закрыть")) {
                 ui.close_current_popup();
@@ -417,9 +430,7 @@ impl UiLogic for Chat {
                         ui.columns(2, im_str!("columns"), false);
                         ui.set_current_column_width(40.0);
                         {
-                            if let Some(texture_id) =
-                                texture_for_char.texture_for_char(message.cr_id)
-                            {
+                            if let Some(texture_id) = windowing.texture_for_char(message.cr_id) {
                                 let avatar = imgui::Image::new(texture_id, [32.0; 2]);
                                 avatar.build(ui);
                             } else {

@@ -125,6 +125,13 @@ impl<T: BridgeTask> BridgeWorker<T> {
             .recv()
             .map_err(|_| BridgeError::ChannelDropped)
     }
+    pub fn try_receive(&mut self) -> Result<Option<BridgeMessage<T::MsgOut>>, BridgeError> {
+        match self.receiver.try_recv() {
+            Err(std::sync::mpsc::TryRecvError::Empty) => Ok(None),
+            Err(_) => Err(BridgeError::ChannelDropped),
+            Ok(ok) => Ok(Some(ok)),
+        }
+    }
     pub fn task(&mut self) -> &mut T {
         &mut self.task
     }

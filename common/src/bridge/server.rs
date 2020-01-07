@@ -30,43 +30,56 @@ impl<MIn: 'static + Send + DeserializeOwned + Debug, MOut: 'static + Send + Seri
         let mut listener = TcpListener::bind(worker.address()).map_err(BridgeError::Io)?;
         listener.set_nonblocking(true).map_err(BridgeError::Io)?;
         let timeout = Some(Duration::from_millis(2000));
-        sleep(Duration::from_millis(1000));
-        'acceptor: loop {
-            println!("Bridge server: listening...");
-            let (mut stream, addr) = listener.accept().map_err(BridgeError::Io)?;
-            stream.set_nonblocking(false).map_err(BridgeError::Io)?;
-            stream.set_nodelay(true).map_err(BridgeError::Io)?;
-            println!("Bridge server: incoming");
-            stream.set_read_timeout(timeout).map_err(BridgeError::Io)?;
-            stream.set_write_timeout(timeout).map_err(BridgeError::Io)?;
 
-            println!("Bridge server: handshake");
-            serialize_into(&mut stream, &worker.handshake()).map_err(BridgeError::BinCode)?;
-            let handshake = deserialize_from(&mut stream).map_err(BridgeError::BinCode)?;
-            worker.check_handshake(handshake)?;
+        println!("Bridge server: listening...");
+        let (mut stream, addr) = loop {
+            sleep(Duration::from_millis(100));
+            match listener.accept() {
+                Ok(ok) => break ok,
+                Err(err) => match err.kind() {
+                    std::io::ErrorKind::WouldBlock => {
+                        let msg_out = worker.try_receive()?;
+                        if let Some(BridgeMessage::Shutdown) = msg_out {
+                            println!("Bridge server writer: shutdown");
+                            return Ok(());
+                        }
+                    }
+                    _ => return Err(BridgeError::Io(err)),
+                },
+            }
+        };
 
-            worker.task().stream = Some(stream.try_clone().map_err(BridgeError::Io)?);
-            worker.set_online();
-            println!("Bridge server: online");
+        println!("Bridge server: incoming");
+        stream.set_nonblocking(false).map_err(BridgeError::Io)?;
+        stream.set_nodelay(true).map_err(BridgeError::Io)?;
+        stream.set_read_timeout(timeout).map_err(BridgeError::Io)?;
+        stream.set_write_timeout(timeout).map_err(BridgeError::Io)?;
 
-            let sender = worker.sender();
-            let mut reader = stream.try_clone().map_err(BridgeError::Io)?;
-            worker.spawn_reader(move || with_bincode::reader(reader, sender));
+        println!("Bridge server: handshake");
+        serialize_into(&mut stream, &worker.handshake()).map_err(BridgeError::BinCode)?;
+        let handshake = deserialize_from(&mut stream).map_err(BridgeError::BinCode)?;
+        worker.check_handshake(handshake)?;
 
-            loop {
-                let msg_out = worker.receive()?;
-                if let BridgeMessage::Shutdown = msg_out {
-                    println!("Bridge server writer: shutdown");
-                    return Ok(());
-                }
-                serialize_into(&mut stream, &msg_out).map_err(BridgeError::BinCode)?;
-                if let BridgeMessage::Hang = msg_out {
-                    println!("Bridge server writer: hang");
-                    return Err(BridgeError::Hang);
-                }
+        worker.task().stream = Some(stream.try_clone().map_err(BridgeError::Io)?);
+        worker.set_online();
+        println!("Bridge server: online");
+
+        let sender = worker.sender();
+        let mut reader = BufReader::new(stream.try_clone().map_err(BridgeError::Io)?);
+        worker.spawn_reader(move || with_bincode::reader(reader, sender));
+
+        loop {
+            let msg_out = worker.receive()?;
+            if let BridgeMessage::Shutdown = msg_out {
+                println!("Bridge server writer: shutdown");
+                return Ok(());
+            }
+            serialize_into(&mut stream, &msg_out).map_err(BridgeError::BinCode)?;
+            if let BridgeMessage::Hang = msg_out {
+                println!("Bridge server writer: hang");
+                return Err(BridgeError::Hang);
             }
         }
-        return Ok(());
     }
     fn shutdown(&mut self) {
         if let Some(stream) = self.stream.take() {

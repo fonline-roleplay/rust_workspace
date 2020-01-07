@@ -22,10 +22,28 @@ impl<MIn: 'static + Send + DeserializeOwned + Debug, MOut: 'static + Send + Seri
         }
     }
     fn process(worker: &mut BridgeWorker<Self>) -> Result<(), BridgeError> {
-        println!("Bridge client: connecting");
+        print!("Bridge client: connecting...");
         let timeout = Duration::from_millis(2000);
-        let mut stream =
-            TcpStream::connect_timeout(worker.address(), timeout).map_err(BridgeError::Io)?;
+        let mut stream = loop {
+            match TcpStream::connect_timeout(worker.address(), timeout) {
+                Ok(stream) => break stream,
+                Err(err) => match err.kind() {
+                    std::io::ErrorKind::TimedOut => {
+                        let msg_out = worker.try_receive()?;
+                        if let Some(BridgeMessage::Shutdown) = msg_out {
+                            println!("\nBridge client writer: shutdown");
+                            return Ok(());
+                        }
+                        print!(".");
+                    }
+                    _ => {
+                        println!(" failed.");
+                        return Err(BridgeError::Io(err));
+                    }
+                },
+            }
+        };
+        println!("!");
         stream
             .set_read_timeout(Some(timeout))
             .map_err(BridgeError::Io)?;
@@ -45,7 +63,7 @@ impl<MIn: 'static + Send + DeserializeOwned + Debug, MOut: 'static + Send + Seri
         println!("Bridge client: online");
 
         let sender = worker.sender();
-        let mut reader = stream.try_clone().map_err(BridgeError::Io)?;
+        let mut reader = BufReader::new(stream.try_clone().map_err(BridgeError::Io)?);
         worker.spawn_reader(move || with_bincode::reader(reader, sender));
 
         loop {

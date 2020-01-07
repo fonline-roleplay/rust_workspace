@@ -1,6 +1,7 @@
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     fmt::Debug,
+    io::{BufRead, BufReader},
     iter::FilterMap,
     marker::PhantomData,
     net::{SocketAddr, TcpStream},

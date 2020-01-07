@@ -1,10 +1,14 @@
 use super::*;
 use bincode::deserialize_from;
 pub fn reader<M: DeserializeOwned + Debug>(
-    mut stream: TcpStream,
+    mut stream: BufReader<TcpStream>,
     sender: Sender<BridgeMessage<M>>,
 ) -> Result<(), BridgeError> {
     loop {
+        /*use byteorder::{ReadBytesExt, BE};
+        stream.fill_buf()
+        let len = stream.read_u32::<BE>().map_err(BridgeError::Io)?;*/
+
         let msg_in = deserialize_from(&mut stream).map_err(BridgeError::BinCode)?;
         let hang = if let &BridgeMessage::Hang = &msg_in {
             true

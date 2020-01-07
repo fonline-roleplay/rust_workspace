@@ -27,7 +27,9 @@ pub struct WinitGlBackend {
 }
 
 fn context_builder<'a>() -> glutin::ContextBuilder<'a, NotCurrent> {
-    glutin::ContextBuilder::new().with_vsync(false)
+    glutin::ContextBuilder::new()
+        .with_vsync(false)
+        .with_gl(glutin::GlRequest::Specific(glutin::Api::OpenGl, (2, 1)))
 }
 
 fn make_window_popup(window: &Window) -> Result<(), String> {
@@ -105,6 +107,7 @@ impl Backend for WinitGlBackend {
         let headless = context_builder()
             .build_headless(&events_loop, glutin::dpi::PhysicalSize::new(1.0, 1.0))
             .expect("Headless GL context");
+        dbg!(&headless.get_api());
         WinitGlBackend {
             events_loop,
             headless,
@@ -129,6 +132,7 @@ impl Backend for WinitGlBackend {
             .with_dimensions((width, height).into());
         let display = Display::new(builder, context, &self.events_loop)
             .map_err(WinitGlError::DisplayCreation)?;
+        dbg!(display.get_opengl_version_string());
         let window_id = {
             let window = display.gl_window();
             let window = window.window();
@@ -163,6 +167,7 @@ impl Backend for WinitGlBackend {
             .with_dimensions((width, height).into());
         let display = Display::new(builder, context, &self.events_loop)
             .map_err(WinitGlError::DisplayCreation)?;
+        dbg!(display.get_opengl_version_string());
         let window_id = {
             let window = display.gl_window();
             let window = window.window();

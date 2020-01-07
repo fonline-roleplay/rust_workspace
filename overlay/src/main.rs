@@ -12,10 +12,13 @@ mod image_data;
 mod ui_window;
 mod windowing;
 use game_window::GameWindow;
+use std::time::Duration;
 
 mod downloader;
 mod reqres;
 mod win_tools;
+
+mod profile;
 
 mod backend;
 #[cfg(feature = "backend-sdl")]
@@ -44,6 +47,11 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name("wait")
+                .help("Wait for client window")
+                .short("w"),
+        )
+        .arg(
             Arg::with_name("URL")
                 .help("Sets the web server address")
                 .required(true)
@@ -57,19 +65,30 @@ fn main() {
     let pid = matches
         .value_of("pid")
         .and_then(|pid| pid.parse::<u32>().ok());
+    let wait = matches.is_present("wait");
 
     /*let url = std::env::args()
     .nth(1)
     .expect("Pass web server address as argument."); //.unwrap_or("localhost:8000".into());
     */
     let gui_thread = std::thread::spawn(move || {
-        let game_window = if let Some(pid) = pid {
-            GameWindow::from_pid(pid)
-        } else {
-            GameWindow::find()
+        let game_window = loop {
+            let res = if let Some(pid) = pid {
+                GameWindow::from_pid(pid)
+            } else {
+                GameWindow::find()
+            };
+            if res.is_none() && wait {
+                std::thread::sleep(Duration::from_secs(1));
+                continue;
+            } else {
+                break res;
+            }
         };
         if let Some(game_window) = game_window {
             start(game_window, url);
+        } else {
+            println!("Can't find window.");
         }
     });
     gui_thread.join().expect("graceful exit");

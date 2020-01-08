@@ -97,6 +97,7 @@ impl<B: Backend> Windowing<B> {
     pub fn is_dirty(&mut self) -> bool {
         if let Some(new_size) = self.new_size {
             self.size = new_size;
+            self.new_size = None;
             true
         } else {
             false

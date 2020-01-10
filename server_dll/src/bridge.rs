@@ -1,5 +1,6 @@
 use lazy_static::lazy_static;
 
+pub use protocol::message::server_dll_web::{ServerDllToWeb as MsgOut, ServerWebToDll as MsgIn};
 use std::{
     io::{Read, Write},
     sync::{
@@ -9,9 +10,7 @@ use std::{
     thread::{self, JoinHandle},
     time::Duration,
 };
-use tnf_common::message;
 
-pub use tnf_common::message::server_dll_web::{ServerDllToWeb as MsgOut, ServerWebToDll as MsgIn};
 //pub type MsgIn = message::ServerWebToDll;
 //pub type MsgOut = message::ServerDllToWeb;
 

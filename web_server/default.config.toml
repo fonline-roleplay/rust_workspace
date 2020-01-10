@@ -7,6 +7,7 @@ files = { domain = "127.0.0.1", port = 8001}
 [paths]
 save_clients = "../../FO4RP/save/clients/"
 proto_items = "../../FO4RP/proto/items/items.lst"
+maps = "../../FO4RP/maps/"
 working_dir = "../web"
 game_client = "../../CL4RP"
 palette = "../../test_assets/COLOR.PAL"

@@ -1,8 +1,9 @@
 use crate::{
-    defines::param::{CritterParam, Param as PAR},
     engine_types::{game_options::game_state, mutual::CritterMutual},
     primitives::*,
 };
+use fo_defines::CritterParam;
+use fo_defines_fo4rp::param::Param as PAR;
 
 #[no_mangle]
 #[allow(non_snake_case)]

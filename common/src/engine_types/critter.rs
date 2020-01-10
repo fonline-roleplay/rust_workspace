@@ -1,8 +1,4 @@
 use crate::{
-    defines::{
-        fos,
-        param::{CritterParam, Param},
-    },
     engine_types::{
         item::{Item, ItemVec},
         stl::{
@@ -13,21 +9,22 @@ use crate::{
     },
     primitives::*,
 };
+use fo_defines::CritterParam;
+use fo_defines_fo4rp::{fos, param::Param};
 
-impl CritterParam for Critter {
+impl CritterParam<Param> for Critter {
     fn params_all(&self) -> &[i32] {
         &self.Params
     }
 }
+
 #[cfg(feature = "server")]
-use crate::defines::param::CritterParamMut;
-#[cfg(feature = "server")]
-impl CritterParamMut for Critter {
+impl fo_defines::CritterParamMut<Param> for Critter {
     fn params_all_mut(&mut self) -> &mut [i32] {
         &mut self.Params
     }
 }
-impl CritterParam for CritterCl {
+impl CritterParam<Param> for CritterCl {
     fn params_all(&self) -> &[i32] {
         &self.Params
     }
@@ -43,7 +40,7 @@ impl Critter {
         }
     }
     pub fn is_dead(&self) -> bool {
-        self.Cond == crate::defines::fos::COND_DEAD
+        self.Cond == fos::COND_DEAD
     }
     pub fn is_npc(&self) -> bool {
         self.CritterIsNpc

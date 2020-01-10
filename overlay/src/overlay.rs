@@ -188,19 +188,15 @@ impl<B: Backend> Overlay<B> {
                         self.dirty = true;
                     }
                     MsgIn::Message(mut msg) => {
-                        use tnf_common::defines::fos;
-                        match msg.say_type as u32 {
-                            fos::SAY_NORM
-                            | fos::SAY_SHOUT
-                            | fos::SAY_EMOTE
-                            | fos::SAY_WHISP
-                            | fos::SAY_RADIO => {
+                        use fo_defines::Say;
+                        match msg.say_type {
+                            Say::Normal | Say::Shout | Say::Emote | Say::Whisper | Say::Radio => {
                                 //log message
                             }
                             _ => continue,
                         };
-                        match msg.say_type as u32 {
-                            fos::SAY_NORM | fos::SAY_NORM_ON_HEAD => {
+                        match msg.say_type {
+                            Say::Normal | Say::NormalOnHead => {
                                 auto_emote(&mut msg.text);
                             }
                             _ => {}

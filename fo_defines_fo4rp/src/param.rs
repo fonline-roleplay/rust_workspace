@@ -1,33 +1,3 @@
-pub trait CritterParam {
-    fn param(&self, p: Param) -> i32 {
-        self.params_all()[p as usize]
-    }
-    fn uparam(&self, p: Param) -> u32 {
-        self.param(p) as u32
-    }
-    fn bparam(&self, p: Param) -> bool {
-        self.param(p) != 0
-    }
-    fn params_range(&self, range: std::ops::Range<Param>) -> &[i32] {
-        &self.params_all()[range.start as usize..range.end as usize]
-    }
-    fn params_range_inc(&self, range: std::ops::RangeInclusive<Param>) -> &[i32] {
-        &self.params_all()[*range.start() as usize..=*range.end() as usize]
-    }
-    fn params_all(&self) -> &[i32];
-}
-
-#[cfg(feature = "server")]
-pub trait CritterParamMut {
-    fn param_mut(&mut self, p: Param) -> &mut i32 {
-        &mut self.params_all_mut()[p as usize]
-    }
-    fn set_uparam(&mut self, p: Param, val: u32) {
-        *self.param_mut(p) = val as i32;
-    }
-    fn params_all_mut(&mut self) -> &mut [i32];
-}
-
 #[derive(PartialOrd, Ord, PartialEq, Eq, Clone, Copy)]
 #[allow(bad_style)]
 pub enum Param {

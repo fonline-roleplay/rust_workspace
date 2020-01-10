@@ -1,20 +1,19 @@
+use bridge::BridgeClientCell;
+use protocol::message::client_dll_overlay::{
+    Avatar, Char, ClientDllToOverlay as MsgOut, Message, OverlayToClientDll as MsgIn, Position,
+    HANDSHAKE, VERSION,
+};
 use tnf_common::{
-    bridge::BridgeClientCell,
-    defines::param::{CritterParam, Param},
+    defines::{CritterParam, FoDefines},
+    defines_fo4rp::{param::Param, Fo4Rp},
     engine_types::{
         critter::CritterCl,
-        game_options::{self, game_state, Sprite},
+        game_options::{self, game_state, GameOptions, Sprite},
         ScriptArray, ScriptString,
-    },
-    message::client_dll_overlay::{
-        Avatar, Char, ClientDllToOverlay as MsgOut, Message, OverlayToClientDll as MsgIn, Position,
-        HANDSHAKE, VERSION,
     },
 };
 
 use std::{convert::identity, net::SocketAddr};
-
-use tnf_common::engine_types::game_options::GameOptions;
 
 type BridgeClientToOverlay = BridgeClientCell<MsgIn, MsgOut>;
 static BRIDGE: BridgeClientToOverlay = BridgeClientToOverlay::new();
@@ -188,6 +187,7 @@ pub extern "C" fn message_in(
     let _res = BRIDGE.with_online(|bridge| {
         let text = text.string();
         let name = name.map(|name| name.string());
+        let say_type = Fo4Rp::decode_say(say_type as u32);
         let msg = MsgOut::Message(Message {
             text,
             say_type,

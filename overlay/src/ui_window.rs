@@ -11,8 +11,8 @@ use imgui::{
     im_str, ChildWindow, FontConfig, FontGlyphRanges, FontSource, ImStr, ImString, StyleColor,
     StyleVar, Ui, Window,
 };
+use protocol::message::client_dll_overlay::Message;
 use std::rc::Rc;
-use tnf_common::message::client_dll_overlay::Message;
 
 pub trait UiLogic {
     const INITIAL_SIZE: (u32, u32);
@@ -141,7 +141,7 @@ impl Chat {
     }
     pub fn push_message(&mut self, message: Message) {
         let color = random_color(message.cr_id);
-        let say_type = message.say_type.into();
+        let say_type = SayType(message.say_type);
         self.messages.push((message, say_type, color));
     }
 }
@@ -168,43 +168,26 @@ struct Color {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-enum SayType {
-    Normal,
-    Shout,
-    Emote,
-    Whisper,
-    Radio,
-    Unknown,
-}
-impl From<i32> for SayType {
-    fn from(from: i32) -> Self {
-        use tnf_common::defines::fos;
-        use SayType::*;
-        match from as u32 {
-            fos::SAY_NORM => Normal,
-            fos::SAY_SHOUT => Shout,
-            fos::SAY_EMOTE => Emote,
-            fos::SAY_WHISP => Whisper,
-            fos::SAY_RADIO => Radio,
-            _ => Unknown,
-        }
-    }
-}
+struct SayType(fo_defines::Say);
+
 impl SayType {
+    fn unknown() -> Self {
+        SayType(fo_defines::Say::Unknown)
+    }
     fn color(self) -> [f32; 4] {
-        use SayType::*;
-        match self {
+        use fo_defines::Say::*;
+        match self.0 {
             Normal => rgb_to_rgb_arr(0xF8F993),
             Shout => rgb_to_rgb_arr(0xFF0000),
             Emote => rgb_to_rgb_arr(0xFF00FF),
             Whisper => rgb_to_rgb_arr(0x00FFFF),
             Radio => rgb_to_rgb_arr(0xFFFFFE),
-            Unknown => rgb_to_rgb_arr(0x555555),
+            _ => rgb_to_rgb_arr(0x555555),
         }
     }
     fn action(self) -> Option<&'static ImStr> {
-        use SayType::*;
-        match self {
+        use fo_defines::Say::*;
+        match self.0 {
             Normal => Some(im_str!("(говорит)")),
             Shout => Some(im_str!("(кричит)")),
             Whisper => Some(im_str!("(шепчет)")),
@@ -217,8 +200,8 @@ impl SayType {
         style.pop(ui);
     }
     fn format(self, text: &str) -> ImString {
-        use SayType::*;
-        match self {
+        use fo_defines::Say::*;
+        match self.0 {
             Shout => im_str!("!!!{}!!!", text.to_uppercase()),
             Emote => im_str!("**{}**", text),
             Whisper => im_str!("...{}...", text.to_lowercase()),
@@ -227,8 +210,8 @@ impl SayType {
         }
     }
     fn push_str(self, str: &mut String, text: &str) {
-        use SayType::*;
-        match self {
+        use fo_defines::Say::*;
+        match self.0 {
             Shout => {
                 str.push_str("!!!");
                 str.push_str(&text.to_uppercase());
@@ -450,7 +433,7 @@ impl UiLogic for Chat {
                         {
                             if let Some(text) = say_type.action() {
                                 ui.same_line(0.0);
-                                SayType::Unknown.text_wrapped(ui, text);
+                                SayType::unknown().text_wrapped(ui, text);
                             }
                         }
                         last_msg = Some((message.cr_id, *say_type, 1));

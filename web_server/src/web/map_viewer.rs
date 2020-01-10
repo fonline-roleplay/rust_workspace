@@ -87,8 +87,9 @@ pub fn view(
     path: web::Path<std::path::PathBuf>,
     data: web::Data<AppState>,
 ) -> impl Future<Output = actix_web::Result<HttpResponse>> {
-    use tnf_common::{primitives::Hex, utils::sprites};
-    let full_path = std::path::Path::new("../../FO4RP/maps/").join(&*path);
+    use draw_geometry::fo as geometry;
+    use primitives::Hex;
+    let full_path = data.config.paths.maps.join(&*path);
     web::block(move || {
         fo_map_format::verbose_read_file(full_path, |text, res| {
             let (_rest, map) =
@@ -117,8 +118,8 @@ pub fn view(
                         hex_y: tile.hex_y,
                         x,
                         y,
-                        z: sprites::draw_order_pos_int(
-                            sprites::DRAW_ORDER_FLAT + tile.layer.unwrap_or(0) as u32,
+                        z: geometry::draw_order_pos_int(
+                            geometry::DRAW_ORDER_FLAT + tile.layer.unwrap_or(0) as u32,
                             Hex::new(tile.hex_x, tile.hex_y),
                         )
                         .unwrap_or(0),
@@ -138,7 +139,7 @@ pub fn view(
                 .filter(|obj| obj.is_scenery())
                 .filter_map(|obj| data.items.get(&obj.proto_id).map(|proto| (obj, proto)))
                 .filter(|(_obj, proto)| {
-                    (proto.Flags.unwrap_or(0) & tnf_common::defines::fos::ITEM_HIDDEN) == 0
+                    (proto.Flags.unwrap_or(0) & fo_defines_fo4rp::fos::ITEM_HIDDEN) == 0
                 })
                 .map(|(obj, proto)| {
                     let (hex_x, hex_y) = (obj.map_x.unwrap_or(0), obj.map_y.unwrap_or(0));
@@ -158,8 +159,8 @@ pub fn view(
                         hex_y,
                         x,
                         y,
-                        z: sprites::draw_order_pos_int(
-                            sprites::DrawOrderType::DRAW_ORDER_SCENERY as u32,
+                        z: geometry::draw_order_pos_int(
+                            geometry::DrawOrderType::DRAW_ORDER_SCENERY as u32,
                             Hex::new(hex_x, hex_y),
                         )
                         .unwrap_or(0),

@@ -1,9 +1,10 @@
+use fo_defines::CritterParam;
+use fo_defines_fo4rp::{fos, param::Param};
 use fo_save_format::ClientSaveData;
-use tnf_common::defines::{fos, param::CritterParam};
-
+/*
 #[cfg(windows)]
 use tnf_common::engine_types::critter::Critter;
-
+*/
 use arrayvec::ArrayVec;
 use std::net::Ipv4Addr;
 
@@ -34,7 +35,7 @@ fn u32_to_ipv4(raw_slice: &[u32; 20]) -> ArrayVec<[Ipv4Addr; 20]> {
         .map(|&raw| raw.to_ne_bytes().into())
         .collect()
 }
-
+/*
 #[cfg(windows)]
 impl From<&Critter> for CritterInfo {
     fn from(cr: &Critter) -> Self {
@@ -52,7 +53,7 @@ impl From<&Critter> for CritterInfo {
         }
     }
 }
-
+*/
 impl From<&ClientSaveData> for CritterInfo {
     fn from(cr: &ClientSaveData) -> Self {
         CritterInfo {
@@ -70,7 +71,7 @@ impl From<&ClientSaveData> for CritterInfo {
     }
 }
 
-impl CritterParam for CritterInfo {
+impl CritterParam<Param> for CritterInfo {
     fn params_all(&self) -> &[i32] {
         &self.params
     }

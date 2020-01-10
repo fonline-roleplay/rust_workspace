@@ -13,10 +13,14 @@ map_viewer = ["fo_data", "fo_map_format", "fo_proto_format", "nom_prelude"]
 
 [dependencies]
 # sub-crates
-tnf_common = { path = "../common" }
+primitives = { path = "../primitives" }
+protocol = { path = "../protocol" }
+fo_defines = { path = "../fo_defines" }
+fo_defines_fo4rp = { path = "../fo_defines_fo4rp" }
 clients_db = { path = "../clients_db" }
 fo_data = { path = "../fo_data", optional = true }
 fo_map_format = { path = "../fo_map_format", optional = true }
+draw_geometry = { path = "../draw_geometry" }
 fo_proto_format = { git = "https://github.com/fonline-roleplay/fo_proto_format.git", optional = true }
 #fo_save_format = { git = "https://github.com/fonline-roleplay/fo_save_format.git" }
 nom_prelude = { path = "../nom_prelude", optional = true }

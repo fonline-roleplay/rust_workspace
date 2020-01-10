@@ -6,6 +6,7 @@ use tnf_common::{
     utils::map::{
         get_distance_hex,
         server::{get_hex_in_path, get_hex_in_path_wall},
+        HexExt,
     },
 };
 
@@ -155,7 +156,8 @@ fn check_look_smart(config: &CheckLook, map: &Map, cr: &Critter, opponent: &Crit
     let opp_hex = opponent.hex();
     let dist = cr_hex.get_distance(opp_hex);
 
-    use tnf_common::defines::param::{CritterParam, Param};
+    use tnf_common::{defines::CritterParam, defines_fo4rp::param::Param};
+
     let cr_vision = cr.uparam(Param::QST_VISION);
 
     let opp_invis = opponent.uparam(Param::QST_INVIS);
@@ -270,7 +272,7 @@ fn _check_look_old(config: &CheckLook, map: &Map, cr: &Critter, opponent: &Critt
     let opp_hex = opponent.hex();
     let dist = cr_hex.get_distance(opp_hex);
 
-    use tnf_common::defines::param::{CritterParam, Param};
+    use tnf_common::{defines::CritterParam, defines_fo4rp::param::Param};
     let cr_vision = cr.uparam(Param::QST_VISION);
     let cr_perception = param_getters::getParam_Perception(cr, 0) as u32;
     //cr.uparam(Param::ST_PERCEPTION);

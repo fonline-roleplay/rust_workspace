@@ -1,5 +1,6 @@
 use tnf_common::{
-    defines::param::{CritterParamMut, Param},
+    defines::CritterParamMut,
+    defines_fo4rp::param::Param,
     engine_types::{
         critter::Critter,
         game_options::{critter_change_param, game_state},

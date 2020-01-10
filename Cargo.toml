@@ -2,8 +2,12 @@
 members = [
 # dll stuff
     "client_dll", "server_dll", "common",
+# defines stuff
+    "primitives", "fo_defines", "fo_defines_fo4rp",
+# interop stuff
+    "bridge",
 # web server stuff
-    "web_server", "clients_db", "mrhandy",
+    "web_server", "clients_db", "mrhandy", "draw_geometry",
 # formula stuff
     "formula", "fo_param", "fo_param_fo4rp",
 # data&formats stuff

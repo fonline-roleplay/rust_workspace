@@ -155,6 +155,7 @@ impl PrivatePaths {
 pub struct Paths {
     pub save_clients: PathBuf, // "../../FO4RP/save/clients/"
     pub proto_items: PathBuf,  // "../../FO4RP/proto/items/items.lst"
+    pub maps: PathBuf,         // "../../FO4RP/maps/"
     pub working_dir: PathBuf,  // "../web"
     pub game_client: PathBuf,  // "../../CL4RP"
     pub palette: PathBuf,      // "../../FO4RP/proto/items/items.lst"
@@ -252,6 +253,7 @@ pub fn setup() -> Result<Config, ConfigError> {
     let paths = &mut config.paths;
     canon(&mut paths.save_clients)?;
     canon(&mut paths.proto_items)?;
+    canon(&mut paths.maps)?;
     canon(&mut paths.working_dir)?;
     canon(&mut paths.game_client)?;
     canon(&mut paths.palette)?;

@@ -6,8 +6,11 @@ edition = "2018"
 publish = false
 
 [dependencies]
+tnf_common = { path = "../common", features = ["client"] }
+bridge = { path = "../bridge" }
+protocol = { path = "../protocol" }
+
 winapi = { version = "0.3", features = ["consoleapi"] }
-tnf_common = { path = "../common", features = ["client", "bridge"] }
 webbrowser = "0.5"
 heim = {version = "0.0.9", default-features = false, features = ["process"] }
 futures = "0.3"

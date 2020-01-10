@@ -17,6 +17,8 @@ pub const SAY_ENCOUNTER_RT: u32 = 15;
 pub const SAY_ENCOUNTER_TB: u32 = 16;
 pub const SAY_FIX_RESULT: u32 = 17;
 pub const SAY_DIALOGBOX_TEXT: u32 = 18;
+//#define SAY_DIALOGBOX_BUTTON                     # (b)   ( 19 + ( b ) ) // Max 20 buttons (0..19)
+pub const SAY_DIALOGBOX_BUTTON: u32 = 19;
 pub const SAY_SAY_TITLE: u32 = 39;
 pub const SAY_SAY_TEXT: u32 = 40;
 pub const SAY_FLASH_WINDOW: u32 = 41;

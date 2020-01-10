@@ -11,6 +11,10 @@ backend-sdl2 = ["sdl2"]
 static-link = ["backend-sdl2", "sdl2/static-link"]
 
 [dependencies]
+bridge = { path = "../bridge" }
+protocol = { path = "../protocol" }
+fo_defines = { path = "../fo_defines" }
+
 #orbtk = { path = "../orbtk" }
 #orbclient = "0.3.22"
 #sdl2 = { path = "../rust-sdl2", features = ["bundled", "use-bindgen"] }
@@ -19,7 +23,6 @@ winapi = { version = "0.3", features = ["winuser"] }
 crossbeam = "0.7"
 reqwest = { version = "0.10", default-features = false, features = ["rustls-tls", "blocking"] }
 image = { version = "0.22", default-features = false, features = ["png_codec"] }
-tnf_common = { path = "../common", features = ["bridge"] }
 imgui = { path = "../../../rust/imgui-rs", default-features = false, features = ["glium"], optional = true }
 imgui-glium-renderer = { path = "../../../rust/imgui-rs/imgui-glium-renderer", optional = true }
 imgui-winit-support = { path = "../../../rust/imgui-rs/imgui-winit-support", optional = true }

@@ -1,13 +1,11 @@
 use super::{web, AppState, HttpResponse};
 use crate::{config::Host, templates};
 use clients_db::{fix_encoding::os_str_debug, ClientRecord, CritterInfo};
+use fo_defines::CritterParam;
+use fo_defines_fo4rp::{fos, param::Param};
 use futures::{future as fut, Future, FutureExt};
 use serde::Serialize;
 use std::{borrow::Cow, net::Ipv4Addr, time::Duration};
-use tnf_common::defines::{
-    fos,
-    param::{CritterParam, Param},
-};
 
 pub fn clients(data: web::Data<AppState>) -> impl Future<Output = actix_web::Result<HttpResponse>> {
     web::block(move || -> Result<_, ()> { Ok((data.critters_db.list_clients(), data)) })

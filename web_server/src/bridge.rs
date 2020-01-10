@@ -22,7 +22,7 @@ use std::{
     },
 };
 
-pub use tnf_common::message::server_dll_web::{ServerDllToWeb as MsgIn, ServerWebToDll as MsgOut};
+pub use protocol::message::server_dll_web::{ServerDllToWeb as MsgIn, ServerWebToDll as MsgOut};
 pub type MsgOutSender = Sender<MsgOut>;
 //pub type MsgOutSendError = SendError<MsgOut>;
 pub type MsgOutSendError = TrySendError<MsgOut>;

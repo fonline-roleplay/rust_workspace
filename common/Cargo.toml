@@ -8,20 +8,15 @@ publish = false
 [features]
 default = []
 client = ["winapi", "dll"]
-server = ["winapi", "dll"]
+server = ["winapi", "dll", "fo_defines/param_mut"]
 dll = ["engine_types"]
 engine_types = []
-bridge = ["bincode", "byteorder", "parking_lot", "once_cell"]
 
 [dependencies]
 winapi = { optional=true, version = "0.3.6", features = ["consoleapi"] }
-serde = { version = "1.0", features = ["derive"] }
-
-bincode = { version = "1.2", optional = true }
-byteorder = { version = "1.3", optional = true }
-parking_lot = { version = "0.10", optional = true }
-once_cell = { version = "1.2", optional = true }
-
+primitives = { path = "../primitives" }
+fo_defines = { path = "../fo_defines" }
+fo_defines_fo4rp = { path = "../fo_defines_fo4rp" }
 
 #[lib]
 #crate-type = ["cdylib"]

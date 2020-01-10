@@ -5,12 +5,13 @@ authors = ["qthree <qthree3@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+fo_defines = { path = "../fo_defines" }
+fo_defines_fo4rp = { path = "../fo_defines_fo4rp" }
+
 fo_save_format = { git = "https://github.com/fonline-roleplay/fo_save_format.git" }
 arrayvec = "0.5"
 itertools = "0.8"
 
-[target.'cfg(not(windows))'.dependencies]
-tnf_common = { path = "../common", features = [] }
 
-[target.'cfg(windows)'.dependencies]
-tnf_common = { path = "../common", features = ["engine_types"] }
+#[target.'cfg(windows)'.dependencies]
+#tnf_common = { path = "../common", features = ["engine_types"] }

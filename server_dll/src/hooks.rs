@@ -22,7 +22,7 @@ pub extern "C" fn main_loop() {
             param::change_uparams,
         };
         use bridge::MsgIn;
-        use tnf_common::defines::param::Param;
+        use tnf_common::defines_fo4rp::param::Param;
         println!("{:?}", message);
         match message {
             MsgIn::UpdateCharLeaf { id, ver, secret } => {

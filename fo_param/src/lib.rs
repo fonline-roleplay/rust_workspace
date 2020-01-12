@@ -16,9 +16,23 @@ mod test {
         }
     }
     impl_param!(
-        (cfg, <'a>, &'a Foo<'a>, impl_base!("База"), impl_ext!("Эффект")),
+        (cfg, ('a), &'a Foo<'a>, impl_base!("База"), impl_ext!("Эффект")),
         (Strength, "Сила", 0, 32),
         (Strength2, "Сила2", 0, 32),
+    );
+
+    #[derive(Copy, Clone)]
+    struct Bar([i32; 100]);
+    impl super::param_types::ParamGet for Bar {
+        type Index = u16;
+        fn get_param(&self, param: Self::Index) -> i32 {
+            self.0[param as usize]
+        }
+    }
+    impl_param!(
+        (cfg, (), Bar, impl_base!("База"), impl_ext!("Эффект")),
+        (Strength3, "Сила", 0, 32),
+        (Strength4, "Сила2", 0, 32),
     );
     /*
     impl_param!(

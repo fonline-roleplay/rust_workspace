@@ -25,7 +25,7 @@ impl Strength {
         self.sum() + rush_bonus
     }
 }
-/*
+
 invar!(NO_DAMAGE, 0, "ПоврежденияНет");
 invar!(DAMAGED_PERCEPTION, 1, "ПовреждённоеВосприятие");
 
@@ -36,8 +36,10 @@ impl Perception {
             self.sum(),
             DAMAGED_PERCEPTION,
         );
+        "ОтВосприятия".part(maybe_damaged)
+            + "ОтНочнойПерсоны".part(traits::NightPerson.make_bonus().compat())
     }
-}*/
+}
 
 // Original
 //invar!(HP_PER_STR, 1, "ЗдоровьеЗаСилу");

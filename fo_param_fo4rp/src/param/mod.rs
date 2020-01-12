@@ -3,6 +3,7 @@ pub mod perk;
 pub mod skill;
 pub mod stat;
 pub mod timeout;
+pub mod traits;
 
 mod prelude {
     pub use crate::{

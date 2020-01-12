@@ -106,13 +106,19 @@ mod test {
     */
     #[test]
     fn basic() {
-        use crate::{critter::Critter, param::*, raw_param::RawParam};
+        use crate::{
+            critter::{Critter, Time},
+            param::*,
+            raw_param::RawParam,
+        };
 
         // Представим что это массив Param из движка
         let mut param = [0i32; 1000];
         param[RawParam::ST_STRENGTH as usize] = 5;
+        param[RawParam::ST_PERCEPTION as usize] = 7;
         param[RawParam::ST_ENDURANCE as usize] = 10;
         param[RawParam::ST_STRENGTH_EXT as usize] = 2;
+        param[RawParam::ST_PERCEPTION_EXT as usize] = 1;
         param[RawParam::ST_ENDURANCE_EXT as usize] = -3;
 
         param[RawParam::ST_MAX_LIFE as usize] = 20;
@@ -122,8 +128,16 @@ mod test {
         // Выброс адреналина работает если ТО !=0
         param[RawParam::PE_ADRENALINE_RUSH as usize] = 1;
         param[RawParam::TO_BATTLE as usize] = 1;
+        param[RawParam::DAMAGE_EYE as usize] = 1;
+        param[RawParam::TRAIT_NIGHT_PERSON as usize] = 1;
 
-        let cr = Critter::new(&param);
+        let time = Time {
+            hour: 23,
+            minute: 30,
+            second: 0,
+        };
+
+        let cr = Critter::new(&param, time);
 
         let formula = stat::MaxLife.calc();
 
@@ -138,6 +152,10 @@ mod test {
 
         let formula = stat::Strength.calc();
         let info = formula.full_info("Сила", Some(&cr)).unwrap();
+        println!("\n\n{}", info);
+
+        let formula = stat::Perception.calc();
+        let info = formula.full_info("Восприятие", Some(&cr)).unwrap();
         println!("\n\n{}", info);
     }
 }

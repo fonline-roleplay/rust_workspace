@@ -29,6 +29,14 @@ pub mod skill {
     );
 }
 
+pub mod timeout {
+    use super::*;
+    impl_param!(
+        (cfg, <'a>, &'a Critter<'a>, "Таймаут", ""),
+        (Battle, "Бой", TO_BATTLE),
+    );
+}
+
 pub mod perk {
     use super::*;
     impl_param!(
@@ -37,10 +45,10 @@ pub mod perk {
     );
 }
 
-pub mod timeout {
+pub mod traits {
     use super::*;
     impl_param!(
-        (cfg, <'a>, &'a Critter<'a>, "Таймаут", ""),
-        (Battle, "Бой", TO_BATTLE),
+        (cfg, <'a>, &'a Critter<'a>, "Трейт", ""),
+        (NightPerson, "НочнаяПерсона", TRAIT_NIGHT_PERSON),
     );
 }

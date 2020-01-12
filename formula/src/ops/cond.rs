@@ -1,5 +1,6 @@
 use super::{
     biop::{Biop, BiopOutput, TriopOutput},
+    format_braces,
     tag::{op, Op},
     Descriptor, Formula, Precedence,
 };
@@ -25,7 +26,10 @@ impl<I: Copy, C: Formula<I, bool>, O, A: Formula<I, O>, B: Formula<I, O>> Formul
         desc.buffer().write_str("ЕСЛИ ")?;
         Self::braces(&self.0, desc, input)?;
         desc.buffer().write_str(" ТО ")?;
-        Self::biop(&self.1, &self.2, " ИНАЧЕ ", desc, input)
+        //Self::biop(&self.1, &self.2, " ИНАЧЕ ", desc, input)
+        format_braces(Precedence::_ComplexStart, &self.1, desc, input)?;
+        desc.buffer().push_str(" ИНАЧЕ ");
+        format_braces(Precedence::_ComplexStart, &self.2, desc, input)
     }
 }
 

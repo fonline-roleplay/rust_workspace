@@ -27,7 +27,7 @@ impl<I, O: IntoLineResult + Copy + fmt::Debug> Formula<I, O> for Invar<O> {
     }
     fn description<D: Descriptor>(&self, desc: &mut D, input: Option<I>) -> fmt::Result {
         desc.buffer().push_str(self.name);
-        desc.compute_param(self, input, ArgSortOrder::Invar, 0, self.name);
+        desc.compute_param(self, (), ArgSortOrder::Invar, 0, self.name);
         Ok(())
     }
 }

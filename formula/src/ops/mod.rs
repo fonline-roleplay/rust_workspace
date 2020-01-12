@@ -24,14 +24,7 @@ pub trait Formula<I, O>: Debug + Clone {
         desc: &mut D,
         input: Option<I>,
     ) -> fmt::Result {
-        if Self::PRECEDENCE as u8 >= A::PRECEDENCE as u8 {
-            around.description(desc, input)
-        } else {
-            desc.buffer().push('(');
-            around.description(desc, input)?;
-            desc.buffer().push(')');
-            Ok(())
-        }
+        format_braces(Self::PRECEDENCE, around, desc, input)
     }
     fn biop<O2, O3, A: Formula<I, O2>, B: Formula<I, O3>, D: Descriptor>(
         a: &A,
@@ -49,6 +42,37 @@ pub trait Formula<I, O>: Debug + Clone {
     }
 }
 
+fn format_braces<I, O2, A: Formula<I, O2>, D: Descriptor>(
+    max_precedence: Precedence,
+    around: &A,
+    desc: &mut D,
+    input: Option<I>,
+) -> fmt::Result {
+    if max_precedence as u8 >= A::PRECEDENCE as u8 {
+        around.description(desc, input)
+    } else {
+        desc.buffer().push('(');
+        around.description(desc, input)?;
+        desc.buffer().push(')');
+        Ok(())
+    }
+}
+/*
+fn format_biop<I, O2, O3, A: Formula<I, O2>, B: Formula<I, O3>, D: Descriptor>(
+    a: &A,
+    b: &B,
+    separator: &'static str,
+    desc: &mut D,
+    input: Option<I>,
+) -> fmt::Result
+where
+    I: Copy,
+{
+    Self::braces(a, desc, input)?;
+    desc.buffer().push_str(separator);
+    Self::braces(b, desc, input)
+}
+*/
 pub trait Descriptor {
     fn local(&self, name: &'static str) -> Self;
     fn consume(&mut self, local_desc: Self);
@@ -86,6 +110,7 @@ pub enum Precedence {
     Add,
     BitAnd,
     BitOr,
+    _ComplexStart,
     Bound,
 }
 
@@ -193,6 +218,7 @@ impl Descriptor for Context {
 pub enum ArgSortOrder {
     Invar,
     Stat,
+    Opaque,
 }
 impl Display for ArgSortOrder {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -201,6 +227,7 @@ impl Display for ArgSortOrder {
         f.write_str(match self {
             Invar => "Константы",
             Stat => "Статы",
+            Opaque => "Неявные",
         })
     }
 }
@@ -247,3 +274,38 @@ impl PartFormula for &'static str {
         cut(self, fragment)
     }
 }
+
+#[derive(Clone)]
+//pub struct Opaque<I, O, F: Fn(I) -> O> {
+pub struct Opaque<F> {
+    name: &'static str,
+    fun: F,
+}
+
+impl<F> Debug for Opaque<F> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Opaque").field("name", &self.name).finish()
+    }
+}
+
+impl<I: Copy, O: IntoLineResult, F: Clone + Fn(I) -> O> Formula<I, O> for Opaque<F> {
+    fn compute(&self, input: I) -> O {
+        (self.fun)(input)
+    }
+    fn description<D: Descriptor>(&self, desc: &mut D, input: Option<I>) -> fmt::Result {
+        desc.buffer().push_str(self.name);
+        if let Some(input) = input {
+            desc.compute_param(self, input, ArgSortOrder::Opaque, 0, self.name);
+        }
+        Ok(())
+    }
+}
+
+pub fn opaque<I: Copy, O: IntoLineResult, F: Clone + Fn(I) -> O>(
+    name: &'static str,
+    fun: F,
+) -> Op<I, O, Opaque<F>> {
+    op(Opaque { name, fun })
+}
+
+//fn opaque<I, O, F: Fn(I) -> O>(name: &'static str, fun: F) -> Op<I, O, Opaque<I, O, F>> {}

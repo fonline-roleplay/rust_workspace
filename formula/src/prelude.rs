@@ -4,7 +4,7 @@ pub use crate::{
         biop::pow,
         compare::{equal, greater_or_equal, greater_than, less_or_equal, less_than, not_equal},
         cond::{clamp, if_else},
-        cut,
+        cut, opaque,
         tag::FormulaCompat,
         uniforms::{int, invar},
         Context, Descriptor, Formula, FormulaData,

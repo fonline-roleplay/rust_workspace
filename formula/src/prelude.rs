@@ -14,8 +14,9 @@ pub mod tools {
     pub use crate::ops::{
         biop::{Add, Biop, BiopOutput},
         boxed::{boxed, BoxedFormula},
+        compare::NotEqual,
         tag::{op, unop, Op, UnOp},
         uniforms::Invar,
-        ArgSortOrder, PartFormula,
+        ArgSortOrder, Cut, PartFormula,
     };
 }

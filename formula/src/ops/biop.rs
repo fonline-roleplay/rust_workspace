@@ -38,6 +38,12 @@ impl<A: FormulaData> Biop for ((), A, A) {
 impl<A: FormulaData> Biop for ((), (), A) {
     type Output = A;
 }
+impl<A: FormulaData> Biop for (A, (), A) {
+    type Output = A;
+}
+impl<A: FormulaData> Biop for ((), A, ()) {
+    type Output = A;
+}
 impl Biop for ((), (), ()) {
     type Output = ();
 }

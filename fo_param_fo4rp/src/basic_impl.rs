@@ -1,5 +1,8 @@
 use crate::{critter::Critter, raw_param::RawParam::*};
-use fo_param::{impl_base, impl_calc, impl_ext, impl_param};
+use fo_param::{impl_base, impl_calc, impl_ext, impl_param, impl_present};
+use formula::prelude::invar;
+
+type InvarI32 = formula::prelude::tools::Invar<i32>;
 
 pub mod stat {
     use super::*;
@@ -17,7 +20,15 @@ pub mod misc {
     impl_param!(
         (cfg, <'a>, &'a Critter<'a>, impl_base!("База"), impl_calc!()),
         (CurrentLife, "ТекущееЗдоровье", ST_CURRENT_HP, ()),
-        (DamageEye, "ПовреждёнГлаз", DAMAGE_EYE, ()),
+    );
+}
+
+pub mod damage {
+    use super::*;
+    invar!(DAMAGE_NOT_PRESENT, 0, "ПовреждениеОтсутствует");
+    impl_param!(
+        (cfg, <'a>, &'a Critter<'a>, impl_base!("Состояние"), impl_calc!(), impl_present!("Повреждён", InvarI32, DAMAGE_NOT_PRESENT)),
+        (Eye, "Глаз", DAMAGE_EYE, (), ()),
     );
 }
 
@@ -39,16 +50,18 @@ pub mod timeout {
 
 pub mod perk {
     use super::*;
+    invar!(PERK_NOT_PRESENT, 0, "ПеркОтсутствует");
     impl_param!(
-        (cfg, <'a>, &'a Critter<'a>, impl_base!("Перк"), impl_calc!()),
-        (AdrenalineRush, "ВыбросАдреналина", PE_ADRENALINE_RUSH, ()),
+        (cfg, <'a>, &'a Critter<'a>, impl_base!("Перк"), impl_calc!(), impl_present!("ТрейтПрисутствует", InvarI32, PERK_NOT_PRESENT)),
+        (AdrenalineRush, "ВыбросАдреналина", PE_ADRENALINE_RUSH, (), ()),
     );
 }
 
 pub mod traits {
     use super::*;
+    invar!(TRAIT_NOT_PRESENT, 0, "ТрейтОтсутствует");
     impl_param!(
-        (cfg, <'a>, &'a Critter<'a>, impl_base!("Трейт"), impl_calc!()),
-        (NightPerson, "НочнаяПерсона", TRAIT_NIGHT_PERSON, ()),
+        (cfg, <'a>, &'a Critter<'a>, impl_base!("Трейт"), impl_calc!(), impl_present!("ТрейтПрисутствует", InvarI32, TRAIT_NOT_PRESENT)),
+        (NightPerson, "НочнаяПерсона", TRAIT_NIGHT_PERSON, (), ()),
     );
 }

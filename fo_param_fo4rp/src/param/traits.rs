@@ -9,11 +9,11 @@ invar!(BONUS_NIGHT_PERSON_NIGHT, 1, "НочнойБонус");
 
 impl NightPerson {
     pub fn make_bonus(&self) -> impl CrOp {
-        let trait_set = not_equal(self.base(), TRAIT_UNSET);
+        let trait_present = self.present();
         let is_night = opaque("СейчасНочь", |data: &Critter| {
             data.time.is_night()
         });
         let night_bonus = if_else(is_night, BONUS_NIGHT_PERSON_NIGHT, BONUS_NIGHT_PERSON_DAY);
-        if_else(trait_set, night_bonus, BONUS_ZERO)
+        if_else(trait_present, night_bonus, BONUS_ZERO)
     }
 }

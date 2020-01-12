@@ -103,3 +103,20 @@ macro_rules! impl_calc(
         }
     }
 );
+
+#[macro_export]
+macro_rules! impl_present(
+    {
+        cfg: (<$lt:tt>, $data:ty),
+        decl: $decl:ident,
+        name: $name:expr,
+        shared: ($present:expr, $not_present_type:ty, $not_present:expr),
+        args: ()
+    } => {
+        impl<$lt> $crate::param_types::HasParamPresent<$data> for $decl {
+            type Formula = $not_present_type;
+            const NOT_PRESENT: formula::prelude::tools::Op<(), i32, Self::Formula> = $not_present;
+            const CUT: &'static str = concat!($name, $present);
+        }
+    }
+);

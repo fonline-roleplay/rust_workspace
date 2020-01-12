@@ -13,3 +13,9 @@ mod prelude {
     pub use fo_param::param_types::*;
     pub use formula::prelude::{tools::PartFormula, *};
 }
+
+#[deny(dead_code)]
+pub mod damage {
+    use super::prelude::*;
+    pub use crate::basic_impl::damage::*;
+}

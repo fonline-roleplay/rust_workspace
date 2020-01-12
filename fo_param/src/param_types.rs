@@ -71,3 +71,12 @@ impl<I: ParamGet + FormulaData + Copy, P: HasParamBase<I> + HasParamExt<I>> HasP
         self.base() + self.ext()
     }
 }
+
+pub trait HasParamPresent<I: ParamGet + FormulaData + Copy>: HasParamBase<I> {
+    type Formula: Formula<I, i32> + Formula<(), i32>;
+    const NOT_PRESENT: Op<(), i32, Self::Formula>;
+    const CUT: &'static str;
+    fn present(self) -> Op<I, bool, Cut<NotEqual<ParamBase<I, Self>, Self::Formula, i32>>> {
+        Self::CUT.part(not_equal(self.base(), Self::NOT_PRESENT))
+    }
+}

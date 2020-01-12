@@ -2,7 +2,6 @@
 use super::prelude::*;
 pub use crate::basic_impl::stat::*;
 
-invar!(PERK_UNSET, 0, "ПеркОтсутствует");
 invar!(TIMEOUT_READY, 0, "Закончился");
 invar!(BONUS_ZERO, 0, "НетБонуса");
 invar!(BONUS_RUSH, 1, "БонусЗаВыбросАдреналина");
@@ -13,7 +12,7 @@ impl Strength {
             misc::CurrentLife.base(),
             (MaxLife.base() + Strength.base() + Endurance.base() * int(2)) / int(2),
         );
-        let rush_condition = not_equal(perk::AdrenalineRush.base(), PERK_UNSET)
+        let rush_condition = perk::AdrenalineRush.present()
             & not_equal(timeout::Battle.base(), TIMEOUT_READY)
             & "МалоЗдоровья".part(low_life);
         let rush_bonus = "ОтВыбросаАдреналина".part(if_else(
@@ -26,16 +25,11 @@ impl Strength {
     }
 }
 
-invar!(NO_DAMAGE, 0, "ПоврежденияНет");
 invar!(DAMAGED_PERCEPTION, 1, "ПовреждённоеВосприятие");
 
 impl Perception {
     pub fn make_formula(&self) -> impl CrOp {
-        let maybe_damaged = if_else(
-            equal(misc::DamageEye.base(), NO_DAMAGE),
-            self.sum(),
-            DAMAGED_PERCEPTION,
-        );
+        let maybe_damaged = if_else(damage::Eye.present(), DAMAGED_PERCEPTION, self.sum());
         "ОтВосприятия".part(maybe_damaged)
             + "ОтНочнойПерсоны".part(traits::NightPerson.make_bonus().compat())
     }

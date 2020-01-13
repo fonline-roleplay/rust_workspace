@@ -1,6 +1,19 @@
 #![deny(dead_code)]
 use super::prelude::*;
-pub use crate::basic_impl::misc::*;
+
+mod impl_param {
+    use crate::param::impl_prelude::*;
+    impl_param!(
+        (cfg, ('a), &'a Critter<'a>,                        impl_base!(""),     impl_calc!()),
+        (LifeCurrent,               "ТекущееЗдоровье",      ST_CURRENT_HP,      ()),
+        (ActionPointsCurrent,       "ТекущиеОД",            ST_CURRENT_AP,      (-9999, 9999)),
+        (ActionPointsRegen,         "РегенерацияОД",        ST_APREGEN,         ()),
+        (ArmorClassTurnBased,       "КлассБрониПошаговый",  ST_TURN_BASED_AC,   ()),
+        (MoveActionPointsMax,       "МаксОДПеремещения",    ST_MAX_MOVE_AP,     (0, 9999)),
+        (MoveActionPointsCurrent,   "ТекущиеОДПеремещения", ST_MOVE_AP,         (0, 9999)),
+    );
+}
+pub use impl_param::*;
 
 invar!(AP_DIVIDER, 100, "ДелительОД");
 impl ActionPointsCurrent {

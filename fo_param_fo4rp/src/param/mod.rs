@@ -1,5 +1,8 @@
+pub mod absorb;
+pub mod damage;
 pub mod misc;
 pub mod perk;
+pub mod resist;
 pub mod skill;
 pub mod stat;
 pub mod timeout;
@@ -14,8 +17,10 @@ mod prelude {
     pub use formula::prelude::{tools::PartFormula, *};
 }
 
-#[deny(dead_code)]
-pub mod damage {
-    use super::prelude::*;
-    pub use crate::basic_impl::damage::*;
+mod impl_prelude {
+    pub use crate::{critter::Critter, raw_param::RawParam::*};
+    pub use fo_param::{impl_base, impl_calc, impl_ext, impl_fn, impl_param, impl_present};
+    pub use formula::prelude::invar;
+
+    pub type InvarI32 = formula::prelude::tools::Invar<i32>;
 }

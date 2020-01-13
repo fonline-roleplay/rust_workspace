@@ -1,6 +1,29 @@
 #![deny(dead_code)]
 use super::prelude::*;
-pub use crate::basic_impl::stat::*;
+
+mod impl_param {
+    use crate::param::impl_prelude::*;
+    impl_param!(
+        (cfg, ('a), &'a Critter<'a>,            impl_base!("База"), impl_ext!("Эффект"),    impl_calc!()),
+        (Strength,        "Сила",               ST_STRENGTH,        ST_STRENGTH_EXT,        (1, 10)),
+        (Perception,      "Восприятие",         ST_PERCEPTION,      ST_PERCEPTION_EXT,      (1, 10)),
+        (Endurance,       "Выносливость",       ST_ENDURANCE,       ST_ENDURANCE_EXT,       (1, 10)),
+        (Charisma,        "Обаяние",            ST_CHARISMA,        ST_CHARISMA_EXT,        (1, 10)),
+        (Intellect,       "Интеллект",          ST_INTELLECT,       ST_INTELLECT_EXT,       (1, 10)),
+        (Agility,         "Ловкость",           ST_AGILITY,         ST_AGILITY_EXT,         (1, 10)),
+        (Luck,            "Удача",              ST_LUCK,            ST_LUCK_EXT,            (1, 10)),
+        (LifeMax,         "МаксЗдоровье",       ST_MAX_LIFE,        ST_MAX_LIFE_EXT,        (1, 9999)),
+        (ActionPointsMax, "МаксОД",             ST_ACTION_POINTS,   ST_ACTION_POINTS_EXT,   (1, 9999)),
+        (WeightMax,       "МаксВес",            ST_CARRY_WEIGHT,    ST_CARRY_WEIGHT_EXT,    (0, 2_000_000_000)),
+        (Sequence,        "ПорядокДействий",    ST_SEQUENCE,        ST_SEQUENCE_EXT,        (0, 9999)),
+        (MeleeDamage,     "РукопашныйУрон",     ST_MELEE_DAMAGE,    ST_MELEE_DAMAGE_EXT,    (1, 9999)),
+        (HealingRate,     "ТемпЛечения",        ST_HEALING_RATE,    ST_HEALING_RATE_EXT,    (0, 9999)),
+        (CriticalChance,  "ШансНаКрит",         ST_CRITICAL_CHANCE, ST_CRITICAL_CHANCE_EXT, (0, 100)),
+        (CriticalMax,     "ЛучшийКрит",         ST_MAX_CRITICAL,    ST_MAX_CRITICAL_EXT,    (-100, 100)),
+        (ArmorClass,      "КлассБрони",         ST_ARMOR_CLASS,     ST_ARMOR_CLASS_EXT,     (0, 90)),
+    );
+}
+pub use impl_param::*;
 
 invar!(TIMEOUT_READY, 0, "Закончился");
 invar!(BONUS_ZERO, 0, "НетБонуса");
@@ -157,27 +180,5 @@ pub mod absorb_and_resist {
             }
         }
         0
-    }
-}
-
-invar!(
-    RADIATION_RESISTANCE_PER_END,
-    2,
-    "СопротивлениеРадиацииЗаВыносливость"
-);
-impl ResistRadiation {
-    pub fn make_formula(&self) -> impl CrOp {
-        self.sum() + Endurance.calc() * RADIATION_RESISTANCE_PER_END
-    }
-}
-
-invar!(
-    POSION_RESISTANCE_PER_END,
-    5,
-    "СопротивлениеЯдуЗаВыносливость"
-);
-impl ResistPoison {
-    pub fn make_formula(&self) -> impl CrOp {
-        self.sum() + Endurance.calc() * POSION_RESISTANCE_PER_END
     }
 }

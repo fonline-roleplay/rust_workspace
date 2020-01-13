@@ -139,7 +139,7 @@ mod test {
 
         let cr = Critter::new(&param, time);
 
-        let formula = stat::MaxLife.calc();
+        let formula = stat::LifeMax.calc();
 
         // Передаём формуле массив Param'ов и просив написать красивый вывод
         let info = formula.full_info("МаксЗдоровье", Some(&cr)).unwrap();
@@ -156,6 +156,20 @@ mod test {
 
         let formula = stat::Perception.calc();
         let info = formula.full_info("Восприятие", Some(&cr)).unwrap();
+        println!("\n\n{}", info);
+
+        let formula = stat::WeightMax.calc();
+        let info = formula.full_info("ИтоговыйМаксВес", Some(&cr)).unwrap();
+        println!("\n\n{}", info);
+
+        let formula = stat::MeleeDamage.calc();
+        let info = formula
+            .full_info("ИтоговыйРукопашныйУрон", Some(&cr))
+            .unwrap();
+        println!("\n\n{}", info);
+
+        let formula = stat::HealingRate.calc();
+        let info = formula.full_info("ИтоговыйТемпЛечения", Some(&cr)).unwrap();
         println!("\n\n{}", info);
     }
 }

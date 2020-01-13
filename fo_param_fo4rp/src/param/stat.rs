@@ -126,3 +126,130 @@ impl CriticalChance {
 impl CriticalMax {
     // default .sum() formula
 }
+
+invar!(AC_PER_AGILITY, 5, "ОчковБрониЗаЛовкость");
+impl ArmorClass {
+    pub fn make_formula(&self) -> impl CrOp {
+        let armor_ac = opaque("ОчкиНадетойБрони", |data: &Critter| {
+            data.armor()
+                .and_then(|armor| armor.proto())
+                .map_or(0, |armor| armor.Armor_AC)
+        });
+        self.sum() + Agility.calc() * AC_PER_AGILITY + misc::ArmorClassTurnBased.base() - armor_ac
+    }
+}
+
+mod absorb_and_resist {
+    use super::*;
+    use formula::prelude::tools::Op;
+    use tnf_common::engine_types::item::ProtoItem;
+
+    fn sum_and_armor<'a, F: Copy + Fn(&ProtoItem) -> i32>(
+        from_stat: &impl HasParamSum<&'a Critter<'a>>,
+        from_armor: F,
+    ) -> impl CrOp<'a> {
+        "ОтСтатов".part(from_stat.sum()) + opaque("ОтБрони", move |cr| armor(cr, from_armor))
+    }
+    fn armor(cr: &Critter, val: impl Fn(&ProtoItem) -> i32) -> i32 {
+        if let Some(armor) = cr.armor() {
+            if let Some(proto) = armor.proto() {
+                return val(proto) * (100 - armor.get_deterioration_proc()) as i32 / 100;
+            }
+        }
+        0
+    }
+
+    impl AbsorbNormal {
+        pub fn make_formula(&self) -> impl CrOp {
+            sum_and_armor(self, |proto| proto.Armor_DTNormal)
+        }
+    }
+    impl AbsorbLaser {
+        pub fn make_formula(&self) -> impl CrOp {
+            sum_and_armor(self, |proto| proto.Armor_DTLaser)
+        }
+    }
+    impl AbsorbFire {
+        pub fn make_formula(&self) -> impl CrOp {
+            sum_and_armor(self, |proto| proto.Armor_DTFire)
+        }
+    }
+    impl AbsorbPlasma {
+        pub fn make_formula(&self) -> impl CrOp {
+            sum_and_armor(self, |proto| proto.Armor_DTPlasma)
+        }
+    }
+    impl AbsorbElectro {
+        pub fn make_formula(&self) -> impl CrOp {
+            sum_and_armor(self, |proto| proto.Armor_DTElectr)
+        }
+    }
+    impl AbsorbEMP {
+        pub fn make_formula(&self) -> impl CrOp {
+            sum_and_armor(self, |proto| proto.Armor_DTEmp)
+        }
+    }
+    impl AbsorbExplosion {
+        pub fn make_formula(&self) -> impl CrOp {
+            sum_and_armor(self, |proto| proto.Armor_DTExplode)
+        }
+    }
+
+    impl ResistNormal {
+        pub fn make_formula(&self) -> impl CrOp {
+            sum_and_armor(self, |proto| proto.Armor_DRNormal)
+        }
+    }
+    impl ResistLaser {
+        pub fn make_formula(&self) -> impl CrOp {
+            sum_and_armor(self, |proto| proto.Armor_DRLaser)
+        }
+    }
+    impl ResistFire {
+        pub fn make_formula(&self) -> impl CrOp {
+            sum_and_armor(self, |proto| proto.Armor_DRFire)
+        }
+    }
+    impl ResistPlasma {
+        pub fn make_formula(&self) -> impl CrOp {
+            sum_and_armor(self, |proto| proto.Armor_DRPlasma)
+        }
+    }
+    impl ResistElectro {
+        pub fn make_formula(&self) -> impl CrOp {
+            sum_and_armor(self, |proto| proto.Armor_DRElectr)
+        }
+    }
+    impl ResistEMP {
+        pub fn make_formula(&self) -> impl CrOp {
+            sum_and_armor(self, |proto| proto.Armor_DREmp)
+        }
+    }
+    impl ResistExplosion {
+        pub fn make_formula(&self) -> impl CrOp {
+            sum_and_armor(self, |proto| proto.Armor_DRExplode)
+        }
+    }
+}
+
+invar!(
+    RADIATION_RESISTANCE_PER_END,
+    2,
+    "СопротивлениеРадиацииЗаВыносливость"
+);
+impl ResistRadiation {
+    pub fn make_formula(&self) -> impl CrOp {
+        self.sum() + Endurance.calc() * RADIATION_RESISTANCE_PER_END
+    }
+}
+
+invar!(
+    POSION_RESISTANCE_PER_END,
+    5,
+    "СопротивлениеЯдуЗаВыносливость"
+);
+impl ResistPoison {
+    pub fn make_formula(&self) -> impl CrOp {
+        self.sum() + Endurance.calc() * POSION_RESISTANCE_PER_END
+    }
+}

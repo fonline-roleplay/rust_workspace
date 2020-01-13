@@ -26,6 +26,20 @@ impl Validate for Item {
     }
 }
 
+impl Item {
+    pub fn proto(&self) -> Option<&ProtoItem> {
+        unsafe { std::mem::transmute(self.Proto) }
+    }
+    pub fn get_deterioration(&self) -> u16 {
+        self.Data.Deterioration
+    }
+    pub fn get_deterioration_proc(&self) -> u16 {
+        const MAX_DETERIORATION: u16 = 10000;
+        let proc = self.get_deterioration() * 100 / MAX_DETERIORATION;
+        proc.min(100)
+    }
+}
+
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub union Item__bindgen_ty_1 {

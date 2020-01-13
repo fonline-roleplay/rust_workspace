@@ -24,6 +24,25 @@ pub mod stat {
         (CriticalChance, "ШансНаКрит", ST_CRITICAL_CHANCE, ST_CRITICAL_CHANCE_EXT, (0, 100)),
         (CriticalMax, "ЛучшийКрит", ST_MAX_CRITICAL, ST_MAX_CRITICAL_EXT, (-100, 100)),
         (ArmorClass, "КлассБрони", ST_ARMOR_CLASS, ST_ARMOR_CLASS_EXT, (0, 90)),
+        
+        (AbsorbNormal, "ПоглощениеНормальногоУрона", ST_NORMAL_ABSORB, ST_NORMAL_ABSORB_EXT, (0, 999)),
+        (AbsorbLaser, "ПоглощениеЛазерногоУрона", ST_LASER_ABSORB, ST_LASER_ABSORB_EXT, (0, 999)),
+        (AbsorbFire, "ПоглощениеОгненногоУрона", ST_FIRE_ABSORB, ST_FIRE_ABSORB_EXT, (0, 999)),
+        (AbsorbPlasma, "ПоглощениеПлазменногоУрона", ST_PLASMA_ABSORB, ST_PLASMA_ABSORB_EXT, (0, 999)),
+        (AbsorbElectro, "ПоглощениеЭлектрическогоУрона", ST_ELECTRO_ABSORB, ST_ELECTRO_ABSORB_EXT, (0, 999)),
+        (AbsorbEMP, "ПоглощениеЭМИУрона", ST_EMP_ABSORB, ST_EMP_ABSORB_EXT, (0, 999)),
+        (AbsorbExplosion, "ПоглощениеВзрывногоУрона", ST_EXPLODE_ABSORB, ST_EXPLODE_ABSORB_EXT, (0, 999)),
+        
+        (ResistNormal, "СопротивлениеНормальномуУрону", ST_NORMAL_RESIST, ST_NORMAL_RESIST_EXT, (0, 90)),
+        (ResistLaser, "СопротивлениеЛазерномуУрону", ST_LASER_RESIST, ST_LASER_RESIST_EXT, (0, 90)),
+        (ResistFire, "СопротивлениеОгненномуУрону", ST_FIRE_RESIST, ST_FIRE_RESIST_EXT, (0, 90)),
+        (ResistPlasma, "СопротивлениеПлазменномуУрону", ST_PLASMA_RESIST, ST_PLASMA_RESIST_EXT, (0, 90)),
+        (ResistElectro, "СопротивлениеЭлектрическомуУрону", ST_ELECTRO_RESIST, ST_ELECTRO_RESIST_EXT, (0, 90)),
+        (ResistEMP, "СопротивлениеЭМИУрону", ST_EMP_RESIST, ST_EMP_RESIST_EXT, (0, 999)),
+        (ResistExplosion, "СопротивлениеВзрывномуУрону", ST_EXPLODE_RESIST, ST_EXPLODE_RESIST_EXT, (0, 90)),
+        
+        (ResistRadiation, "СопротивлениеРадиации", ST_RADIATION_RESISTANCE, ST_RADIATION_RESISTANCE_EXT, (0, 95)),
+        (ResistPoison, "СопротивлениеЯду", ST_POISON_RESISTANCE, ST_POISON_RESISTANCE_EXT, (0, 95)),
     );
 }
 
@@ -34,6 +53,7 @@ pub mod misc {
         (LifeCurrent, "ТекущееЗдоровье", ST_CURRENT_HP, ()),
         (ActionPointsCurrent, "ТекущиеОД", ST_CURRENT_AP, (-9999, 9999)),
         (ActionPointsRegen, "РегенерацияОД", ST_APREGEN, ()),
+        (ArmorClassTurnBased, "КлассБрониПошаговый", ST_TURN_BASED_AC, ()),
         (MoveActionPointsMax, "МаксОДПеремещения", ST_MAX_MOVE_AP, (0, 9999)),
         (MoveActionPointsCurrent, "ТекущиеОДПеремещения", ST_MOVE_AP, (0, 9999)),
     );

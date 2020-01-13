@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 fo_param = { path = "../fo_param" }
 formula = { path = "../formula" }
+tnf_common = { path = "../common", features = ["engine_types"] }

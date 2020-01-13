@@ -18,11 +18,19 @@ impl Time {
 pub struct Critter<'a> {
     pub param: &'a [i32; RawParam::PARAMS_COUNT as usize],
     pub time: Time,
+    armor: Option<tnf_common::engine_types::item::Item>,
 }
 
 impl<'a> Critter<'a> {
     pub fn new(param: &'a [i32; RawParam::PARAMS_COUNT as usize], time: Time) -> Self {
-        Critter { param, time }
+        Critter {
+            param,
+            time,
+            armor: None,
+        }
+    }
+    pub fn armor(&self) -> Option<&tnf_common::engine_types::item::Item> {
+        self.armor.as_ref()
     }
 }
 

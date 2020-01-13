@@ -112,6 +112,16 @@ impl_biop!(
 );
 
 impl_biop!(
+    Sub,
+    Sub,
+    sub,
+    Precedence::Add,
+    " - ",
+    Saturating,
+    compute_sub
+);
+
+impl_biop!(
     Mul,
     Mul,
     mul,

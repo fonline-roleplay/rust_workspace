@@ -3,7 +3,7 @@ pub use crate::{
     ops::{
         biop::pow,
         compare::{equal, greater_or_equal, greater_than, less_or_equal, less_than, not_equal},
-        cond::{clamp, if_else},
+        cond::{clamp, if_else, max, min},
         cut, opaque,
         tag::FormulaCompat,
         uniforms::{int, invar},

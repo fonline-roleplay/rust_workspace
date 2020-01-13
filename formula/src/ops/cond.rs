@@ -53,6 +53,40 @@ where
     op(IfElse(condition.0, first.0, second.0))
 }
 
+macro_rules! min_max (
+    ($big:ident, $small:ident, $text:expr) => {
+        #[derive(Debug, Clone, Copy)]
+        pub struct $big<A, B>(A, B);
+
+        impl<I: Copy, O: Ord, A: Formula<I, O>, B: Formula<I, O>> Formula<I, O> for $big<A, B> {
+            const PRECEDENCE: Precedence = Precedence::Bound;
+            fn compute(&self, input: I) -> O {
+                let a = self.0.compute(input);
+                let b = self.1.compute(input);
+                std::cmp::$small(a, b)
+            }
+            fn description<D: Descriptor>(&self, desc: &mut D, input: Option<I>) -> fmt::Result {
+                use std::fmt::Write;
+                desc.buffer().write_str($text)?;
+                Self::biop(&self.0, &self.1, " И ", desc, input)
+            }
+        }
+
+        pub fn $small<IA: Copy, IB: Copy, O: PartialOrd, A: Formula<IA, O>, B: Formula<IB, O>>(
+            a: Op<IA, O, A>,
+            b: Op<IB, O, B>,
+        ) -> Op<BiopOutput<IA, IB>, O, $big<A, B>>
+        where
+            (IA, IB): Biop,
+            $big<A, B>: Formula<BiopOutput<IA, IB>, O>,
+        {
+            op($big(a.0, b.0))
+        }
+});
+
+min_max!(Max, max, "НАИБОЛЬШЕЕ СРЕДИ ");
+min_max!(Min, min, "НАИМЕНЬШЕЕ СРЕДИ ");
+
 #[derive(Debug, Clone, Copy)]
 pub struct Clamp<C, A, B>(C, A, B);
 
@@ -123,6 +157,19 @@ mod test {
         let formula = clamp(int(15), int(-5), int(10));
         assert_eq!(10, formula.compute(()));
         let formula = clamp(int(-10), int(-5), int(10));
+        assert_eq!(-5, formula.compute(()));
+    }
+
+    #[test]
+    fn test_min_max() {
+        let formula = max(int(5), int(-5));
+        assert_eq!(5, formula.compute(()));
+        let formula = max(int(-5), int(5));
+        assert_eq!(5, formula.compute(()));
+
+        let formula = min(int(5), int(-5));
+        assert_eq!(-5, formula.compute(()));
+        let formula = min(int(-5), int(5));
         assert_eq!(-5, formula.compute(()));
     }
 }

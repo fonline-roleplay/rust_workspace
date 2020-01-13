@@ -120,3 +120,21 @@ macro_rules! impl_present(
         }
     }
 );
+
+#[macro_export]
+macro_rules! impl_fn(
+    {
+        cfg: (($($lt:tt)?), $data:ty),
+        decl: $decl:ident,
+        name: $name:expr,
+        shared: ($fun:path),
+        args: ($($args:expr),*)
+    } => {
+        impl $decl {
+            #[forbid(dead_code)]
+            pub fn make_formula$(<$lt>)?(&$($lt)? self) -> impl formula::prelude::FormulaCompat<$data, i32> {
+                $fun(self, $($args),*)
+            }
+        }
+    }
+);

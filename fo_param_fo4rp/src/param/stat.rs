@@ -139,12 +139,12 @@ impl ArmorClass {
     }
 }
 
-mod absorb_and_resist {
+pub mod absorb_and_resist {
     use super::*;
     use formula::prelude::tools::Op;
     use tnf_common::engine_types::item::ProtoItem;
 
-    fn sum_and_armor<'a, F: Copy + Fn(&ProtoItem) -> i32>(
+    pub fn sum_and_armor<'a, F: Copy + Fn(&ProtoItem) -> i32>(
         from_stat: &impl HasParamSum<&'a Critter<'a>>,
         from_armor: F,
     ) -> impl CrOp<'a> {
@@ -157,78 +157,6 @@ mod absorb_and_resist {
             }
         }
         0
-    }
-
-    impl AbsorbNormal {
-        pub fn make_formula(&self) -> impl CrOp {
-            sum_and_armor(self, |proto| proto.Armor_DTNormal)
-        }
-    }
-    impl AbsorbLaser {
-        pub fn make_formula(&self) -> impl CrOp {
-            sum_and_armor(self, |proto| proto.Armor_DTLaser)
-        }
-    }
-    impl AbsorbFire {
-        pub fn make_formula(&self) -> impl CrOp {
-            sum_and_armor(self, |proto| proto.Armor_DTFire)
-        }
-    }
-    impl AbsorbPlasma {
-        pub fn make_formula(&self) -> impl CrOp {
-            sum_and_armor(self, |proto| proto.Armor_DTPlasma)
-        }
-    }
-    impl AbsorbElectro {
-        pub fn make_formula(&self) -> impl CrOp {
-            sum_and_armor(self, |proto| proto.Armor_DTElectr)
-        }
-    }
-    impl AbsorbEMP {
-        pub fn make_formula(&self) -> impl CrOp {
-            sum_and_armor(self, |proto| proto.Armor_DTEmp)
-        }
-    }
-    impl AbsorbExplosion {
-        pub fn make_formula(&self) -> impl CrOp {
-            sum_and_armor(self, |proto| proto.Armor_DTExplode)
-        }
-    }
-
-    impl ResistNormal {
-        pub fn make_formula(&self) -> impl CrOp {
-            sum_and_armor(self, |proto| proto.Armor_DRNormal)
-        }
-    }
-    impl ResistLaser {
-        pub fn make_formula(&self) -> impl CrOp {
-            sum_and_armor(self, |proto| proto.Armor_DRLaser)
-        }
-    }
-    impl ResistFire {
-        pub fn make_formula(&self) -> impl CrOp {
-            sum_and_armor(self, |proto| proto.Armor_DRFire)
-        }
-    }
-    impl ResistPlasma {
-        pub fn make_formula(&self) -> impl CrOp {
-            sum_and_armor(self, |proto| proto.Armor_DRPlasma)
-        }
-    }
-    impl ResistElectro {
-        pub fn make_formula(&self) -> impl CrOp {
-            sum_and_armor(self, |proto| proto.Armor_DRElectr)
-        }
-    }
-    impl ResistEMP {
-        pub fn make_formula(&self) -> impl CrOp {
-            sum_and_armor(self, |proto| proto.Armor_DREmp)
-        }
-    }
-    impl ResistExplosion {
-        pub fn make_formula(&self) -> impl CrOp {
-            sum_and_armor(self, |proto| proto.Armor_DRExplode)
-        }
     }
 }
 

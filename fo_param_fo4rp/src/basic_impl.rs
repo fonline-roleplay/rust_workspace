@@ -1,5 +1,5 @@
 use crate::{critter::Critter, raw_param::RawParam::*};
-use fo_param::{impl_base, impl_calc, impl_ext, impl_param, impl_present};
+use fo_param::{impl_base, impl_calc, impl_ext, impl_fn, impl_param, impl_present};
 use formula::prelude::invar;
 
 type InvarI32 = formula::prelude::tools::Invar<i32>;
@@ -23,26 +23,31 @@ pub mod stat {
         (HealingRate, "ТемпЛечения", ST_HEALING_RATE, ST_HEALING_RATE_EXT, (0, 9999)),
         (CriticalChance, "ШансНаКрит", ST_CRITICAL_CHANCE, ST_CRITICAL_CHANCE_EXT, (0, 100)),
         (CriticalMax, "ЛучшийКрит", ST_MAX_CRITICAL, ST_MAX_CRITICAL_EXT, (-100, 100)),
-        (ArmorClass, "КлассБрони", ST_ARMOR_CLASS, ST_ARMOR_CLASS_EXT, (0, 90)),
-        
-        (AbsorbNormal, "ПоглощениеНормальногоУрона", ST_NORMAL_ABSORB, ST_NORMAL_ABSORB_EXT, (0, 999)),
-        (AbsorbLaser, "ПоглощениеЛазерногоУрона", ST_LASER_ABSORB, ST_LASER_ABSORB_EXT, (0, 999)),
-        (AbsorbFire, "ПоглощениеОгненногоУрона", ST_FIRE_ABSORB, ST_FIRE_ABSORB_EXT, (0, 999)),
-        (AbsorbPlasma, "ПоглощениеПлазменногоУрона", ST_PLASMA_ABSORB, ST_PLASMA_ABSORB_EXT, (0, 999)),
-        (AbsorbElectro, "ПоглощениеЭлектрическогоУрона", ST_ELECTRO_ABSORB, ST_ELECTRO_ABSORB_EXT, (0, 999)),
-        (AbsorbEMP, "ПоглощениеЭМИУрона", ST_EMP_ABSORB, ST_EMP_ABSORB_EXT, (0, 999)),
-        (AbsorbExplosion, "ПоглощениеВзрывногоУрона", ST_EXPLODE_ABSORB, ST_EXPLODE_ABSORB_EXT, (0, 999)),
-        
-        (ResistNormal, "СопротивлениеНормальномуУрону", ST_NORMAL_RESIST, ST_NORMAL_RESIST_EXT, (0, 90)),
-        (ResistLaser, "СопротивлениеЛазерномуУрону", ST_LASER_RESIST, ST_LASER_RESIST_EXT, (0, 90)),
-        (ResistFire, "СопротивлениеОгненномуУрону", ST_FIRE_RESIST, ST_FIRE_RESIST_EXT, (0, 90)),
-        (ResistPlasma, "СопротивлениеПлазменномуУрону", ST_PLASMA_RESIST, ST_PLASMA_RESIST_EXT, (0, 90)),
-        (ResistElectro, "СопротивлениеЭлектрическомуУрону", ST_ELECTRO_RESIST, ST_ELECTRO_RESIST_EXT, (0, 90)),
-        (ResistEMP, "СопротивлениеЭМИУрону", ST_EMP_RESIST, ST_EMP_RESIST_EXT, (0, 999)),
-        (ResistExplosion, "СопротивлениеВзрывномуУрону", ST_EXPLODE_RESIST, ST_EXPLODE_RESIST_EXT, (0, 90)),
-        
+        (ArmorClass, "КлассБрони", ST_ARMOR_CLASS, ST_ARMOR_CLASS_EXT, (0, 90)),        
         (ResistRadiation, "СопротивлениеРадиации", ST_RADIATION_RESISTANCE, ST_RADIATION_RESISTANCE_EXT, (0, 95)),
         (ResistPoison, "СопротивлениеЯду", ST_POISON_RESISTANCE, ST_POISON_RESISTANCE_EXT, (0, 95)),
+    );
+
+    impl_param!(
+        (cfg, ('a), &'a Critter<'a>, impl_base!("База"), impl_ext!("Эффект"), impl_calc!(),
+            impl_fn!(crate::param::stat::absorb_and_resist::sum_and_armor)
+        ),
+        
+        (AbsorbNormal,    "ПоглощениеНормальногоУрона",       ST_NORMAL_ABSORB,   ST_NORMAL_ABSORB_EXT,   (0, 999), (|p| p.Armor_DTNormal)),
+        (AbsorbLaser,     "ПоглощениеЛазерногоУрона",         ST_LASER_ABSORB,    ST_LASER_ABSORB_EXT,    (0, 999), (|p| p.Armor_DTLaser)),
+        (AbsorbFire,      "ПоглощениеОгненногоУрона",         ST_FIRE_ABSORB,     ST_FIRE_ABSORB_EXT,     (0, 999), (|p| p.Armor_DTFire)),
+        (AbsorbPlasma,    "ПоглощениеПлазменногоУрона",       ST_PLASMA_ABSORB,   ST_PLASMA_ABSORB_EXT,   (0, 999), (|p| p.Armor_DTPlasma)),
+        (AbsorbElectro,   "ПоглощениеЭлектрическогоУрона",    ST_ELECTRO_ABSORB,  ST_ELECTRO_ABSORB_EXT,  (0, 999), (|p| p.Armor_DTElectr)),
+        (AbsorbEMP,       "ПоглощениеЭМИУрона",               ST_EMP_ABSORB,      ST_EMP_ABSORB_EXT,      (0, 999), (|p| p.Armor_DTEmp)),
+        (AbsorbExplosion, "ПоглощениеВзрывногоУрона",         ST_EXPLODE_ABSORB,  ST_EXPLODE_ABSORB_EXT,  (0, 999), (|p| p.Armor_DTExplode)),
+        
+        (ResistNormal,    "СопротивлениеНормальномуУрону",    ST_NORMAL_RESIST,   ST_NORMAL_RESIST_EXT,   (0, 90),  (|p| p.Armor_DRNormal)),
+        (ResistLaser,     "СопротивлениеЛазерномуУрону",      ST_LASER_RESIST,    ST_LASER_RESIST_EXT,    (0, 90),  (|p| p.Armor_DRLaser)),
+        (ResistFire,      "СопротивлениеОгненномуУрону",      ST_FIRE_RESIST,     ST_FIRE_RESIST_EXT,     (0, 90),  (|p| p.Armor_DRFire)),
+        (ResistPlasma,    "СопротивлениеПлазменномуУрону",    ST_PLASMA_RESIST,   ST_PLASMA_RESIST_EXT,   (0, 90),  (|p| p.Armor_DRPlasma)),
+        (ResistElectro,   "СопротивлениеЭлектрическомуУрону", ST_ELECTRO_RESIST,  ST_ELECTRO_RESIST_EXT,  (0, 90),  (|p| p.Armor_DRElectr)),
+        (ResistEMP,       "СопротивлениеЭМИУрону",            ST_EMP_RESIST,      ST_EMP_RESIST_EXT,     (0, 999),  (|p| p.Armor_DREmp)),
+        (ResistExplosion, "СопротивлениеВзрывномуУрону",      ST_EXPLODE_RESIST,  ST_EXPLODE_RESIST_EXT,  (0, 90),  (|p| p.Armor_DRExplode)),
     );
 }
 

@@ -27,11 +27,21 @@ impl<I: ParamGet, T: HasParamSum<I>> CalcSum<I> for &T {
 
 #[macro_export]
 macro_rules! impl_param(
-    ((cfg, $lt:tt, $data:ty, $($impl:ident!($($shared:tt)*)),*),) => {
+    (
+        {
+            lt: $lt:tt, data: $data:ty,
+            with_args: ($ ($impl:ident!($ ($shared:tt)*)),*),
+            $(no_args: ($($impl2:ident!($($shared2:tt)*)),*), )?
+        },
+    ) => {
 
     };
     (
-        (cfg, $lt:tt, $data:ty, $($impl:ident!($($shared:tt)*)),*),
+        {
+            lt: $lt:tt, data: $data:ty,
+            with_args: ($ ($impl:ident!($ ($shared:tt)*)),*),
+            $(no_args: ($($impl2:ident!($($shared2:tt)*)),+), )?
+        },
         ($decl:ident,  $name:expr, $($args:tt),*),
         $($rest:tt)*
     ) => {
@@ -39,23 +49,36 @@ macro_rules! impl_param(
         pub struct $decl;
         $(
             $impl!(
-                cfg: ($lt, $data),
-                decl: $decl,
-                name: $name,
+                lt: $lt, data: $data,
+                decl: $decl, name: $name,
                 shared: ($($shared)*),
                 args: $args
             );
         )*
-        impl_param!((cfg, $lt, $data, $($impl!($($shared)*)),*), $($rest)*);
+        $($(
+            $impl2!(
+                lt: $lt, data: $data,
+                decl: $decl, name: $name,
+                shared: ($($shared2)*),
+                args: ()
+            );
+        )+)?
+        impl_param!(
+            {
+                lt: $lt, data: $data,
+                with_args: ($ ($impl!($ ($shared)*)),*),
+                $(no_args: ($($impl2!($($shared2)*)),*), )?
+            },
+            $($rest)*
+        );
     };
 );
 
 #[macro_export]
 macro_rules! impl_base(
     {
-        cfg: (($($lt:tt)?), $data:ty),
-        decl: $decl:ident,
-        name: $name:expr,
+        lt: ($($lt:tt)?), data: $data:ty,
+        decl: $decl:ident, name: $name:expr,
         shared: ($base:expr),
         args: $index:expr
     } => {
@@ -69,9 +92,8 @@ macro_rules! impl_base(
 #[macro_export]
 macro_rules! impl_ext(
     {
-        cfg: (($($lt:tt)?), $data:ty),
-        decl: $decl:ident,
-        name: $name:expr,
+        lt: ($($lt:tt)?), data: $data:ty,
+        decl: $decl:ident, name: $name:expr,
         shared: ($ext:expr),
         args: $index_ext:expr
     } => {
@@ -85,9 +107,8 @@ macro_rules! impl_ext(
 #[macro_export]
 macro_rules! impl_calc(
     {
-        cfg: (($($lt:tt)?), $data:ty),
-        decl: $decl:ident,
-        name: $name:expr,
+        lt: ($($lt:tt)?), data: $data:ty,
+        decl: $decl:ident, name: $name:expr,
         shared: (),
         args: ($($min:expr, $max:expr)?)
     } => {
@@ -107,9 +128,8 @@ macro_rules! impl_calc(
 #[macro_export]
 macro_rules! impl_present(
     {
-        cfg: (($($lt:tt)?), $data:ty),
-        decl: $decl:ident,
-        name: $name:expr,
+        lt: ($($lt:tt)?), data: $data:ty,
+        decl: $decl:ident, name: $name:expr,
         shared: ($present:expr, $not_present_type:ty, $not_present:expr),
         args: ()
     } => {
@@ -124,9 +144,8 @@ macro_rules! impl_present(
 #[macro_export]
 macro_rules! impl_fn(
     {
-        cfg: (($($lt:tt)?), $data:ty),
-        decl: $decl:ident,
-        name: $name:expr,
+        lt: ($($lt:tt)?), data: $data:ty,
+        decl: $decl:ident, name: $name:expr,
         shared: ($fun:path),
         args: ($($args:expr),*)
     } => {

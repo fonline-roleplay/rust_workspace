@@ -5,10 +5,13 @@ mod impl_param {
     use crate::param::impl_prelude::*;
     invar!(TRAIT_NOT_PRESENT, 0, "ТрейтОтсутствует");
     impl_param!(
-        (cfg, ('a), &'a Critter<'a>,
-            impl_base!("Трейт"), impl_calc!(), impl_present!("ТрейтПрисутствует", InvarI32, TRAIT_NOT_PRESENT)),
-        (SmallFrame,    "XилоеТело",        TRAIT_SMALL_FRAME,  (), ()),
-        (NightPerson,   "НочнаяПерсона",    TRAIT_NIGHT_PERSON, (), ()),
+        {
+            lt: ('a), data: &'a Critter<'a>,
+            with_args: ( impl_base!("Трейт") ),
+            no_args: ( impl_calc!(), impl_present!("ТрейтПрисутствует", InvarI32, TRAIT_NOT_PRESENT) ),
+        },
+        (SmallFrame,    "XилоеТело",        TRAIT_SMALL_FRAME),
+        (NightPerson,   "НочнаяПерсона",    TRAIT_NIGHT_PERSON),
     );
 }
 pub use impl_param::*;

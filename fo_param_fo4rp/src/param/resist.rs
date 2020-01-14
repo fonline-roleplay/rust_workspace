@@ -4,10 +4,13 @@ use super::prelude::*;
 mod impl_param {
     use crate::param::impl_prelude::*;
     impl_param!(
-        (cfg, ('a), &'a Critter<'a>, impl_base!("База"), impl_ext!("Эффект"), impl_calc!(),
-            impl_fn!(crate::param::stat::absorb_and_resist::sum_and_armor)
-        ),
-          
+        {
+            lt: ('a), data: &'a Critter<'a>,
+            with_args: (
+                impl_base!("База"), impl_ext!("Эффект"), impl_calc!(),
+                impl_fn!(crate::param::stat::absorb_and_resist::sum_and_armor)
+            ),
+        },
         (Normal,    "СопротивлениеНормальномуУрону",    ST_NORMAL_RESIST,   ST_NORMAL_RESIST_EXT,   (0, 90),  (|p| p.Armor_DRNormal)),
         (Laser,     "СопротивлениеЛазерномуУрону",      ST_LASER_RESIST,    ST_LASER_RESIST_EXT,    (0, 90),  (|p| p.Armor_DRLaser)),
         (Fire,      "СопротивлениеОгненномуУрону",      ST_FIRE_RESIST,     ST_FIRE_RESIST_EXT,     (0, 90),  (|p| p.Armor_DRFire)),
@@ -18,7 +21,10 @@ mod impl_param {
     );
 
     impl_param!(
-        (cfg, ('a), &'a Critter<'a>, impl_base!("База"), impl_ext!("Эффект"), impl_calc!()),
+        {
+            lt: ('a), data: &'a Critter<'a>,
+            with_args: ( impl_base!("База"), impl_ext!("Эффект"), impl_calc!() ),
+        },
         (Radiation, "СопротивлениеРадиации",      ST_RADIATION_RESISTANCE,  ST_RADIATION_RESISTANCE_EXT,  (0, 95)),
         (Poison,    "СопротивлениеЯду",           ST_POISON_RESISTANCE,     ST_POISON_RESISTANCE_EXT,     (0, 95)),
     );

@@ -18,6 +18,7 @@ impl Time {
 pub struct Critter<'a> {
     pub param: &'a [i32; RawParam::PARAMS_COUNT as usize],
     pub time: Time,
+    pub full_second: u32,
     armor: Option<tnf_common::engine_types::item::Item>,
 }
 
@@ -26,6 +27,7 @@ impl<'a> Critter<'a> {
         Critter {
             param,
             time,
+            full_second: 0,
             armor: None,
         }
     }

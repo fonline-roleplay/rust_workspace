@@ -4,9 +4,13 @@ use super::prelude::*;
 mod impl_param {
     use crate::param::impl_prelude::*;
     impl_param!(
-        (cfg, ('a), &'a Critter<'a>, impl_base!("База"), impl_ext!("Эффект"), impl_calc!(),
-            impl_fn!(crate::param::stat::absorb_and_resist::sum_and_armor)
-        ),
+        {
+            lt: ('a), data: &'a Critter<'a>,
+            with_args: (
+                impl_base!("База"), impl_ext!("Эффект"), impl_calc!(),
+                impl_fn!(crate::param::stat::absorb_and_resist::sum_and_armor)
+            ),
+        },
         
         (Normal,    "ПоглощениеНормальногоУрона",       ST_NORMAL_ABSORB,   ST_NORMAL_ABSORB_EXT,   (0, 999), (|p| p.Armor_DTNormal)),
         (Laser,     "ПоглощениеЛазерногоУрона",         ST_LASER_ABSORB,    ST_LASER_ABSORB_EXT,    (0, 999), (|p| p.Armor_DTLaser)),

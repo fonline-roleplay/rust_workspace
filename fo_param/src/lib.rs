@@ -16,7 +16,11 @@ mod test {
         }
     }
     impl_param!(
-        (cfg, ('a), &'a Foo<'a>, impl_base!("База"), impl_ext!("Эффект")),
+        { 
+            lt: ('a),
+            data: &'a Foo<'a>,
+            with_args: (impl_base!("База"), impl_ext!("Эффект")),
+        },
         (Strength, "Сила", 0, 32),
         (Strength2, "Сила2", 0, 32),
     );
@@ -30,7 +34,10 @@ mod test {
         }
     }
     impl_param!(
-        (cfg, (), Bar, impl_base!("База"), impl_ext!("Эффект")),
+        { 
+            lt: (), data: Bar,
+            with_args: (impl_base!("База"), impl_ext!("Эффект")),
+        },
         (Strength3, "Сила", 0, 32),
         (Strength4, "Сила2", 0, 32),
     );

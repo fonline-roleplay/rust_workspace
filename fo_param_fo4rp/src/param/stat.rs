@@ -4,7 +4,10 @@ use super::prelude::*;
 mod impl_param {
     use crate::param::impl_prelude::*;
     impl_param!(
-        (cfg, ('a), &'a Critter<'a>,            impl_base!("База"), impl_ext!("Эффект"),    impl_calc!()),
+        {
+            lt: ('a), data: &'a Critter<'a>,
+            with_args: ( impl_base!("База"), impl_ext!("Эффект"), impl_calc!()),
+        },
         (Strength,        "Сила",               ST_STRENGTH,        ST_STRENGTH_EXT,        (1, 10)),
         (Perception,      "Восприятие",         ST_PERCEPTION,      ST_PERCEPTION_EXT,      (1, 10)),
         (Endurance,       "Выносливость",       ST_ENDURANCE,       ST_ENDURANCE_EXT,       (1, 10)),
@@ -36,7 +39,7 @@ impl Strength {
             (LifeMax.base() + Strength.base() + Endurance.base() * int(2)) / int(2),
         );
         let rush_condition = perk::AdrenalineRush.present()
-            & not_equal(timeout::Battle.base(), TIMEOUT_READY)
+            & not_equal(timeout::Battle.calc(), TIMEOUT_READY)
             & "МалоЗдоровья".part(low_life);
         let rush_bonus = "ОтВыбросаАдреналина".part(if_else(
             "ВыбросАдреналинаДействует".part(rush_condition),
@@ -135,15 +138,14 @@ impl MeleeDamage {
 
 impl HealingRate {
     pub fn make_formula(&self) -> impl CrOp {
-        let endurance = "Выносливость".part(Endurance.calc());
-        let from_endurance = "ОтВыносливости".part(max(int(1), endurance / int(3)));
+        let from_endurance = "ОтВыносливости".part(max(int(1), Endurance.calc() / int(3)));
         self.sum() + from_endurance
     }
 }
 
 impl CriticalChance {
     pub fn make_formula(&self) -> impl CrOp {
-        self.sum() + "Удача".part(Luck.calc())
+        self.sum() + Luck.calc()
     }
 }
 impl CriticalMax {

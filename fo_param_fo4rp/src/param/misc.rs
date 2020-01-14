@@ -4,7 +4,10 @@ use super::prelude::*;
 mod impl_param {
     use crate::param::impl_prelude::*;
     impl_param!(
-        (cfg, ('a), &'a Critter<'a>,                        impl_base!(""),     impl_calc!()),
+        {
+            lt: ('a), data: &'a Critter<'a>,
+            with_args: ( impl_base!(""), impl_calc!()),
+        },
         (LifeCurrent,               "ТекущееЗдоровье",      ST_CURRENT_HP,      ()),
         (ActionPointsCurrent,       "ТекущиеОД",            ST_CURRENT_AP,      (-9999, 9999)),
         (ActionPointsRegen,         "РегенерацияОД",        ST_APREGEN,         ()),

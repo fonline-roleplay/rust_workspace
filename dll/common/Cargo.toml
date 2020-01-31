@@ -1,0 +1,23 @@
+[package]
+name = "tnf_common"
+version = "0.1.0"
+authors = ["qthree <qthree3@gmail.com>"]
+edition = "2018"
+publish = false
+
+[features]
+default = []
+client = ["winapi", "dll"]
+server = ["winapi", "dll", "fo_defines/param_mut"]
+dll = ["engine_types"]
+engine_types = []
+
+[dependencies]
+winapi = { optional=true, version = "0.3.6", features = ["consoleapi"] }
+primitives = { path = "../../crates/primitives" }
+fo_defines = { path = "../../crates/fo_defines" }
+fo_defines_fo4rp = { path = "../../crates/fo_defines_fo4rp" }
+#fo_param_fo4rp = { path = "../../crates/fo_param_fo4rp", optional=true }
+
+#[lib]
+#crate-type = ["cdylib"]

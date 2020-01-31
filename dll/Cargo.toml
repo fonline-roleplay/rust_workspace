@@ -1,0 +1,9 @@
+[workspace]
+members = [
+# dll stuff
+    "client", "server", "common",
+]
+
+[profile.release]
+lto = "fat"
+debug = 1

@@ -1,0 +1,19 @@
+[workspace]
+members = [
+# generic defines & engine stuff
+    "primitives", "fo_defines", "fo_param", "fo_engine_types",
+# fo4rp defines & engine stuff
+    "fo_defines_fo4rp", "fo_param_fo4rp", "fo_engine_types_bindgen", "fo_engine_types_bindgen/generate",
+# interop stuff
+    "bridge",
+# web server stuff
+    "clients_db", "mrhandy", "geometry_view",
+# formula stuff
+    "formula",
+# data&formats stuff
+    "nom_prelude", "fo_map_format", "fo_data",
+]
+
+[profile.release]
+lto = "off"
+debug = 1

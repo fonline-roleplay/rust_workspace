@@ -1,0 +1,25 @@
+[package]
+name = "tnf_client_dll"
+version = "0.1.0"
+authors = ["qthree <qthree3@gmail.com>"]
+edition = "2018"
+publish = false
+
+[dependencies]
+tnf_common = { path = "../common", features = ["client"] }
+bridge = { path = "../../crates/bridge" }
+protocol = { path = "../../crates/protocol" }
+
+winapi = { version = "0.3", features = ["consoleapi"] }
+webbrowser = "0.5"
+heim = {version = "0.0.9", default-features = false, features = ["process"] }
+futures = "0.3"
+subprocess = {path = "D:\\rust\\rust-subprocess"}
+dlopen = "0.1"
+dlopen_derive = "0.1"
+once_cell = { version = "1.2"}
+#crossbeam = "0.7.1"
+#human-panic = "1.0"
+
+[lib]
+crate-type = ["cdylib"]

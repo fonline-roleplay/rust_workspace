@@ -1,0 +1,26 @@
+[package]
+name = "tnf_server_dll"
+version = "0.1.0"
+authors = ["qthree <qthree3@gmail.com>"]
+edition = "2018"
+publish = false
+
+[dependencies]
+tnf_common = { path = "../common", features = ["server"] }
+protocol = { path = "../../crates/protocol" }
+
+winapi = { version = "0.3", features = ["consoleapi"] }
+bincode = { version = "1.2" }
+lazy_static = "1.4"
+serde = "1.0"
+toml = "0.5"
+custom_error = "1.7"
+#pdb = "0.5"
+dlopen = "0.1"
+dlopen_derive = "0.1"
+once_cell = { version = "1.2" }
+derivative = "1.0"
+arc-swap = "0.4"
+
+[lib]
+crate-type = ["cdylib"]

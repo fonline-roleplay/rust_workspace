@@ -1,0 +1,12 @@
+[workspace]
+members = [
+    "web_server", "overlay", "overlay_launcher"
+]
+
+[profile.release]
+lto = "fat"
+debug = false
+
+[patch.crates-io]
+#glium  = { git = 'https://github.com/qthree/glium.git' }
+glium  = { path = 'D:\rust\glium' }

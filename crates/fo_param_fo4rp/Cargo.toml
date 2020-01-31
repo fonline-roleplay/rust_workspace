@@ -1,0 +1,16 @@
+[package]
+name = "fo_param_fo4rp"
+version = "0.1.0"
+authors = ["qthree <qthree3@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fo_param = { path = "../fo_param" }
+formula = { path = "../formula" }
+#fo_defines = { path = "../fo_defines" }
+fo_defines_fo4rp = { path = "../fo_defines_fo4rp" }
+fo_engine_types = { path = "../fo_engine_types"}
+fo_engine_types_bindgen = { path = "../fo_engine_types_bindgen", features = ["r357", "bindings", "server", "impl_engine"] }
+once_cell = "1.3"

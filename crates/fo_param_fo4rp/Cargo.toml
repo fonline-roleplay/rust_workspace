@@ -12,5 +12,5 @@ formula = { path = "../formula" }
 #fo_defines = { path = "../fo_defines" }
 fo_defines_fo4rp = { path = "../fo_defines_fo4rp" }
 fo_engine_types = { path = "../fo_engine_types"}
-fo_engine_types_bindgen = { path = "../fo_engine_types_bindgen", features = ["r357", "bindings", "server", "impl_engine"] }
+fo_engine_types_bindings = { path = "../../dll/fo_engine_types_bindings", features = ["r357", "bindings", "server", "impl_engine"] }
 once_cell = "1.3"

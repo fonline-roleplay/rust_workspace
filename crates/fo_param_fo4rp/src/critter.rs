@@ -1,5 +1,5 @@
 use crate::raw_param::RawParam;
-use fo_engine_types_bindgen::generated::r357::server::item::Item;
+use fo_engine_types_bindings::generated::r357::server::item::Item;
 use fo_param::param_types::ParamGet;
 use formula::prelude::{Formula, FormulaCompat, FormulaData};
 

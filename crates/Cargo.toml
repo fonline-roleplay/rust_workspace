@@ -3,7 +3,7 @@ members = [
 # generic defines & engine stuff
     "primitives", "fo_defines", "fo_param", "fo_engine_types",
 # fo4rp defines & engine stuff
-    "fo_defines_fo4rp", "fo_param_fo4rp", "fo_engine_types_bindgen", "fo_engine_types_bindgen/generate",
+    "fo_defines_fo4rp", "fo_param_fo4rp",
 # interop stuff
     "bridge",
 # web server stuff

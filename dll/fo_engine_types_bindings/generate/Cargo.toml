@@ -1,5 +1,5 @@
 [package]
-name = "fo_engine_types_bindgen"
+name = "fo_engine_types_generate"
 version = "0.1.0"
 authors = ["qthree <qthree3@gmail.com>"]
 edition = "2018"
@@ -8,14 +8,11 @@ edition = "2018"
 
 [features]
 default = []
-bindings = []
-impl_engine = ["fo_engine_types", "bindings"]
-impl_state = ["bindings"]
-
+generate = ["bindgen"]
 r357 = []
 r476 = []
-client = []
-server = []
 
 [dependencies]
-fo_engine_types = { path = "../fo_engine_types", optional = true }
+bindgen = { version = "0.52", optional = true }
+
+[workspace]

@@ -1,5 +1,5 @@
-#[cfg(not(target_arch = "i686"))]
-compile_error!("Only i686 arch is supported.");
+#[cfg(not(target_arch = "x86"))]
+compile_error!("Only x86 arch is supported.");
 
 #[cfg(feature = "bindings")]
 macro_rules! exports {

@@ -1,7 +1,7 @@
 [workspace]
 members = [
 # dll stuff
-    "client", "server", "common",
+    "client", "server", "common", "fo_engine_types_bindings"
 ]
 
 [profile.release]

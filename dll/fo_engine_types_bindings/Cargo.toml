@@ -1,5 +1,5 @@
 [package]
-name = "fo_engine_types_generate"
+name = "fo_engine_types_bindings"
 version = "0.1.0"
 authors = ["qthree <qthree3@gmail.com>"]
 edition = "2018"
@@ -8,9 +8,14 @@ edition = "2018"
 
 [features]
 default = []
-generate = ["bindgen"]
+bindings = []
+impl_engine = ["fo_engine_types", "bindings"]
+impl_state = ["bindings"]
+
 r357 = []
 r476 = []
+client = []
+server = []
 
 [dependencies]
-bindgen = { version = "0.52", optional = true }
+fo_engine_types = { path = "../../crates/fo_engine_types", optional = true }

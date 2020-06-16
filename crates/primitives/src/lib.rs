@@ -12,6 +12,8 @@ mod numbers {
     pub type ushort = ::std::os::raw::c_ushort;
     pub type uint = ::std::os::raw::c_uint;
     pub type int = ::std::os::raw::c_int;
+
+    pub type size_t = usize;
 }
 pub use numbers::*;
 

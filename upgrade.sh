@@ -1,2 +1,2 @@
 #!/usr/bin/env sh
-cargo upgrade --dry-run --all  --allow-prerelease --skip-compatible
+cargo upgrade --dry-run --workspace  --allow-prerelease --skip-compatible

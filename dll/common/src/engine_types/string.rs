@@ -1,5 +1,6 @@
 use crate::engine_types::stl::{stlp_std_allocator, stlp_std_priv__STLP_alloc_proxy};
 use std::mem::ManuallyDrop;
+use std::ffi::CStr;
 
 #[repr(C)]
 union stlp_std_priv__String_base__Buffers<_Tp: Copy> {
@@ -72,6 +73,17 @@ impl ScriptString {
     pub fn string(&self) -> String {
         cp1251_to_utf8(self.inner.buffer._base._M_start_of_storage._M_data)
     }
+    pub fn from_string(string: &str) -> *mut Self {
+        use encoding_rs::*;
+
+        //assert_eq!(string.as_bytes().last(), b'\0');
+
+        let (cow, encoding_used, had_errors) = WINDOWS_1251.encode(string);
+        assert_eq!(encoding_used, WINDOWS_1251);
+        assert!(!had_errors);
+        let c_str = CStr::from_bytes_with_nul(cow.as_ref()).expect("Null terminated cp1251 string");
+        unsafe { crate::engine_functions::Script_String(c_str) }
+    }
 }
 
 #[cfg(test)]
@@ -100,6 +112,7 @@ mod test {
     }
 }
 
+/*
 // CP1251 to UTF
 const FORWARD_TABLE: &'static [u16] = &[
     1026, 1027, 8218, 1107, 8222, 8230, 8224, 8225, 8364, 8240, 1033, 8249, 1034, 1036, 1035, 1039,
@@ -111,9 +124,17 @@ const FORWARD_TABLE: &'static [u16] = &[
     1073, 1074, 1075, 1076, 1077, 1078, 1079, 1080, 1081, 1082, 1083, 1084, 1085, 1086, 1087, 1088,
     1089, 1090, 1091, 1092, 1093, 1094, 1095, 1096, 1097, 1098, 1099, 1100, 1101, 1102, 1103,
 ]; // 128 entries
+*/
 
 fn cp1251_to_utf8(ptr: *mut ::std::os::raw::c_char) -> String {
-    let c_str = unsafe { ::std::ffi::CStr::from_ptr(ptr) };
+    use encoding_rs::*;
+
+    let c_str = unsafe { CStr::from_ptr(ptr) };
+    let (cow, encoding_used, had_errors) = WINDOWS_1251.decode(c_str.to_bytes());
+    assert_eq!(encoding_used, WINDOWS_1251);
+    assert!(!had_errors);
+    cow.into_owned()
+    /*
     let string: String = c_str
         .to_bytes()
         .iter()
@@ -129,4 +150,5 @@ fn cp1251_to_utf8(ptr: *mut ::std::os::raw::c_char) -> String {
         })
         .collect();
     string
+    */
 }

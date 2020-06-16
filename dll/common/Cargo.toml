@@ -10,14 +10,17 @@ default = []
 client = ["winapi", "dll"]
 server = ["winapi", "dll", "fo_defines/param_mut"]
 dll = ["engine_types"]
-engine_types = []
+engine_types = ["encoding_rs", "fo_engine_functions", "dlopen"]
 
 [dependencies]
 winapi = { optional=true, version = "0.3.6", features = ["consoleapi"] }
 primitives = { path = "../../crates/primitives" }
 fo_defines = { path = "../../crates/fo_defines" }
 fo_defines_fo4rp = { path = "../../crates/fo_defines_fo4rp" }
+encoding_rs = { version = "0.8", optional = true}
 #fo_param_fo4rp = { path = "../../crates/fo_param_fo4rp", optional=true }
+dlopen = { version = "0.1", optional=true }
+fo_engine_functions = { path = "../../crates/fo_engine_functions", optional=true }
 
 #[lib]
 #crate-type = ["cdylib"]

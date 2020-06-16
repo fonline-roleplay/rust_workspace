@@ -8,17 +8,17 @@ dynamic_ffi!(ServerApi,
         p2: ::std::os::raw::c_int,
         p3: *const ::std::os::raw::c_char,
         p4: *const uint,
-        p4_size: usize,
+        p4_size: size_t,
     ) -> bool;
 
     pub fn Global_GetCritter(crid: uint) -> *mut Critter;
 
-    pub fn Global_GetMsgStr(lang: usize, textMsg: usize, strNum: uint) -> *mut ScriptString;
+    pub fn Global_GetMsgStr(lang: size_t, textMsg: size_t, strNum: uint) -> *mut ScriptString;
 
     pub fn Item_GetLexems(item: *mut Item) -> *mut ScriptString;
 
     pub fn ConstantsManager_GetValue(
-        collection: usize,
+        collection: size_t,
         string: *mut ScriptString,
     ) -> ::std::os::raw::c_int;
 );

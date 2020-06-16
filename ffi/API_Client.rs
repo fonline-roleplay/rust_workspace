@@ -8,7 +8,7 @@ dynamic_ffi!(ClientApi,
         p2: ::std::os::raw::c_int,
         p3: *const ::std::os::raw::c_char,
         p4: *const uint,
-        p4_size: usize,
+        p4_size: size_t,
     );
 
     pub fn Client_AnimGetCurSpr(anim_id: uint) -> uint;
@@ -46,4 +46,15 @@ dynamic_ffi!(ClientApi,
         res_type: ::std::os::raw::c_int,
         filter_nearest: bool,
     ) -> *mut AnyFrames;
+
+    pub fn HexMngr_GetAllItems_ScriptArray(items: *mut ScriptArray) -> size_t;
+
+    pub fn HexMngr_GetScreenHexes(sx: *mut ::std::os::raw::c_int, sy: *mut ::std::os::raw::c_int);
+
+    pub fn HexMngr_GetHexCurrentPosition(
+        hx: ushort,
+        hy: ushort,
+        x: *mut ::std::os::raw::c_int,
+        y: *mut ::std::os::raw::c_int,
+    );
 );

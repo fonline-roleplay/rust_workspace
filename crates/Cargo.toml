@@ -1,7 +1,7 @@
 [workspace]
 members = [
 # generic defines & engine stuff
-    "primitives", "fo_defines", "fo_param", "fo_engine_types",
+    "primitives", "fo_defines", "fo_param", "fo_engine_types", "fo_engine_functions",
 # fo4rp defines & engine stuff
     "fo_defines_fo4rp", "fo_param_fo4rp",
 # interop stuff
@@ -11,7 +11,11 @@ members = [
 # formula stuff
     "formula",
 # data&formats stuff
-    "nom_prelude", "fo_map_format", "fo_data",
+    "nom_prelude", "fo_map_format", "fo_data", "fo_lst_format", "fo_msg_format", "fo_craft_format",
+# AngelScript integration
+    "angelscript", "as_derive", "angelscript_example",
+# random gameplay features
+    "physical_ui", "inv_grid",
 ]
 
 [profile.release]

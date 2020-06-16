@@ -2,11 +2,11 @@ pub use nom::{
     self,
     branch::alt,
     call,
-    combinator::{cond, map, map_opt, map_res, opt, recognize, value},
+    combinator::{cond, map, map_opt, map_parser, map_res, opt, recognize, value},
     do_parse,
     error::{ErrorKind, ParseError},
-    multi::{count, fold_many0, fold_many_m_n, many_m_n, separated_list},
-    sequence::{delimited, pair, preceded, tuple},
+    multi::{count, fold_many0, fold_many_m_n, many0, many_m_n, separated_list},
+    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult,
 };
 pub mod complete {
@@ -33,6 +33,12 @@ where
     F: Fn(I) -> IResult<I, O, E>,
 {
     move |i| map(opt(&fun), |option| option.is_some())(i)
+}
+
+pub fn unsigned_number<'a, E: ParseError<&'a str>, T: FromStr>(
+    i: &'a str,
+) -> IResult<&'a str, T, E> {
+    map_res(digit1, T::from_str)(i)
 }
 
 pub fn space0_number<'a, E: ParseError<&'a str>, T: FromStr>(i: &'a str) -> IResult<&'a str, T, E> {
@@ -86,15 +92,24 @@ pub fn line<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str,
     Ok((rest, line.trim()))
 }
 
+pub fn some_text<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E> {
+    let (rest, line) = take_till1(|ch| "\r\n".contains(ch))(i)?;
+    Ok((rest, line.trim()))
+}
+
+pub fn optional_text<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E> {
+    let (rest, line) = take_till(|ch| "\r\n".contains(ch))(i)?;
+    Ok((rest, line.trim()))
+}
+
 pub fn eof<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E> {
     use nom::error_position;
     use nom::InputLength;
-    use nom::{error::ErrorKind, Err};
 
     if i.input_len() == 0 {
         Ok((i, i))
     } else {
-        Err(Err::Error(error_position!(i, ErrorKind::Eof)))
+        Err(nom::Err::Error(error_position!(i, ErrorKind::Eof)))
     }
 }
 
@@ -116,6 +131,37 @@ pub fn section<'a, E: ParseError<&'a str>>(
     name: &'a str,
 ) -> impl Fn(&'a str) -> IResult<&'a str, &'a str, E> {
     move |i| delimited(char('['), tag(name), pair(char(']'), t_rn))(i)
+}
+
+pub fn curly_delimited<'a, E: ParseError<&'a str>, O, F>(
+    parser: F,
+) -> impl Fn(&'a str) -> IResult<&'a str, O, E>
+where
+    F: Fn(&'a str) -> IResult<&'a str, O, E>,
+{
+    move |i| delimited(char('{'), &parser, char('}'))(i)
+}
+
+pub fn space0_delimited<'a, E: ParseError<&'a str>, O, F>(
+    parser: F,
+) -> impl Fn(&'a str) -> IResult<&'a str, O, E>
+where
+    F: Fn(&'a str) -> IResult<&'a str, O, E>,
+{
+    move |i| delimited(space0, &parser, space0)(i)
+}
+
+pub fn not_closing_curly<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E> {
+    take_till(|ch| ch == '}')(i)
+}
+
+pub fn apply<'a, E: ParseError<&'a str>, O, F>(i: &mut &'a str, parser: F) -> Result<O, nom::Err<E>>
+where
+    F: Fn(&'a str) -> IResult<&'a str, O, E>,
+{
+    let (left, res) = parser(*i)?;
+    *i = left;
+    Ok(res)
 }
 
 pub fn kv<'a, E: ParseError<&'a str>, O, F>(
@@ -271,7 +317,7 @@ where
         let mut input = i.clone();
         let mut res = Vec::with_capacity(count);
 
-        for index in 0..count {
+        for _index in 0..count {
             let input_ = input.clone();
             match f(input_) {
                 Ok((i, o)) => {
@@ -378,10 +424,15 @@ pub fn nom_err_to_string<'a, O>(
 ) -> Result<(&'a str, O), String> {
     match res {
         Ok(ok) => Ok(ok),
-        Err(err) => Err(match err {
-            nom::Err::Error(err) => format!("Error: {}", nom::error::convert_error(text, err)),
-            nom::Err::Failure(err) => format!("Failure: {}", nom::error::convert_error(text, err)),
-            nom::Err::Incomplete(needed) => format!("Incomplete: {:?}", needed),
+        Err(err) => Err({
+            //println!("{:#?}", err);
+            match err {
+                nom::Err::Error(err) => format!("Error: {}", nom::error::convert_error(text, err)),
+                nom::Err::Failure(err) => {
+                    format!("Failure: {}", nom::error::convert_error(text, err))
+                }
+                nom::Err::Incomplete(needed) => format!("Incomplete: {:?}", needed),
+            }
         }),
     }
 }
@@ -416,5 +467,66 @@ mod tests {
         let parser = integer::<VerboseError<&str>, i32>;
         assert_eq!(Ok(("   ", 123456)), parser("123456   "));
         assert_eq!(Ok(("   ", -123456)), parser("-123456   "));
+    }
+}
+
+pub fn separated_list_first_unchecked<I, O, O2, E, F, G>(
+    sep: G,
+    f: F,
+) -> impl Fn(I) -> IResult<I, Vec<O>, E>
+where
+    I: Clone + PartialEq,
+    F: Fn(I) -> IResult<I, O, E>,
+    G: Fn(I) -> IResult<I, O2, E>,
+    E: ParseError<I>,
+{
+    move |i: I| {
+        let mut res = Vec::new();
+        let mut i = i.clone();
+
+        match f(i.clone()) {
+            Err(nom::Err::Error(_)) => return Ok((i, res)),
+            Err(e) => return Err(e),
+            Ok((i1, o)) => {
+                //unchecked
+                /*if i1 == i {
+                    return Err(Err::Error(E::from_error_kind(i1, ErrorKind::SeparatedList)));
+                }*/
+
+                res.push(o);
+                i = i1;
+            }
+        }
+
+        loop {
+            match sep(i.clone()) {
+                Err(nom::Err::Error(_)) => return Ok((i, res)),
+                Err(e) => return Err(e),
+                Ok((i1, _)) => {
+                    if i1 == i {
+                        return Err(nom::Err::Error(E::from_error_kind(
+                            i1,
+                            ErrorKind::SeparatedList,
+                        )));
+                    }
+
+                    match f(i1.clone()) {
+                        Err(nom::Err::Error(_)) => return Ok((i, res)),
+                        Err(e) => return Err(e),
+                        Ok((i2, o)) => {
+                            if i2 == i {
+                                return Err(nom::Err::Error(E::from_error_kind(
+                                    i2,
+                                    ErrorKind::SeparatedList,
+                                )));
+                            }
+
+                            res.push(o);
+                            i = i2;
+                        }
+                    }
+                }
+            }
+        }
     }
 }

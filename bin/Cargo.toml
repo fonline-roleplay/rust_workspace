@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "web_server", "overlay", "overlay_launcher"
+    "web_server", "overlay", "overlay_launcher", "map_fix_protos",
 ]
 
 [profile.release]

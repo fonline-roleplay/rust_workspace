@@ -1,0 +1,13 @@
+[package]
+name = "map_fix_protos"
+version = "0.1.0"
+authors = ["qthree <qthree3@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fo_map_format = { path = "../../crates/fo_map_format" }
+nom_prelude = { path = "../../crates/nom_prelude" }
+csv = "1.1"
+serde = { version = "1.0", features = ["derive"] }

@@ -42,8 +42,7 @@ pub fn verbose_read_file<P: AsRef<std::path::Path>, O, F>(path: P, fun: F) -> st
 where
     F: for<'a> Fn(&'a str, IResult<&'a str, Map<'a>, nom::error::VerboseError<&'a str>>) -> O,
 {
-    let bytes = std::fs::read(path)?;
-    let text = String::from_utf8_lossy(&bytes);
+    let text = std::fs::read_to_string(path)?;
     Ok(fun(&text, root(&text)))
 }
 
@@ -183,7 +182,7 @@ mod tests {
     }*/
     #[test]
     fn parse_q3_test() {
-        verbose_read_file("../../FO4RP/maps/q3_test.fomap", |_text, res| {
+        verbose_read_file("../../../FO4RP/maps/q3_test.fomap", |_text, res| {
             let (rest, _map) = res.unwrap();
             show_rest(rest);
             assert!(rest.is_empty());
@@ -192,7 +191,7 @@ mod tests {
     }
     #[test]
     fn parse_all_maps() {
-        for file in std::fs::read_dir("../../FO4RP/maps/")
+        for file in std::fs::read_dir("../../../FO4RP/maps/")
             .unwrap()
             .filter_map(|r| r.ok())
         {
@@ -202,7 +201,7 @@ mod tests {
             }
             println!("Parsing {:?}", file);
             verbose_read_file(file, |text, res| {
-                let (rest, _map) = nom_err_to_string(text, res)?;
+                let (rest, _map) = nom_err_to_string(text, res).expect("Can't parse map file");
                 show_rest(rest);
                 assert!(rest.is_empty());
             })

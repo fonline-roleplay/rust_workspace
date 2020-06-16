@@ -254,6 +254,17 @@ pub enum Kind<'a> {
         sprite_cut: Option<u8>,
     },
 }
+impl Kind<'_> {
+    pub fn map_object_type(&self) -> MapObjectType {
+        use Kind::*;
+        use MapObjectType::*;
+        match self {
+            Critter { .. } => MAP_OBJECT_CRITTER,
+            Item { .. } => MAP_OBJECT_ITEM,
+            Scenery { .. } => MAP_OBJECT_SCENERY,
+        }
+    }
+}
 const MAPOBJ_CRITTER_PARAMS: usize = 40;
 pub fn param_list<'a, E: ParseError<&'a str>>(
     i: &'a str,
@@ -337,6 +348,7 @@ pub struct Object<'a> {
     #[cfg_attr(feature = "serde1", serde(skip_serializing_if = "slice_has_none"))]
     pub user_data: Vec<Option<i32>>,
     pub kind: Kind<'a>,
+    pub ty_str: &'a str,
 }
 
 impl<'a> Object<'a> {
@@ -350,7 +362,12 @@ impl<'a> Object<'a> {
 }
 
 fn object<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Object<'a>, E> {
-    let (i, ty) = kv("MapObjType", integer)(i)?;
+    let (i, ty, ty_str) = {
+        let (new_i, ty) = kv("MapObjType", integer)(i)?;
+        let (new_i2, ty_str) = kv("MapObjType", word)(i)?;
+        debug_assert_eq!(new_i, new_i2);
+        (new_i, ty, ty_str)
+    };
     Ok(parse_struct!(
         i,
         Object {
@@ -364,6 +381,9 @@ fn object<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Object<'a>
             script_func: opt_kv("FuncName", word),
             user_data: many_key_index_int("UserData", 10),
             kind: parse_kind(ty),
+        },
+        {
+            ty_str: ty_str,
         }
     ))
 }

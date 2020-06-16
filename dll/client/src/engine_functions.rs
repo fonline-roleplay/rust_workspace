@@ -1,31 +1,20 @@
-use dlopen::wrapper::{Container, WrapperApi};
-use dlopen_derive::WrapperApi;
-use once_cell::sync::Lazy;
-
 use std::os::raw::{c_char, c_int};
 use std::ptr::{null, null_mut};
 
-use tnf_common::engine_types::game_options::GameOptions;
 use tnf_common::{
-    engine_types::game_options::{game_state, Field, Sprite},
+    engine_types::{
+        game_options::{game_state, Field, GameOptions, Sprite},
+        ScriptArray,
+    },
     primitives::*,
 };
 
-enum Sprites {}
-enum AnyFrames {}
+pub enum Sprites {}
+pub enum AnyFrames {}
 
-macro_rules! dynamic_ffi {
-    ($api:ident, $(pub fn $fun:ident($($arg:ident: $typ:ty$ (,)?)*) $(-> $ret:ty)? ;)*) => {
-        #[derive(WrapperApi)]
-        struct $api {
-            $($fun: unsafe extern "C" fn($($arg: $typ,)*) $(-> $ret)? ,)*
-        }
-    }
-}
+use fo_engine_functions::*;
 
-include!("../../../ffi/API_Client.rs");
-static CLIENT_API: Lazy<Container<ClientApi>> =
-    Lazy::new(|| unsafe { Container::load_self() }.expect("Can't load api"));
+ffi_module!(CLIENT_API, ClientApi, "../../../ffi/API_Client.rs");
 
 fn _unwrap_or_abort<T, E: std::fmt::Display>(res: Result<T, E>) -> T {
     match res {
@@ -184,6 +173,83 @@ pub extern "C" fn update_roof_num(hex_x: u16, hex_y: u16, mut roof_num: u16) -> 
 pub extern "C" fn regroup_roofs() {
     let game_options = game_state().expect("Invalid game state");
     game_options.regroup_roofs();
+}
+
+#[no_mangle]
+pub extern "C" fn GetAllItems(items: *mut ScriptArray) -> size_t {
+    unsafe { CLIENT_API.HexMngr_GetAllItems_ScriptArray(items) }
+}
+
+pub fn HexMngr_GetHexCurrentPosition(hex_x: u16, hex_y: u16) -> (i32, i32) {
+    let mut out_x = 0;
+    let mut out_y = 0;
+    unsafe { CLIENT_API.HexMngr_GetHexCurrentPosition(hex_x, hex_y, &mut out_x, &mut out_y) };
+    (out_x, out_y)
+}
+
+use once_cell::sync::Lazy;
+use parking_lot::Mutex;
+use physical_ui::{nphysics_layer, NPhysicsLayer};
+use std::hash::Hash;
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum RegionKey {
+    Custom { ty: u16, id: u32, part: u16 },
+}
+
+static NPHYSICS_LAYER: Lazy<Mutex<NPhysicsLayer<RegionKey>>> =
+    Lazy::new(|| Mutex::new(nphysics_layer()));
+
+#[no_mangle]
+pub extern "C" fn PhysicalUI_UpsertCustom(
+    id: u32,
+    ty: u16,
+    part: u16,
+    anchor_x: i32,
+    anchor_y: i32,
+    width: u16,
+    height: u16,
+    pos_x: &mut i32,
+    pos_y: &mut i32,
+) {
+    let game_options = game_state().expect("Invalid game state");
+    let mut layer = NPHYSICS_LAYER.lock();
+    //.expect("Lock NPHYSICS_LAYER mutex in PhysicalUI_UpsertCustom");
+    let key = RegionKey::Custom { ty, id, part };
+
+    let (zero_x, zero_y) = HexMngr_GetHexCurrentPosition(0, 0);
+    //dbg!(zero_x, zero_y);
+    let (zero_x, zero_y) = (zero_x as f32, zero_y as f32);
+
+    //dbg!(game_options.ScrOx, game_options.ScrOy);
+    let scr_x = game_options.ScrOx as f32;
+    let scr_y = game_options.ScrOy as f32;
+    let scr_z = game_options.SpritesZoom;
+    //dbg!(scr_x, scr_y, scr_z);
+
+    let width = width as f32 * scr_z;
+    let height = height as f32 * scr_z;
+
+    //let x = (anchor_x + scr_x) as f32 * scr_z;
+    //let y = (anchor_y + scr_y) as f32 * scr_z;
+    let x = anchor_x as f32 * scr_z - scr_x - zero_x;
+    let y = anchor_y as f32 * scr_z - scr_y - zero_y;
+
+    use physical_ui::{Point, Size};
+    let Point { x, y } = layer.upsert(key, Size::new(width, height), Point::new(x, y));
+    //*pos_x = ((x / scr_z).round() as i32) - scr_x;
+    //*pos_y = ((y / scr_z).round() as i32) - scr_y;
+    *pos_x = ((x + scr_x + zero_x) / scr_z).round() as i32;
+    *pos_y = ((y + scr_y + zero_y) / scr_z).round() as i32;
+}
+
+#[no_mangle]
+pub extern "C" fn PhysicalUI_Update(remove_old: bool) {
+    std::thread::spawn(move || {
+        let mut layer = NPHYSICS_LAYER.lock();
+        //.expect("Lock NPHYSICS_LAYER mutex in PhysicalUI_Update");
+        layer.update(remove_old);
+    });
 }
 
 #[cfg(test)]

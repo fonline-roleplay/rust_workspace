@@ -12,12 +12,14 @@ protocol = { path = "../../crates/protocol" }
 
 winapi = { version = "0.3", features = ["consoleapi"] }
 webbrowser = "0.5"
-heim = {version = "0.0.9", default-features = false, features = ["process"] }
+heim = {version = "0.0.10", default-features = false, features = ["process"] }
 futures = "0.3"
+parking_lot = { version = "0.10" }
 subprocess = {path = "D:\\rust\\rust-subprocess"}
-dlopen = "0.1"
-dlopen_derive = "0.1"
-once_cell = { version = "1.2"}
+once_cell = { version = "1.2" }
+dlopen = { version = "0.1" }
+fo_engine_functions = { path = "../../crates/fo_engine_functions" }
+physical_ui = { path = "../../crates/physical_ui" }
 #crossbeam = "0.7.1"
 #human-panic = "1.0"
 

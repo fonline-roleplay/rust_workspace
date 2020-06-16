@@ -1,6 +1,3 @@
-use dlopen::wrapper::{Container, WrapperApi};
-use dlopen_derive::WrapperApi;
-use once_cell::sync::Lazy;
 use std::{
     ffi::CStr,
     os::raw::{c_char, c_int},
@@ -10,25 +7,9 @@ use tnf_common::{
     engine_types::{critter::Critter, item::Item, stl::IntVec, ScriptArray, ScriptString},
     primitives::*,
 };
+use fo_engine_functions::*;
 
-macro_rules! dynamic_ffi {
-    ($api:ident, $(pub fn $fun:ident($($arg:ident: $typ:ty$ (,)?)*) $(-> $ret:ty)? ;)*) => {
-        #[derive(WrapperApi)]
-        pub struct $api {
-            $($fun: unsafe extern "C" fn($($arg: $typ,)*) $(-> $ret)? ,)*
-        }
-    }
-}
-
-#[allow(bad_style)]
-mod ffi {
-    use super::*;
-    include!("../../../ffi/API_Server.rs");
-}
-use ffi::ServerApi;
-
-static SERVER_API: Lazy<Container<ServerApi>> =
-    Lazy::new(|| unsafe { Container::load_self() }.expect("Can't load api"));
+ffi_module!(SERVER_API, ServerApi, "../../../ffi/API_Server.rs");
 
 #[derive(Debug)]
 pub enum ServerAPIError {

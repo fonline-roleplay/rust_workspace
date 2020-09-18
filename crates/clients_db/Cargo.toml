@@ -10,7 +10,7 @@ fo_defines_fo4rp = { path = "../fo_defines_fo4rp" }
 
 fo_save_format = { git = "https://github.com/fonline-roleplay/fo_save_format.git" }
 arrayvec = "0.5"
-itertools = "0.8"
+itertools = "0.9"
 
 
 #[target.'cfg(windows)'.dependencies]

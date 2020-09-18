@@ -26,7 +26,7 @@ draw_geometry = { path = "../../crates/geometry_view" }
 fo_proto_format = { git = "https://github.com/fonline-roleplay/fo_proto_format.git", optional = true }
 #fo_save_format = { git = "https://github.com/fonline-roleplay/fo_save_format.git" }
 nom_prelude = { path = "../../crates/nom_prelude", optional = true }
-mrhandy = { path = "../../crates/mrhandy" }
+mrhandy = { path = "../../crates/mrhandy", default-features = false }
 
 # actix
 actix-web = "2.0"

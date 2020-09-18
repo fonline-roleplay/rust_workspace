@@ -15,7 +15,7 @@ members = [
 # AngelScript integration
     "angelscript", "as_derive", "angelscript_example",
 # random gameplay features
-    "physical_ui", "inv_grid", "planes",
+    "physical_ui", "planes", # "inv_grid",
 # rust utility stuff
     "achtung",
 ]

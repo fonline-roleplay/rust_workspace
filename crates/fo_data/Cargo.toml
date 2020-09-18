@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 nom_prelude = { path = "../nom_prelude" }
 zip = "0.5"
-itertools = "0.8"
+itertools = "0.9"
 #array-macro = "1.0"
 #derivative = "1.0"
 debug-helper = "0.3"

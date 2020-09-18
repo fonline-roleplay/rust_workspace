@@ -11,7 +11,7 @@ pub fn get(
     web::block(move || {
         println!("data::get incoming... {:?}", path.as_ref());
         data.fo_data
-            .get_image(&path)
+            .get_png(&path)
             .map_err(|err| format!("FoData::get_image error: {:?}", err))
     })
     .err_into()
@@ -19,7 +19,7 @@ pub fn get(
         use fo_data::FileType;
         let content_type = match image.file_type {
             FileType::Png => "image/png",
-            FileType::Gif => "image/gif",
+            //FileType::Gif => "image/gif",
             _ => unimplemented!(),
         };
         HttpResponse::Ok()

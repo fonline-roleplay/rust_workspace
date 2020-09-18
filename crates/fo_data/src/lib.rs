@@ -5,9 +5,8 @@ mod frm;
 mod palette;
 mod retriever;
 
-use once_cell::sync::OnceCell;
 use std::borrow::Cow;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 pub type PathMap<K, V> = BTreeMap<K, V>;
 
@@ -26,21 +25,21 @@ impl Default for FileLocation {
 pub struct FileInfo {
     location: FileLocation,
     original_path: String,
-    cache: OnceCell<bytes::Bytes>,
     compressed_size: u64,
 }
 
 pub struct FoData {
     archives: Vec<std::path::PathBuf>,
     files: PathMap<String, FileInfo>,
+    //cache: HashMap<(String, OutputType), FileData>,
     palette: Vec<(u8, u8, u8)>,
 }
 
 pub struct FileData {
-    pub file_type: FileType,
+    pub data_type: DataType,
     pub data: bytes::Bytes,
-    pub offset_x: i16,
-    pub offset_y: i16,
+    pub dimensions: (u32, u32),
+    pub offset: (i16, i16),
 }
 
 #[derive(Debug)]
@@ -48,8 +47,15 @@ pub enum FileType {
     Png,
     Frm,
     Gif,
+    Rgba,
     Unsupported(String),
     Unknown,
+}
+
+#[derive(Debug, Hash)]
+pub enum DataType {
+    Png,
+    Rgba,
 }
 
 #[derive(Debug)]
@@ -68,6 +74,35 @@ pub enum DataInitError {
     LoadPalette(palette::Error),
     ParseDatafile(datafiles::Error),
     GatherPaths(crawler::Error),
+}
+
+#[derive(Debug, Clone)]
+pub struct RawImage {
+    pub image: image::RgbaImage,
+    offset_x: i16,
+    offset_y: i16,
+}
+impl RawImage {
+    pub fn offsets(&self) -> (i16, i16) {
+        (self.offset_x, self.offset_y)
+    }
+}
+
+impl RawImage {
+    fn to_png(self) -> Result<FileData, image::ImageError> {
+        let dimensions = self.image.dimensions();
+        let size = (dimensions.0 as usize * dimensions.1 as usize * 4 + 512).next_power_of_two();
+        let image = image::DynamicImage::ImageRgba8(self.image);
+        let mut data = Vec::with_capacity(size);
+
+        image.write_to(&mut data, image::ImageFormat::Png)?;
+        Ok(FileData {
+            data: data.into(),
+            data_type: DataType::Png,
+            dimensions,
+            offset: (self.offset_x, self.offset_y),
+        })
+    }
 }
 
 impl FoData {
@@ -93,58 +128,70 @@ impl FoData {
             palette,
         })
     }
-    pub fn get_image(&self, path: &str) -> Result<FileData, GetImageError> {
-        type Error = GetImageError;
+
+    fn get_raw(&self, path: &str) -> Result<RawImage, GetImageError> {
         let file_type = retriever::recognize_type(path);
-        let retriever = move || retriever::retrieve_file(self, path).map_err(Error::Retrieve);
+        let retriever =
+            move || retriever::retrieve_file(self, path).map_err(GetImageError::Retrieve);
+
         Ok(match file_type {
             FileType::Png => {
                 let data = retriever()?;
                 let mut slice = &data[..];
-                let decoder =
-                    image::png::PngDecoder::new(slice).map_err(GetImageError::PngDecode)?;
-                use image::ImageDecoder;
-                let (width, height) = decoder.dimensions();
 
-                FileData {
-                    data: data.clone(),
-                    file_type,
+                let dynamic = image::load_from_memory_with_format(slice, image::ImageFormat::Png)
+                    .map_err(GetImageError::PngDecode)?;
+                let mut image = dynamic.into_rgba();
+                let (width, height) = image.dimensions();
+
+                image.pixels_mut().for_each(|pixel| {
+                    if pixel.0 == [0, 0, 255, 255] {
+                        pixel.0 = [0, 0, 0, 0];
+                    }
+                });
+
+                RawImage {
+                    image,
                     offset_x: width as i16 / -2,
                     offset_y: height as i16 * -1,
                 }
             }
             FileType::Frm => {
                 let data = retriever()?;
-                let frm = frm::frm(&data).map_err(Error::FrmParse)?;
+                let frm = frm::frm(&data).map_err(GetImageError::FrmParse)?;
                 let frame_number = 0;
-                let direction0 = frm.directions.get(0).ok_or(Error::EmptyFrm)?;
+                let direction0 = frm.directions.get(0).ok_or(GetImageError::EmptyFrm)?;
                 let offsets = direction0.frames.iter().skip(1).take(frame_number);
                 let offset_x: i16 = offsets.clone().map(|frame| frame.offset_x).sum();
                 let offset_y: i16 = offsets.map(|frame| frame.offset_y).sum();
-                let frame = direction0.frames.get(frame_number).ok_or(Error::EmptyFrm)?;
-                let size = (frame.width as usize * frame.height as usize + 512).next_power_of_two();
+                let frame = direction0
+                    .frames
+                    .get(frame_number)
+                    .ok_or(GetImageError::EmptyFrm)?;
+
                 let image = image::GrayImage::from_raw(
                     frame.width as u32,
                     frame.height as u32,
                     frame.data.to_owned(),
                 )
-                .ok_or(Error::ImageFromRaw)?;
-                let image =
-                    image::DynamicImage::ImageRgba8(image.expand_palette(&self.palette, Some(0)));
-                let mut data = Vec::with_capacity(size);
-
-                image
-                    .write_to(&mut data, image::ImageFormat::Png)
-                    .map_err(Error::ImageWrite)?;
-                FileData {
-                    data: data.into(),
-                    file_type: FileType::Png,
+                .ok_or(GetImageError::ImageFromRaw)?;
+                let image = image.expand_palette(&self.palette, Some(0));
+                RawImage {
+                    image,
                     offset_x: direction0.shift_x + offset_x - frame.width as i16 / 2,
                     offset_y: direction0.shift_y + offset_y - frame.height as i16,
                 }
             }
-            _ => return Err(Error::FileType(file_type)),
+            _ => return Err(GetImageError::FileType(file_type)),
         })
+    }
+
+    pub fn get_png(&self, path: &str) -> Result<FileData, GetImageError> {
+        let raw = self.get_raw(path)?;
+        raw.to_png().map_err(GetImageError::ImageWrite)
+    }
+    pub fn get_rgba(&self, path: &str) -> Result<RawImage, GetImageError> {
+        self.get_raw(path)
     }
     pub fn count_archives(&self) -> usize {
         self.archives.len()

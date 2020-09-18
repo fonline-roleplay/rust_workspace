@@ -25,11 +25,11 @@ pub fn recognize_type(path: &str) -> FileType {
     .unwrap_or(FileType::Unknown)
 }
 
-pub fn retrieve_file<'a>(data: &'a FoData, path: &str) -> Result<&'a bytes::Bytes, Error> {
+pub fn retrieve_file<'a>(data: &'a FoData, path: &str) -> Result<bytes::Bytes, Error> {
     let file = data.files.get(path).ok_or(Error::NotFound)?;
-    if let Some(data) = file.cache.get() {
+    /*if let Some(data) = file.cache.get() {
         return Ok(data);
-    }
+    }*/
     let data = match file.location {
         FileLocation::Archive(archive_index) => {
             let archive_path = data
@@ -46,6 +46,7 @@ pub fn retrieve_file<'a>(data: &'a FoData, path: &str) -> Result<&'a bytes::Byte
         }
         _ => return Err(Error::UnsupportedFileLocation),
     };
-    file.cache.set(data.into()).expect("Can't be not empty");
-    Ok(file.cache.get().expect("Can't be empty"))
+    //file.cache.set(data.into()).expect("Can't be not empty");
+    //Ok(file.cache.get().expect("Can't be empty"))
+    Ok(data.into())
 }

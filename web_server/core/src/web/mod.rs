@@ -137,9 +137,10 @@ impl AppState {
         let bridge = bridge::Bridge::new();
 
         let redirect = config.host.web_url("/meta/auth");
-        let oauth = config.discord.as_ref().map(|discord| {
-            oauth2_client(&discord.oauth2, redirect).expect("oauth client")
-        });
+        let oauth = config
+            .discord
+            .as_ref()
+            .map(|discord| oauth2_client(&discord.oauth2, redirect).expect("oauth client"));
 
         let reqwest = reqwest::Client::builder()
             // Following redirects opens the client up to SSRF vulnerabilities.
@@ -340,7 +341,7 @@ fn restrict_web<
     req: ServiceRequest,
     srv: &mut S,
 ) -> impl Future<Output = Result<ServiceResponse<B>, actix_web::Error>> {
-    let data: web::Data<AppState> = req.app_data().expect("AppData");
+    let data: &web::Data<AppState> = req.app_data().expect("AppData");
     let host = req_host(&req);
     let check = host.map_or(false, |host| host == data.config.host.web.domain);
     let mut fut = srv.call(req);
@@ -360,7 +361,7 @@ fn restrict_files<
     req: ServiceRequest,
     srv: &mut S,
 ) -> impl Future<Output = Result<ServiceResponse<B>, actix_web::Error>> {
-    let data: web::Data<AppState> = req.app_data().expect("AppData");
+    let data: &web::Data<AppState> = req.app_data().expect("AppData");
     let host = req.headers().get("host");
     let host = req_host(&req);
     let check = host.map_or(false, |host| host == data.config.host.files.domain);

@@ -196,11 +196,10 @@ impl Decoder for WebSide {
     }
 }
 
-impl Encoder for WebSide {
-    type Item = MsgOut;
+impl Encoder<MsgOut> for WebSide {
     type Error = bincode::Error;
 
-    fn encode(&mut self, item: Self::Item, dst: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(&mut self, item: MsgOut, dst: &mut BytesMut) -> Result<(), Self::Error> {
         //const LEN: usize = std::mem::size_of::<MsgOut>();
         //let buf: [u8; LEN] = unsafe { std::mem::transmute(item) };
         //dst.extend_from_slice(&buf);

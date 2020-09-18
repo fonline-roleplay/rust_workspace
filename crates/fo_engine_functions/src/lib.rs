@@ -14,17 +14,17 @@ macro_rules! dynamic_ffi {
 
 #[macro_export]
 macro_rules! ffi_module {
-    ($name:ident, $typ:ident, $file:expr) => {
+    ($typ:ident, $file:expr) => {
         #[allow(bad_style)]
         mod ffi {
             //use fo_engine_functions::*;
             use super::*;
             include!($file);
+            impl $typ {
+                pub fn load() -> Result<Container<$typ>, dlopen::Error> {
+                    unsafe { Container::load_self() }
+                }
+            }
         }
-        use ffi::$typ;
-
-        static $name: Lazy<Container<$typ>> =
-            Lazy::new(|| unsafe { Container::load_self() }.expect("Can't load api"));
-
-    }
+    };
 }

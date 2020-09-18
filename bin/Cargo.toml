@@ -1,11 +1,17 @@
 [workspace]
 members = [
-    "web_server", "overlay", "overlay_launcher", "map_fix_protos",
+    "overlay", "overlay_launcher", "map_fix_protos",
 ]
 
 [profile.release]
 lto = "fat"
-debug = false
+debug = 1
+codegen-units = 1
+
+[profile.dev]
+lto = false
+opt-level = 1
+debug = 1
 
 [patch.crates-io]
 #glium  = { git = 'https://github.com/qthree/glium.git' }

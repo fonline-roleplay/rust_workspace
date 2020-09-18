@@ -37,6 +37,8 @@ fn start(game_window: GameWindow, url: String) {
 }
 
 fn main() {
+    achtung::setup("reports", "overlay");
+
     let matches = App::new("FOnline Overlay")
         .author("qthree <qthree3@gmail.com>")
         .arg(

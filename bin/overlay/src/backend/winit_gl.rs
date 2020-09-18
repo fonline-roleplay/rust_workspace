@@ -16,6 +16,11 @@ use std::{
     time::Instant,
 };
 
+#[cfg(target_pointer_width = "32")]
+type LONG_OR_PTR = i32;
+#[cfg(target_pointer_width = "64")]
+type LONG_OR_PTR = isize;
+
 //pub trait GuiRun: FnMut(&Ui, &Rc<Context>, &mut Textures) -> bool {}
 //impl<T: FnMut(&Ui, &Rc<Context>, &mut Textures) -> bool> GuiRun for T {}
 
@@ -43,22 +48,22 @@ fn make_window_popup(window: &Window) -> Result<(), String> {
     //window.hide_cursor(true);
 
     unsafe {
-        let mut flags = winuser::GetWindowLongPtrA(handle, winuser::GWL_STYLE) as u32;
+        let mut flags = winuser::GetWindowLongPtrA(handle, winuser::GWL_STYLE);
         if flags == 0 {
             return Err(format!("winuser::GetWindowLongPtrA"));
         }
-        flags |= winuser::WS_POPUP;
-        if winuser::SetWindowLongPtrA(handle, winuser::GWL_STYLE, flags as isize) == 0 {
+        flags |= winuser::WS_POPUP as LONG_OR_PTR;
+        if winuser::SetWindowLongPtrA(handle, winuser::GWL_STYLE, flags) == 0 {
             return Err(format!("winuser::SetWindowLongPtrA"));
         }
 
-        let mut flags = winuser::GetWindowLongPtrA(handle, winuser::GWL_EXSTYLE) as u32;
+        let mut flags = winuser::GetWindowLongPtrA(handle, winuser::GWL_EXSTYLE);
         if flags == 0 {
             return Err(format!("winuser::GetWindowLongPtrA"));
         }
-        flags |= winuser::WS_EX_NOACTIVATE;
-        flags &= !winuser::WS_EX_APPWINDOW;
-        if winuser::SetWindowLongPtrA(handle, winuser::GWL_EXSTYLE, flags as isize) == 0 {
+        flags |= winuser::WS_EX_NOACTIVATE as LONG_OR_PTR;
+        flags &= !winuser::WS_EX_APPWINDOW as LONG_OR_PTR;
+        if winuser::SetWindowLongPtrA(handle, winuser::GWL_EXSTYLE, flags) == 0 {
             return Err(format!("winuser::SetWindowLongPtrA"));
         }
     }
@@ -74,21 +79,21 @@ fn make_window_border(window: &Window) -> Result<(), String> {
     let handle = window.get_hwnd() as _;
 
     unsafe {
-        let mut flags = winuser::GetWindowLongPtrA(handle, winuser::GWL_STYLE) as u32;
+        let mut flags = winuser::GetWindowLongPtrA(handle, winuser::GWL_STYLE);
         if flags == 0 {
             return Err(format!("winuser::GetWindowLongPtrA"));
         }
-        flags |= winuser::WS_BORDER;
-        if winuser::SetWindowLongPtrA(handle, winuser::GWL_STYLE, flags as isize) == 0 {
+        flags |= winuser::WS_BORDER as LONG_OR_PTR;
+        if winuser::SetWindowLongPtrA(handle, winuser::GWL_STYLE, flags) == 0 {
             return Err(format!("winuser::SetWindowLongPtrA"));
         }
 
-        let mut flags = winuser::GetWindowLongPtrA(handle, winuser::GWL_EXSTYLE) as u32;
+        let mut flags = winuser::GetWindowLongPtrA(handle, winuser::GWL_EXSTYLE);
         if flags == 0 {
             return Err(format!("winuser::GetWindowLongPtrA"));
         }
-        flags |= winuser::WS_EX_WINDOWEDGE;
-        if winuser::SetWindowLongPtrA(handle, winuser::GWL_EXSTYLE, flags as isize) == 0 {
+        flags |= winuser::WS_EX_WINDOWEDGE as LONG_OR_PTR;
+        if winuser::SetWindowLongPtrA(handle, winuser::GWL_EXSTYLE, flags) == 0 {
             return Err(format!("winuser::SetWindowLongPtrA"));
         }
     }

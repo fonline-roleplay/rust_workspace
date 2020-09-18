@@ -1,6 +1,8 @@
 //#![windows_subsystem = "windows"]
 
 fn main() {
+    achtung::setup("reports", "overlay_launcher");
+
     let file_out = std::fs::File::create("FOnlineOverlay.log").expect("overlay log file");
     let file_err = file_out.try_clone().expect("overlay err log file");
     let mut child = std::process::Command::new("FOnlineOverlay.exe")

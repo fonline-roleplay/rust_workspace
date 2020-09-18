@@ -14,6 +14,7 @@ static-link = ["backend-sdl2", "sdl2/static-link"]
 bridge = { path = "../../crates/bridge" }
 protocol = { path = "../../crates/protocol" }
 fo_defines = { path = "../../crates/fo_defines" }
+achtung = { path = "../../crates/achtung" }
 
 #orbtk = { path = "../orbtk" }
 #orbclient = "0.3.22"

@@ -15,9 +15,11 @@ members = [
 # AngelScript integration
     "angelscript", "as_derive", "angelscript_example",
 # random gameplay features
-    "physical_ui", "inv_grid",
+    "physical_ui", "inv_grid", "planes",
+# rust utility stuff
+    "achtung",
 ]
 
 [profile.release]
-lto = "off"
-debug = 1
+lto = false
+debug = 2

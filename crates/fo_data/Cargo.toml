@@ -14,7 +14,7 @@ itertools = "0.8"
 #derivative = "1.0"
 debug-helper = "0.3"
 #rayon = "1.2"
-image = { version = "0.23.0-preview.0", default-features = false, features = ["png_codec"] }
+image = { version = "0.23", default-features = false, features = ["png"] }
 once_cell = "1.2"
 bytes = "0.5"
 

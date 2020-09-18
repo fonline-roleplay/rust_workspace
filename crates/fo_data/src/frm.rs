@@ -172,13 +172,13 @@ mod tests {
 
     #[test]
     fn parse_edg1001() {
-        let file = std::fs::read("../../test_assets/EDG1001.FRM").unwrap();
+        let file = std::fs::read("../../../test_assets/EDG1001.FRM").unwrap();
         let (rest, frm) = frm_verbose(&file).unwrap();
         println!("frm: {:#?}, rest: {:?}", frm, rest)
     }
     #[test]
     fn parse_hmwarraa() {
-        let file = std::fs::read("../../test_assets/HMWARRAA.FRM").unwrap();
+        let file = std::fs::read("../../../test_assets/HMWARRAA.FRM").unwrap();
         let (rest, frm) = frm_verbose(&file).unwrap();
         println!("frm: {:#?}, rest: {:?}", frm, rest);
     }

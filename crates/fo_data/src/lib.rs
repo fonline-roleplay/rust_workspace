@@ -116,14 +116,17 @@ impl FoData {
             FileType::Frm => {
                 let data = retriever()?;
                 let frm = frm::frm(&data).map_err(Error::FrmParse)?;
+                let frame_number = 0;
                 let direction0 = frm.directions.get(0).ok_or(Error::EmptyFrm)?;
-                let frame0 = direction0.frames.get(0).ok_or(Error::EmptyFrm)?;
-                let size =
-                    (frame0.width as usize * frame0.height as usize + 512).next_power_of_two();
+                let offsets = direction0.frames.iter().skip(1).take(frame_number);
+                let offset_x: i16 = offsets.clone().map(|frame| frame.offset_x).sum();
+                let offset_y: i16 = offsets.map(|frame| frame.offset_y).sum();
+                let frame = direction0.frames.get(frame_number).ok_or(Error::EmptyFrm)?;
+                let size = (frame.width as usize * frame.height as usize + 512).next_power_of_two();
                 let image = image::GrayImage::from_raw(
-                    frame0.width as u32,
-                    frame0.height as u32,
-                    frame0.data.to_owned(),
+                    frame.width as u32,
+                    frame.height as u32,
+                    frame.data.to_owned(),
                 )
                 .ok_or(Error::ImageFromRaw)?;
                 let image =
@@ -136,8 +139,8 @@ impl FoData {
                 FileData {
                     data: data.into(),
                     file_type: FileType::Png,
-                    offset_x: direction0.shift_x + frame0.offset_x - frame0.width as i16 / 2,
-                    offset_y: direction0.shift_y + frame0.offset_y - frame0.height as i16,
+                    offset_x: direction0.shift_x + offset_x - frame.width as i16 / 2,
+                    offset_y: direction0.shift_y + offset_y - frame.height as i16,
                 }
             }
             _ => return Err(Error::FileType(file_type)),
@@ -158,9 +161,9 @@ mod tests {
 
     #[test]
     fn load_frm_from_zip_and_convert_to_png() {
-        let fo_data = FoData::init("../../CL4RP", "../../test_assets/COLOR.PAL").unwrap();
+        let fo_data = FoData::init("../../../CL4RP", "../../../test_assets/COLOR.PAL").unwrap();
         let image = fo_data.get_image("art/tiles/FOM1000.FRM").unwrap();
-        std::fs::write("../../test_assets/output/FOM1000.png", image.data).unwrap();
+        std::fs::write("../../../test_assets/output/FOM1000.png", image.data).unwrap();
     }
 
     fn save_frame<'a>(frame: &'a frm::Frame<'a>, palette: &[(u8, u8, u8)], path: impl AsRef<Path>) {
@@ -176,41 +179,41 @@ mod tests {
 
     #[test]
     fn colored_tile() {
-        let file = std::fs::read("../../test_assets/COLOR.PAL").unwrap();
+        let file = std::fs::read("../../../test_assets/COLOR.PAL").unwrap();
         let (_, palette) = palette::palette_verbose(&file).unwrap();
 
-        let file = std::fs::read("../../test_assets/EDG1001.FRM").unwrap();
+        let file = std::fs::read("../../../test_assets/EDG1001.FRM").unwrap();
         let (_, frm) = frm::frm_verbose(&file).unwrap();
 
         save_frame(
             &frm.directions[0].frames[0],
             &palette.colors_multiply(1),
-            "../../test_assets/output/EDG1001_1.png",
+            "../../../test_assets/output/EDG1001_1.png",
         );
         save_frame(
             &frm.directions[0].frames[0],
             &palette.colors_multiply(2),
-            "../../test_assets/output/EDG1001_2.png",
+            "../../../test_assets/output/EDG1001_2.png",
         );
         save_frame(
             &frm.directions[0].frames[0],
             &palette.colors_multiply(3),
-            "../../test_assets/output/EDG1001_3.png",
+            "../../../test_assets/output/EDG1001_3.png",
         );
         save_frame(
             &frm.directions[0].frames[0],
             &palette.colors_multiply(4),
-            "../../test_assets/output/EDG1001_4.png",
+            "../../../test_assets/output/EDG1001_4.png",
         );
     }
 
     #[test]
     fn colored_animation() {
-        let file = std::fs::read("../../test_assets/COLOR.PAL").unwrap();
+        let file = std::fs::read("../../../test_assets/COLOR.PAL").unwrap();
         let (_, palette) = palette::palette_verbose(&file).unwrap();
         let palette4 = palette.colors_multiply(4);
 
-        let file = std::fs::read("../../test_assets/HMWARRAA.FRM").unwrap();
+        let file = std::fs::read("../../../test_assets/HMWARRAA.FRM").unwrap();
         let (_, frm) = frm::frm_verbose(&file).unwrap();
 
         for (dir_index, dir) in frm.directions.iter().enumerate() {
@@ -225,5 +228,13 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn print_frm_animation_info() {
+        let fo_data = FoData::init("../../../CL4RP", "../../../test_assets/COLOR.PAL").unwrap();
+        let bytes = retriever::retrieve_file(&fo_data, "art/scenery/gizsign.frm").unwrap();
+        let (rest, frm) = frm::frm_verbose(&bytes).unwrap();
+        println!("{:?}", frm);
     }
 }

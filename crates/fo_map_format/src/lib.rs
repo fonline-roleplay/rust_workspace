@@ -209,3 +209,7 @@ mod tests {
         }
     }
 }
+
+pub trait Offset {
+    fn offset(&self) -> (i32, i32);
+}

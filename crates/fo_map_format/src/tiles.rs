@@ -120,3 +120,11 @@ mod test {
         //assert_eq!(crc::crc32::checksum_ieee(b"!@#$%^"), 3424808321);
     }*/
 }
+
+impl crate::Offset for Tile<'_> {
+    fn offset(&self) -> (i32, i32) {
+        self.offset
+            .map(|(x, y)| (x as i32, y as i32))
+            .unwrap_or((0, 0))
+    }
+}

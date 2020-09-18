@@ -264,6 +264,14 @@ impl Kind<'_> {
             Scenery { .. } => MAP_OBJECT_SCENERY,
         }
     }
+    pub fn anim(&self) -> Option<&Anim> {
+        use Kind::*;
+        match self {
+            Item { anim, .. } => Some(anim),
+            Scenery { anim, .. } => Some(anim),
+            _ => None,
+        }
+    }
 }
 const MAPOBJ_CRITTER_PARAMS: usize = 40;
 pub fn param_list<'a, E: ParseError<&'a str>>(
@@ -395,4 +403,18 @@ pub struct Objects<'a>(#[cfg_attr(feature = "serde1", serde(borrow))] pub Vec<Ob
 pub fn objects<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Objects<'a>, E> {
     let (i, _) = section("Objects")(i)?;
     map(separated_list(t_rn, object), Objects)(i)
+}
+
+impl crate::Offset for Object<'_> {
+    fn offset(&self) -> (i32, i32) {
+        self.kind
+            .anim()
+            .map(|anim| {
+                (
+                    anim.offset_x.unwrap_or(0) as i32,
+                    anim.offset_y.unwrap_or(0) as i32,
+                )
+            })
+            .unwrap_or((0, 0))
+    }
 }

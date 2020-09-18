@@ -143,13 +143,13 @@ fn handle_message_async(
                         .get_bare_branch_or_default("authkey", &default[..], |val| val.len() == 12)
                         .map_err(BridgeError::Versioned)?;
                     let authkey = match authkey {
-                        Ok(authkey) => {
+                        Some(authkey) => {
                             let slice = authkey.as_ref();
                             let bytes: [u8; 12] =
                                 slice.try_into().map_err(|_| BridgeError::TryInto)?;
                             bytes
                         }
-                        Err(()) => default,
+                        None => default,
                     };
                     let authkey: [u32; 3] = unsafe { std::mem::transmute(authkey) };
                     Ok(authkey)

@@ -100,7 +100,7 @@ pub fn get_value<T, R: RangeBounds<u32>, F: Fn(IVec) -> Result<T, IVec>>(
             eprintln!("Strange version: {:?}", key);
             continue;
         }
-        let value = parse(value).map_err(|ivec| VersionedError::ValueParse(ivec.into()))?;
+        let value = parse(value).map_err(|ivec| VersionedError::ValueParse(ivec))?;
         return Ok(Some((key, value)));
     }
     Ok(None)

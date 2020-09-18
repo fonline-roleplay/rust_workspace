@@ -1,0 +1,15 @@
+[workspace]
+members = [
+    "core",
+]
+
+[profile.release]
+lto = "fat"
+debug = false
+codegen-units = 1
+
+[profile.dev]
+lto = false
+opt-level = 1
+debug = 1
+

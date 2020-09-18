@@ -19,12 +19,16 @@ fn main() -> std::io::Result<()> {
     db_path.push("sled");
     let db = sled::open(db_path).expect("Can't open sled database");
 
-    let (mrhandy, join_handle) =
-        mrhandy::start(&config.discord.bot.token, config.discord.main_guild_id);
+    let (mrhandy, join_handle) = if let Some(discord) = &config.discord {
+        let (a, b) = mrhandy::start(&discord.bot.token, discord.main_guild_id);
+        (Some(a), Some(b))
+    } else {
+        (None, None)
+    };
 
     let state = web::AppState::new(config, mrhandy, db, fo_data, items);
     web::run(state);
     //db.flush().expect("Can't flush sled database");
-    join_handle.join().unwrap();
+    join_handle.map(|handle| handle.join().unwrap());
     Ok(())
 }

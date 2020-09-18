@@ -7,9 +7,11 @@ publish = false
 default-run = "serve"
 
 [features]
-default = ["map_viewer"]
+default = ["map_viewer", "tls-rust"]
 live_reload = []
 map_viewer = ["fo_data", "fo_map_format", "fo_proto_format", "nom_prelude"]
+tls-rust = ["actix-web/rustls", "reqwest/rustls-tls", "mrhandy/tls-rust"]
+#tls-native = ["actix-tls/nativetls", "reqwest/native-tls", "mrhandy/tls-native"]
 
 [dependencies]
 # sub-crates
@@ -27,7 +29,7 @@ nom_prelude = { path = "../../crates/nom_prelude", optional = true }
 mrhandy = { path = "../../crates/mrhandy" }
 
 # actix
-actix-web = {version = "2.0", features = ["rustls"]}
+actix-web = "2.0"
 rustls = "0.16"
 actix-server = "1.0"
 actix-service = "1.0"
@@ -47,13 +49,13 @@ serde = "1.0"
 serde_json = "1.0"
 toml = "0.5"
 tera = "1.0"
-rsass = "0.12"
-v_htmlescape = "0.4"
+rsass = "0.13"
+v_htmlescape = "0.10"
 percent-encoding = "2.1"
 #encoding_rs = "0.8"
 bincode = "1.2"
-base64 = "0.11"
-image = { version = "0.23.0-preview.0", default-features = false, features = ["png_codec"] }
+base64 = "0.12"
+image = { version = "0.23", default-features = false, features = ["png"] }
 #url = "1.7.2"
 
 # other
@@ -67,10 +69,15 @@ lazy_static = "1.4"
 log = "0.4"
 parking_lot = "0.10"
 rand = "0.7"
-sled = "0.30"
-oauth2 = { version = "3.0.0-alpha.7", features = ["futures-03"], default-features = false } #"reqwest-010"
+sled = "0.32.0"
+oauth2 = { version = "3.0.0", features = ["futures-03"], default-features = false } #"reqwest-010"
 http1 = { version = "0.1", package = "http" }
-reqwest = { version = "0.10", default-features = false, features = ["rustls-tls"] }
+reqwest = { version = "= 0.10.2", default-features = false }
+#reqwest = { version = "0.10", default-features = false }
+
+#ring = "= 0.16.9"
+#libc = "= 0.2.66"
+#tokio-rustls = "= 0.12.1"
 
 [[bin]]
 name = "serve"

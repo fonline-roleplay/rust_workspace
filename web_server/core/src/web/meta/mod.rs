@@ -97,7 +97,7 @@ pub async fn login(
     session: Session,
 ) -> actix_web::Result<HttpResponse> {
     let (authorize_url, csrf_token) = data
-        .oauth
+        .oauth.as_ref().expect("OAuth config")
         .authorize_url(CsrfToken::new_random)
         .add_scope(Scope::new("identify".to_owned()))
         .url();

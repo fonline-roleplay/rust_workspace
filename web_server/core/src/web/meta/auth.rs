@@ -17,7 +17,7 @@ pub async fn auth(
     );*/
     let res = match session.get::<CsrfToken>(DISCORD_CSRF_COOKIE_NAME) {
         Ok(Some(csrf)) if csrf.secret() == &params.state => data
-            .oauth
+            .oauth.as_ref().expect("OAuth config")
             .exchange_code(AuthorizationCode::new(params.code.clone()))
             .request_async(oauth_reqwest::async_http_client)
             .await

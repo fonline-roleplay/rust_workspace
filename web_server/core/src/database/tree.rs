@@ -103,7 +103,7 @@ impl<'a, T: Bark> Trunk<'a, T> {
             self.id,
             branch,
             self.versions,
-            |buf| Ok(buf.into()),
+            |buf| Ok(buf),
         )?
         .ok_or(VersionedError::NotFound)?;
         Ok(Leaf {
@@ -166,7 +166,7 @@ impl<'a, T: Bark> Trunk<'a, T> {
         branch: &str,
         default: &[u8],
         check: F,
-    ) -> Result<Result<sled::IVec, ()>, VersionedError>
+    ) -> Result<Option<sled::IVec>, VersionedError>
     where
         F: for<'l> Fn(&'l [u8]) -> bool,
     {
@@ -174,7 +174,7 @@ impl<'a, T: Bark> Trunk<'a, T> {
         let mut value = self.root.tree().get(&key).map_err(VersionedError::Sled)?;
         match &value {
             Some(value_ref) if check(value_ref.as_ref()) => {
-                return Ok(Ok(value.unwrap()));
+                return Ok(value);
             }
             _ => {}
         }
@@ -182,17 +182,17 @@ impl<'a, T: Bark> Trunk<'a, T> {
             match self
                 .root
                 .tree()
-                .cas(&key, value, Some(default))
+                .compare_and_swap(&key, value, Some(default))
                 .map_err(VersionedError::Sled)?
             {
                 Ok(()) => {
-                    return Ok(Err(()));
+                    return Ok(None);
                 }
-                Err(other) => {
+                Err(error) => {
                     eprintln!("Concurrent cas!");
-                    match &other {
+                    match &error.current {
                         Some(other_ref) if check(other_ref.as_ref()) => {
-                            return Ok(Ok(other.unwrap()));
+                            return Ok(error.current);
                         }
                         _ => {
                             eprintln!("Concurrent cas with none!");

@@ -224,7 +224,7 @@ impl Session {
 pub struct Config {
     pub host: Host,
     pub paths: Paths,
-    pub discord: Discord,
+    pub discord: Option<Discord>,
     pub session: Session,
 }
 

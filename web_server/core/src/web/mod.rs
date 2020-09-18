@@ -112,9 +112,9 @@ fn _info(
 */
 #[derive(Clone)]
 pub struct AppState {
-    oauth: oauth2::basic::BasicClient,
+    oauth: Option<oauth2::basic::BasicClient>,
     config: config::Config,
-    mrhandy: Arc<mrhandy::MrHandy>,
+    mrhandy: Option<Arc<mrhandy::MrHandy>>,
     sled_db: SledDb,
     critters_db: CrittersDb,
     bridge: bridge::Bridge,
@@ -126,7 +126,7 @@ pub struct AppState {
 impl AppState {
     pub fn new(
         config: config::Config,
-        mrhandy: mrhandy::MrHandy,
+        mrhandy: Option<mrhandy::MrHandy>,
         db: sled::Db,
         fo_data: FoData,
         items: BTreeMap<u16, fo_proto_format::ProtoItem>,
@@ -137,7 +137,9 @@ impl AppState {
         let bridge = bridge::Bridge::new();
 
         let redirect = config.host.web_url("/meta/auth");
-        let oauth = oauth2_client(&config.discord.oauth2, redirect).expect("oauth client");
+        let oauth = config.discord.as_ref().map(|discord| {
+            oauth2_client(&discord.oauth2, redirect).expect("oauth client")
+        });
 
         let reqwest = reqwest::Client::builder()
             // Following redirects opens the client up to SSRF vulnerabilities.
@@ -150,7 +152,7 @@ impl AppState {
         Self {
             oauth,
             config,
-            mrhandy: Arc::new(mrhandy),
+            mrhandy: mrhandy.map(|mrhandy| Arc::new(mrhandy)),
             sled_db,
             critters_db,
             bridge,

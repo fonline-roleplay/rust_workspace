@@ -1,5 +1,4 @@
-use std::sync::Arc;
-pub type ArcSlice = Arc<[u8]>;
+pub type ArcSlice = sled::IVec;
 
 mod versioned;
 pub use self::versioned::VersionedError;

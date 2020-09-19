@@ -38,11 +38,18 @@ pub fn root<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Map<'a>,
     Ok((i, map))
 }
 
-pub fn verbose_read_file<P: AsRef<std::path::Path>, O, F>(path: P, fun: F) -> std::io::Result<O>
+#[derive(Debug)]
+pub enum Error {
+    Io(std::io::Error),
+    Utf8(std::str::Utf8Error),
+}
+
+pub fn verbose_read_file<P: AsRef<std::path::Path>, O, F>(path: P, fun: F) -> Result<O, Error>
 where
     F: for<'a> Fn(&'a str, IResult<&'a str, Map<'a>, nom::error::VerboseError<&'a str>>) -> O,
 {
-    let text = std::fs::read_to_string(path)?;
+    let bytes = std::fs::read(path).map_err(Error::Io)?;
+    let text = std::str::from_utf8(&bytes).map_err(Error::Utf8)?;
     Ok(fun(&text, root(&text)))
 }
 

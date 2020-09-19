@@ -7,7 +7,8 @@ const DATAFILES_CFG: &str = "DataFiles.cfg";
 pub enum Error {
     Io(std::io::Error),
     Canonicalize(PathBuf, std::io::Error),
-    Nom(nom::Err<(String, nom::error::ErrorKind)>),
+    //Nom(nom::Err<(String, nom::error::ErrorKind)>),
+    Nom(nom::Err<String>),
 }
 
 pub fn parse_datafile<P: AsRef<Path>>(parent_folder: P) -> Result<Vec<PathBuf>, Error> {
@@ -16,8 +17,10 @@ pub fn parse_datafile<P: AsRef<Path>>(parent_folder: P) -> Result<Vec<PathBuf>, 
         .canonicalize()
         .map_err(move |err| Error::Canonicalize(datafiles.into(), err))?;
     let file = std::fs::read_to_string(&datafiles).map_err(Error::Io)?;
-    parse_datafile_inner::<(&str, nom::error::ErrorKind)>(&file)
-        .map_err(|err| Error::Nom(owned_err(err)))
+    //parse_datafile_inner::<(&str, nom::error::ErrorKind)>(&file)
+    parse_datafile_inner::<nom::error::VerboseError<_>>(&file)
+        //.map_err(|err| Error::Nom(owned_err(err)))
+        .map_err(|err| Error::Nom(err.map(|err| nom::error::convert_error(&file, err))))
         .and_then(|(rest, vec)| {
             vec.into_iter()
                 .map(datapath(parent_folder.as_ref()))
@@ -25,7 +28,7 @@ pub fn parse_datafile<P: AsRef<Path>>(parent_folder: P) -> Result<Vec<PathBuf>, 
         })
 }
 
-fn parse_datafile_inner<'a, E: ParseError<&'a str>>(
+fn parse_datafile_inner<'a, E: std::fmt::Debug + ParseError<&'a str>>(
     i: &'a str,
 ) -> IResult<&'a str, Vec<&'a str>, E> {
     fold_many0(alt_line, Vec::new(), push_some)(i)
@@ -49,17 +52,19 @@ where
     }
 }
 
-fn alt_line<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Option<&'a str>, E> {
+fn alt_line<'a, E: std::fmt::Debug + ParseError<&'a str>>(
+    i: &'a str,
+) -> IResult<&'a str, Option<&'a str>, E> {
     alt((
-        map(t_rn, |_| None),
         map(comment, |_| None),
         map(include, |_| None),
         map(line, Some),
+        map(t_rn, |_| None),
     ))(i)
 }
 
 fn comment<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E> {
-    preceded(char('#'), alt((line, t_rn)))(i)
+    preceded(char('#'), alt((line, end_of_line)))(i)
 }
 
 fn include<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E> {

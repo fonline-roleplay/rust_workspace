@@ -1,6 +1,7 @@
 //mod converter;
 pub mod crawler;
 pub mod datafiles;
+mod fofrm;
 mod frm;
 mod palette;
 mod retriever;
@@ -27,6 +28,43 @@ pub struct FileInfo {
     original_path: String,
     compressed_size: u64,
 }
+impl FileInfo {
+    pub fn extension(&self) -> Option<&str> {
+        let path = std::path::Path::new(&self.original_path);
+        path.extension().map(|os_str| os_str.to_str().unwrap())
+    }
+    fn location<'a>(&self, data: &'a FoData) -> Option<&'a std::path::PathBuf> {
+        use std::convert::TryInto;
+        match self.location {
+            FileLocation::Archive(index) => data.archives.get(index as usize),
+            _ => None,
+        }
+    }
+    fn retrieve(&self, data: &FoData) -> Result<bytes::Bytes, retriever::Error> {
+        use std::io::{BufReader, Read};
+
+        match self.location {
+            FileLocation::Archive(archive_index) => {
+                let archive_path = data
+                    .archives
+                    .get(archive_index as usize)
+                    .ok_or(retriever::Error::InvalidArchiveIndex)?;
+                let archive_file =
+                    std::fs::File::open(archive_path).map_err(retriever::Error::OpenArchive)?;
+                let archive_buf_reader = BufReader::with_capacity(1024, archive_file);
+                let mut archive =
+                    zip::ZipArchive::new(archive_buf_reader).map_err(retriever::Error::Zip)?;
+                let mut file = archive
+                    .by_name(&self.original_path)
+                    .map_err(retriever::Error::Zip)?;
+                let mut buffer = Vec::with_capacity(file.size() as usize);
+                file.read_to_end(&mut buffer);
+                Ok(buffer.into())
+            }
+            _ => Err(retriever::Error::UnsupportedFileLocation),
+        }
+    }
+}
 
 pub struct FoData {
     archives: Vec<std::path::PathBuf>,
@@ -47,7 +85,7 @@ pub enum FileType {
     Png,
     Frm,
     Gif,
-    Rgba,
+    FoFrm,
     Unsupported(String),
     Unknown,
 }
@@ -61,12 +99,28 @@ pub enum DataType {
 #[derive(Debug)]
 pub enum GetImageError {
     FileType(FileType),
+    Utf8(std::str::Utf8Error),
     Retrieve(retriever::Error),
     FrmParse(nom_prelude::ErrorKind),
-    EmptyFrm,
+    FoFrmParse(fofrm::FoFrmError),
+    NoParentFolder,
+    InvalidRelativePath(String, String),
+    NoDirection,
+    NoFrame,
     ImageFromRaw,
     ImageWrite(image::ImageError),
     PngDecode(image::ImageError),
+    Recursion(usize, Box<GetImageError>),
+    RecursionLimit,
+}
+impl GetImageError {
+    fn recursion(self) -> Self {
+        use GetImageError::*;
+        match self {
+            Recursion(num, origin) => Recursion(num+1, origin),
+            origin => Recursion(0, Box::new(origin)),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -129,7 +183,11 @@ impl FoData {
         })
     }
 
-    fn get_raw(&self, path: &str) -> Result<RawImage, GetImageError> {
+    fn get_raw(&self, path: &str, recursion: usize) -> Result<RawImage, GetImageError> {
+        const RECURSION_LIMIT: usize = 1;
+        if recursion > RECURSION_LIMIT {
+            return Err(GetImageError::RecursionLimit);
+        }
         let file_type = retriever::recognize_type(path);
         let retriever =
             move || retriever::retrieve_file(self, path).map_err(GetImageError::Retrieve);
@@ -160,14 +218,16 @@ impl FoData {
                 let data = retriever()?;
                 let frm = frm::frm(&data).map_err(GetImageError::FrmParse)?;
                 let frame_number = 0;
-                let direction0 = frm.directions.get(0).ok_or(GetImageError::EmptyFrm)?;
-                let offsets = direction0.frames.iter().skip(1).take(frame_number);
-                let offset_x: i16 = offsets.clone().map(|frame| frame.offset_x).sum();
-                let offset_y: i16 = offsets.map(|frame| frame.offset_y).sum();
-                let frame = direction0
+
+                let direction = frm.directions.get(0).ok_or(GetImageError::NoDirection)?;
+                let frame = direction
                     .frames
                     .get(frame_number)
-                    .ok_or(GetImageError::EmptyFrm)?;
+                    .ok_or(GetImageError::NoFrame)?;
+
+                let offsets = direction.frames.iter().skip(1).take(frame_number);
+                let offset_x: i16 = offsets.clone().map(|frame| frame.offset_x).sum();
+                let offset_y: i16 = offsets.map(|frame| frame.offset_y).sum();
 
                 let image = image::GrayImage::from_raw(
                     frame.width as u32,
@@ -178,20 +238,57 @@ impl FoData {
                 let image = image.expand_palette(&self.palette, Some(0));
                 RawImage {
                     image,
-                    offset_x: direction0.shift_x + offset_x - frame.width as i16 / 2,
-                    offset_y: direction0.shift_y + offset_y - frame.height as i16,
+                    offset_x: direction.shift_x + offset_x - frame.width as i16 / 2,
+                    offset_y: direction.shift_y + offset_y - frame.height as i16,
                 }
+            },
+            FileType::FoFrm => {
+                let mut full_path = std::path::Path::new(path).parent().ok_or(GetImageError::NoParentFolder)?.to_owned();
+                let data = retriever()?;
+                let string = std::str::from_utf8(&data).map_err(GetImageError::Utf8)?;
+                let fofrm = fofrm::parse_verbose(&string).map_err(GetImageError::FoFrmParse)?;
+                let frame_number = 0;
+
+                let direction = fofrm.directions.get(0).ok_or(GetImageError::NoDirection)?;
+                let frame = direction.frames.get(frame_number).ok_or(GetImageError::NoFrame)?;
+
+                let offsets = direction.frames.iter().skip(1).take(frame_number);
+                let mut offset_x: i16 = offsets.clone().map(|frame| frame.next_x.unwrap_or(0)).sum();
+                let mut offset_y: i16 = offsets.map(|frame| frame.next_y.unwrap_or(0)).sum();
+
+                offset_x += direction.offset_x.or(fofrm.offset_x).unwrap_or(0); 
+                offset_y += direction.offset_y.or(fofrm.offset_y).unwrap_or(0);
+
+                let relative_path = frame.frm.ok_or(GetImageError::NoFrame)?;
+                dbg!(&full_path, &relative_path);
+                for component in std::path::Path::new(relative_path).components() {
+                    use std::path::Component;
+                    if !match dbg!(component) {
+                        Component::ParentDir => full_path.pop(),
+                        Component::Normal(str) => {full_path.push(str); true},
+                        _ => false,
+                    } {
+                        return Err(GetImageError::InvalidRelativePath(path.into(), relative_path.into()));
+                    }
+                }
+                let full_path = nom_prelude::make_path_conventional(full_path.to_str().expect("Convert full path back to string"));
+                dbg!(&full_path);
+                
+                let mut image = self.get_raw(&full_path, recursion+1).map_err(GetImageError::recursion)?;
+                image.offset_x += offset_x;
+                image.offset_y += offset_y;
+                image
             }
             _ => return Err(GetImageError::FileType(file_type)),
         })
     }
 
     pub fn get_png(&self, path: &str) -> Result<FileData, GetImageError> {
-        let raw = self.get_raw(path)?;
+        let raw = self.get_raw(path, 0)?;
         raw.to_png().map_err(GetImageError::ImageWrite)
     }
     pub fn get_rgba(&self, path: &str) -> Result<RawImage, GetImageError> {
-        self.get_raw(path)
+        self.get_raw(path, 0)
     }
     pub fn count_archives(&self) -> usize {
         self.archives.len()
@@ -209,7 +306,7 @@ mod tests {
     #[test]
     fn load_frm_from_zip_and_convert_to_png() {
         let fo_data = FoData::init("../../../CL4RP", "../../../test_assets/COLOR.PAL").unwrap();
-        let image = fo_data.get_image("art/tiles/FOM1000.FRM").unwrap();
+        let image = fo_data.get_png("art/tiles/FOM1000.FRM").unwrap();
         std::fs::write("../../../test_assets/output/FOM1000.png", image.data).unwrap();
     }
 

@@ -127,10 +127,23 @@ pub fn t_rn<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str,
     recognize(pair(space0, line_ending))(i)
 }
 
+pub fn end_of_line<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E> {
+    recognize(pair(space0, alt((line_ending, eof))))(i)
+}
+
 pub fn section<'a, E: ParseError<&'a str>>(
     name: &'a str,
 ) -> impl Fn(&'a str) -> IResult<&'a str, &'a str, E> {
-    move |i| delimited(char('['), tag(name), pair(char(']'), t_rn))(i)
+    move |i| delimited(char('['), tag(name), pair(char(']'), end_of_line))(i)
+}
+
+pub fn section_ext<'a, O, F, E: ParseError<&'a str>>(
+    parser: F,
+) -> impl Fn(&'a str) -> IResult<&'a str, O, E>
+where
+    F: Fn(&'a str) -> IResult<&'a str, O, E>,
+{
+    move |i| delimited(char('['), &parser, pair(char(']'), end_of_line))(i)
 }
 
 pub fn curly_delimited<'a, E: ParseError<&'a str>, O, F>(
@@ -171,7 +184,27 @@ pub fn kv<'a, E: ParseError<&'a str>, O, F>(
 where
     F: Fn(&'a str) -> IResult<&'a str, O, E>,
 {
-    move |i| preceded(tag(key), delimited(space1, &parser, t_rn))(i)
+    move |i| preceded(tag(key), delimited(space1, &parser, end_of_line))(i)
+}
+pub fn kv_sep<'a, E: ParseError<&'a str>, O, F>(
+    key: &'a str,
+    sep: &'a str,
+    parser: F,
+) -> impl Fn(&'a str) -> IResult<&'a str, O, E>
+where
+    F: Fn(&'a str) -> IResult<&'a str, O, E>,
+{
+    move |i| preceded(tag(key), delimited(tuple((space0, tag(sep), space0)), &parser, end_of_line))(i)
+}
+
+pub fn kv_eq<'a, E: ParseError<&'a str>, O, F>(
+    key: &'a str,
+    parser: F,
+) -> impl Fn(&'a str) -> IResult<&'a str, O, E>
+where
+    F: Fn(&'a str) -> IResult<&'a str, O, E>,
+{
+    kv_sep(key, "=", parser)
 }
 
 pub fn kv_ext<'a, E: ParseError<&'a str>, O, O2, F, K>(
@@ -182,7 +215,30 @@ where
     F: Fn(&'a str) -> IResult<&'a str, O, E>,
     K: Fn(&'a str) -> IResult<&'a str, O2, E>,
 {
-    move |i| preceded(&key, delimited(space1, &parser, t_rn))(i)
+    move |i| preceded(&key, delimited(space1, &parser, end_of_line))(i)
+}
+
+pub fn kv_kv<'a, E: ParseError<&'a str>, O, O2, F, K>(
+    key: K,
+    parser: F,
+) -> impl Fn(&'a str) -> IResult<&'a str, (O2, O), E>
+where
+    F: Fn(&'a str) -> IResult<&'a str, O, E>,
+    K: Fn(&'a str) -> IResult<&'a str, O2, E>,
+{
+    move |i| tuple((&key, delimited(space1, &parser, end_of_line)))(i)
+}
+
+pub fn kv_kv_sep<'a, E: ParseError<&'a str>, O, O2, F, K>(
+    key: K,
+    sep: &'a str,
+    parser: F,
+) -> impl Fn(&'a str) -> IResult<&'a str, (O2, O), E>
+where
+    F: Fn(&'a str) -> IResult<&'a str, O, E>,
+    K: Fn(&'a str) -> IResult<&'a str, O2, E>,
+{
+    move |i| tuple((&key, delimited(tuple((space0, tag(sep), space0)), &parser, end_of_line)))(i)
 }
 
 pub fn key_int<'a, E: ParseError<&'a str>, O: FromStr>(
@@ -198,7 +254,7 @@ pub fn opt_kv<'a, E: ParseError<&'a str>, O, F>(
 where
     F: Fn(&'a str) -> IResult<&'a str, O, E>,
 {
-    move |i| opt(preceded(tag(key), delimited(space1, &parser, t_rn)))(i)
+    move |i| opt(preceded(tag(key), delimited(space1, &parser, end_of_line)))(i)
 }
 
 pub fn opt_kv_ext<'a, E: ParseError<&'a str>, O, O2, F, K>(
@@ -209,7 +265,7 @@ where
     F: Fn(&'a str) -> IResult<&'a str, O, E>,
     K: Fn(&'a str) -> IResult<&'a str, O2, E>,
 {
-    move |i| opt(preceded(&key, delimited(space1, &parser, t_rn)))(i)
+    move |i| opt(preceded(&key, delimited(space1, &parser, end_of_line)))(i)
 }
 
 pub fn opt_key_int<'a, E: ParseError<&'a str>, O: FromStr>(
@@ -467,6 +523,13 @@ mod tests {
         let parser = integer::<VerboseError<&str>, i32>;
         assert_eq!(Ok(("   ", 123456)), parser("123456   "));
         assert_eq!(Ok(("   ", -123456)), parser("-123456   "));
+    }
+
+    #[test]
+    fn test_t_rn() {
+        let parser = t_rn::<VerboseError<&str>>;
+        assert_eq!(Ok(("", "\n")), parser("\n"));
+        assert_eq!(Ok(("", "\r\n")), parser("\r\n"));
     }
 }
 

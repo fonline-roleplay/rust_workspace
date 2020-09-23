@@ -118,7 +118,9 @@ type VerboseError<'a> = LocalError<'a, nom::error::VerboseError<&'a str>>;
 impl<'a> VerboseError<'a> {
     fn to_owned(self) -> FoFrmError {
         match self {
-            LocalError::Nom(i, err) => FoFrmError::Nom(err.map(|err| nom::error::convert_error(i, err))),
+            LocalError::Nom(i, err) => {
+                FoFrmError::Nom(err.map(|err| nom::error::convert_error(i, err)))
+            }
             LocalError::Verify(i, err) => {
                 let text = i.chars().take(50).collect();
                 FoFrmError::Verify(text, err)
@@ -177,9 +179,7 @@ fn parse_fofrm_raw<'a, Error: ParseError<&'a str>>(
     Ok(fofrm)
 }
 
-pub fn parse_verbose<'a>(
-    input: &'a str,
-) -> Result<FoFrmRaw<'a>, FoFrmError> {
+pub fn parse_verbose<'a>(input: &'a str) -> Result<FoFrmRaw<'a>, FoFrmError> {
     parse_fofrm_raw(input).map_err(VerboseError::to_owned)
 }
 
@@ -274,9 +274,10 @@ mod test {
     #[test]
     fn parse_all_fofrm() {
         let fo_data = crate::FoData::init("../../../CL4RP", "../../../CL4RP/COLOR.PAL").unwrap();
-        for file in fo_data.files.values() {
-            if file.extension() == Some("fofrm") {
-                let bytes = file.retrieve(&fo_data).unwrap();
+        let retriever = crate::retriever::Retriever::new(fo_data);
+        for (path, file) in &retriever.data().files {
+            if crate::retriever::recognize_type(path) == crate::FileType::FoFrm {
+                let bytes = retriever.file_by_info(&fo_data).unwrap();
                 let string = std::str::from_utf8(&bytes).unwrap();
                 let fofrm = parse_verbose(string);
                 match &fofrm {
@@ -288,11 +289,17 @@ mod test {
                                 .get(0)
                                 .map(|dir| {
                                     dir.frames.iter().any(|frame| {
-                                        frame.next_x.is_some() || frame.next_y.is_some() || frame.frm.map(|frm| {
-                                            let mut ext: String = frm.chars().rev().skip(1).take(2).collect();
-                                            ext.make_ascii_lowercase();
-                                            ext == "rf"
-                                        }).unwrap_or(false)
+                                        frame.next_x.is_some()
+                                            || frame.next_y.is_some()
+                                            || frame
+                                                .frm
+                                                .map(|frm| {
+                                                    let mut ext: String =
+                                                        frm.chars().rev().skip(1).take(2).collect();
+                                                    ext.make_ascii_lowercase();
+                                                    ext == "rf"
+                                                })
+                                                .unwrap_or(false)
                                     })
                                 })
                                 .unwrap_or(false)

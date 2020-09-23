@@ -3,6 +3,8 @@ mod objects;
 mod prelude;
 mod tiles;
 
+pub use crate::objects::Object;
+
 use crate::{
     header::{header, Header},
     objects::{objects, Objects},
@@ -44,9 +46,9 @@ pub enum Error {
     Utf8(std::str::Utf8Error),
 }
 
-pub fn verbose_read_file<P: AsRef<std::path::Path>, O, F>(path: P, fun: F) -> Result<O, Error>
+pub fn verbose_read_file<P: AsRef<std::path::Path>, O, F>(path: P, mut fun: F) -> Result<O, Error>
 where
-    F: for<'a> Fn(&'a str, IResult<&'a str, Map<'a>, nom::error::VerboseError<&'a str>>) -> O,
+    F: for<'a> FnMut(&'a str, IResult<&'a str, Map<'a>, nom::error::VerboseError<&'a str>>) -> O,
 {
     let bytes = std::fs::read(path).map_err(Error::Io)?;
     let text = std::str::from_utf8(&bytes).map_err(Error::Utf8)?;

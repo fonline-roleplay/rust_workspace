@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 #[derive(Debug)]
 pub enum Error {}
 
-pub fn gather_paths(archives: &[PathBuf]) -> Result<PathMap<String, FileInfo>, Error> {
+pub fn gather_paths(archives: &[crate::FoArchive]) -> Result<PathMap<String, FileInfo>, Error> {
     assert!(archives.len() <= u16::max_value() as usize);
 
     let mut path_map = PathMap::new();
@@ -18,14 +18,14 @@ pub fn gather_paths(archives: &[PathBuf]) -> Result<PathMap<String, FileInfo>, E
         archives
             .iter()
             .enumerate()
-            .flat_map(|(archive_index, path)| {
-                println!("Crawling {:?}", path);
-                let archive_file = std::fs::File::open(&path).unwrap();
+            .flat_map(|(archive_index, archive)| {
+                println!("Crawling {:?}", archive.path);
+                let archive_file = std::fs::File::open(&archive.path).unwrap();
                 let buf_reader = BufReader::with_capacity(1024, archive_file);
-                let mut archive = zip::ZipArchive::new(buf_reader).unwrap();
+                let mut archive_zip = zip::ZipArchive::new(buf_reader).unwrap();
                 let mut local_path_map = PathMap::new();
-                for i in 0..archive.len() {
-                    let mut entry = archive.by_index(i).unwrap();
+                for i in 0..archive_zip.len() {
+                    let mut entry = archive_zip.by_index(i).unwrap();
                     if entry.is_dir() {
                         continue;
                     }
@@ -45,19 +45,21 @@ pub fn gather_paths(archives: &[PathBuf]) -> Result<PathMap<String, FileInfo>, E
     Ok(path_map)
 }
 
-pub fn shadowed_files(archives: &[PathBuf]) -> Result<Vec<(String, u64, &Path, &Path)>, Error> {
+pub fn shadowed_files(
+    archives: &[crate::FoArchive],
+) -> Result<Vec<(String, u64, &Path, &Path)>, Error> {
     assert!(archives.len() <= u16::max_value() as usize);
 
     let mut path_map = PathMap::new();
     let mut shadowed = Vec::with_capacity(512);
 
-    for (archive_index, path) in archives.iter().enumerate() {
-        println!("Crawling {:?}", path);
-        let archive_file = std::fs::File::open(&path).unwrap();
+    for (archive_index, archive) in archives.iter().enumerate() {
+        println!("Crawling {:?}", archive.path);
+        let archive_file = std::fs::File::open(&archive.path).unwrap();
         let buf_reader = BufReader::with_capacity(1024, archive_file);
         let mut archive = zip::ZipArchive::new(buf_reader).unwrap();
         for i in 0..archive.len() {
-            let mut entry = archive.by_index(i).unwrap();
+            let entry = archive.by_index(i).unwrap();
             if entry.is_dir() {
                 continue;
             }
@@ -76,8 +78,8 @@ pub fn shadowed_files(archives: &[PathBuf]) -> Result<Vec<(String, u64, &Path, &
                     shadowed.push((
                         old.original_path,
                         old.compressed_size,
-                        archives[old_index as usize].as_path(),
-                        archives[archive_index].as_path(),
+                        archives[old_index as usize].path.as_path(),
+                        archives[archive_index].path.as_path(),
                     ));
                 }
             }

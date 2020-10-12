@@ -1,13 +1,12 @@
 [package]
-name = "tnf_web_server"
+name = "web_server_core"
 version = "0.1.0"
 authors = ["qthree <qthree3@gmail.com>"]
 edition = "2018"
 publish = false
-default-run = "serve"
 
 [features]
-default = ["map_viewer", "tls-rust"]
+default = ["tls-rust"]
 live_reload = []
 map_viewer = ["fo_data", "fo_map_format", "fo_proto_format", "nom_prelude"]
 tls-rust = ["actix-web/rustls", "reqwest/rustls-tls", "mrhandy/tls-rust"]
@@ -34,7 +33,7 @@ rustls = "0.18"
 actix-server = "1.0"
 actix-service = "1.0"
 actix-codec = "0.3"
-actix-files = "0.3"
+actix-files = "0.4"
 actix-rt = "1.0"
 actix-session = "0.4"
 actix-http = "2.0"
@@ -49,12 +48,12 @@ serde = "1.0"
 serde_json = "1.0"
 toml = "0.5"
 tera = "1.0"
-rsass = "0.13"
+rsass = "0.14"
 v_htmlescape = "0.10"
 percent-encoding = "2.1"
 #encoding_rs = "0.8"
 bincode = "1.2"
-base64 = "0.12"
+base64 = "0.13"
 image = { version = "0.23", default-features = false, features = ["png"] }
 #url = "1.7.2"
 
@@ -63,13 +62,12 @@ arc-swap = "0.4"
 arrayvec = "0.5"
 bytes = "0.5"
 custom_error = "1.7"
-env_logger = "0.7"
 #itertools = "0.8"
 lazy_static = "1.4"
 log = "0.4"
 parking_lot = "0.11"
 rand = "0.7"
-sled = "0.32.0"
+sled = "0.34.0"
 oauth2 = { version = "3.0.0", features = ["futures-03"], default-features = false } #"reqwest-010"
 http1 = { version = "0.1", package = "http" }
 #reqwest = { version = "= 0.10.2", default-features = false }
@@ -78,7 +76,3 @@ reqwest = { version = "0.10", default-features = false }
 #ring = "= 0.16.9"
 #libc = "= 0.2.66"
 #tokio-rustls = "= 0.12.1"
-
-[[bin]]
-name = "serve"
-required-features = ["map_viewer"]

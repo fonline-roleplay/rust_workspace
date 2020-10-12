@@ -1,4 +1,5 @@
 use actix_web::{error::BlockingError, web, HttpRequest, HttpResponse, Responder};
+use fo_data::Converter;
 use futures::{
     future::{err as fut_err, ok as fut_ok, Either},
     Future, FutureExt, TryFutureExt,
@@ -16,10 +17,10 @@ pub fn get(
     })
     .err_into()
     .and_then(|image| {
-        use fo_data::FileType;
-        let content_type = match image.file_type {
-            FileType::Png => "image/png",
-            //FileType::Gif => "image/gif",
+        use fo_data::DataType;
+        let content_type = match image.data_type {
+            DataType::Png => "image/png",
+            //DataType::Gif => "image/gif",
             _ => unimplemented!(),
         };
         HttpResponse::Ok()
@@ -29,8 +30,8 @@ pub fn get(
                 "Access-Control-Expose-Headers",
                 "x-image-offset-x, x-image-offset-y",
             )
-            .header("x-image-offset-x", format!("{}", image.offset_x))
-            .header("x-image-offset-y", format!("{}", image.offset_y))
+            .header("x-image-offset-x", format!("{}", image.offset.0))
+            .header("x-image-offset-y", format!("{}", image.offset.1))
             .body(image.data)
     })
 }

@@ -78,7 +78,7 @@ pub fn list() -> impl Future<Output = actix_web::Result<HttpResponse>> {
 
 #[derive(Debug)]
 enum MapViewError {
-    Io(std::io::Error),
+    Io(fo_map_format::Error),
     Nom(String),
     Template(templates::TemplatesError),
 }

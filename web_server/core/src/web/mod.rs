@@ -8,17 +8,22 @@ use std::sync::mpsc::channel;
 use std::sync::Arc;
 
 use crate::{bridge, config, critters_db::CrittersDb, database::SledDb};
-use fo_data::FoData;
 
-const STATIC_PATH: &'static str = "./static/";
+#[cfg(feature = "fo_data")]
+use fo_data::FoRetriever;
 
 mod avatar;
-mod data;
 mod dir;
 mod gm;
-mod map_viewer;
 mod meta;
 mod stats;
+
+#[cfg(feature = "fo_data")]
+mod data;
+#[cfg(feature = "map_viewer")]
+mod map_viewer;
+
+const STATIC_PATH: &'static str = "./static/";
 
 /*
 pub struct Mailbox(actix::Addr<CrittersDb>);
@@ -53,6 +58,11 @@ async fn index(
                     None,
                 ),
             };
+            let maps = if cfg!(feature = "map_viewer") {
+                "<li><a href=\"maps\">maps</a></li>"
+            } else {
+                ""
+            };
             let menu = max_rank
                 .filter(|rank| *rank >= meta::Rank::GameMaster)
                 .map_or(String::new(), |_| {
@@ -60,8 +70,9 @@ async fn index(
                         "<h1>Menu:</h1><ul>\
                          <li><a href=\"gm/clients\">clients</a></li>\
                          <li><a href=\"private/\">private</a></li>\
-                         <li><a href=\"maps\">maps</a></li>\
-                         </ul>"
+                         {}\
+                         </ul>",
+                         maps
                     )
                 });
             format!(
@@ -118,7 +129,9 @@ pub struct AppState {
     sled_db: SledDb,
     critters_db: CrittersDb,
     bridge: bridge::Bridge,
-    fo_data: Arc<FoData>,
+    #[cfg(feature = "fo_data")]
+    fo_data: Arc<FoRetriever>,
+    #[cfg(feature = "fo_proto_format")]
     items: Arc<BTreeMap<u16, fo_proto_format::ProtoItem>>,
     reqwest: reqwest::Client,
 }
@@ -128,8 +141,8 @@ impl AppState {
         config: config::Config,
         mrhandy: Option<mrhandy::MrHandy>,
         db: sled::Db,
-        fo_data: FoData,
-        items: BTreeMap<u16, fo_proto_format::ProtoItem>,
+        #[cfg(feature = "fo_data")] fo_data: FoRetriever,
+        #[cfg(feature = "fo_proto_format")] items: BTreeMap<u16, fo_proto_format::ProtoItem>,
     ) -> Self {
         let critters_db = CrittersDb::new(config.paths.save_clients.clone());
 
@@ -157,7 +170,9 @@ impl AppState {
             sled_db,
             critters_db,
             bridge,
+            #[cfg(feature = "fo_data")]
             fo_data: Arc::new(fo_data),
+            #[cfg(feature = "fo_proto_format")]
             items: Arc::new(items),
             reqwest,
         }
@@ -211,7 +226,7 @@ pub fn run(state: AppState) {
             let cookies = actix_session::CookieSession::private(state.config.session.cookie_key())
                 .name("meta-session")
                 .secure(false);
-            App::new()
+            let app = App::new()
                 .data(state.clone())
                 .wrap(middleware::Compress::default())
                 .wrap(middleware::Logger::default())
@@ -225,13 +240,6 @@ pub fn run(state: AppState) {
                         .service(web::resource("/auth").route(web::get().to(meta::auth))),
                 )
                 .service(
-                    web::scope("/maps")
-                        .wrap_fn(meta::restrict_gm)
-                        //.service(web::resource("/tilemap").route(web::get().to(map_viewer::tilemap))),
-                        .service(web::resource("/{path:.+}").route(web::get().to(map_viewer::view)))
-                        .service(web::resource("").route(web::get().to(map_viewer::list))),
-                )
-                .service(
                     web::scope("/gm")
                         .wrap_fn(meta::restrict_gm)
                         .service(web::resource("/clients").route(web::get().to(gm::clients)))
@@ -239,12 +247,6 @@ pub fn run(state: AppState) {
                             web::resource("/client/{client}").route(web::get().to(stats::gm_stats)),
                         ),
                 )
-                .service(
-                    web::resource("/data/{path:.+}")
-                        .wrap_fn(meta::restrict_gm)
-                        .route(web::get().to(data::get)),
-                )
-                .service(actix_files::Files::new("/static", STATIC_PATH))
                 .service(
                     web::scope("/char/{id}")
                         .service(
@@ -256,6 +258,7 @@ pub fn run(state: AppState) {
                         )
                         .service(web::resource("/avatar").route(web::get().to(avatar::show))),
                 )
+                .service(actix_files::Files::new("/static", STATIC_PATH))
                 .service({
                     let mut private = web::scope("/private")
                         .wrap_fn(meta::restrict_gm)
@@ -269,7 +272,22 @@ pub fn run(state: AppState) {
                         );
                     }
                     private
-                })
+                });
+            #[cfg(feature = "map_viewer")]
+            let app = app.service(
+                web::scope("/maps")
+                    .wrap_fn(meta::restrict_gm)
+                    //.service(web::resource("/tilemap").route(web::get().to(map_viewer::tilemap))),
+                    .service(web::resource("/{path:.+}").route(web::get().to(map_viewer::view)))
+                    .service(web::resource("").route(web::get().to(map_viewer::list))),
+            );
+            #[cfg(feature = "fo_data")]
+            let app = app.service(
+                web::resource("/data/{path:.+}")
+                    .wrap_fn(meta::restrict_gm)
+                    .route(web::get().to(data::get)),
+            );
+            app
             //.service(
             //    web::resource("/{crid}").route(web::get().to_async(stats::gm_stats))
             //)

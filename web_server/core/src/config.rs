@@ -150,15 +150,17 @@ impl PrivatePaths {
         Ok(())
     }
 }
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct Paths {
     pub save_clients: PathBuf, // "../../FO4RP/save/clients/"
     pub proto_items: PathBuf,  // "../../FO4RP/proto/items/items.lst"
-    pub maps: PathBuf,         // "../../FO4RP/maps/"
+    #[cfg(feature = "fo_map_format")]
+    pub maps: PathBuf, // "../../FO4RP/maps/"
     pub working_dir: PathBuf,  // "../web"
-    pub game_client: PathBuf,  // "../../CL4RP"
-    pub palette: PathBuf,      // "../../FO4RP/proto/items/items.lst"
+    #[cfg(feature = "fo_data")]
+    pub game_client: PathBuf, // "../../CL4RP"
+    #[cfg(feature = "fo_data")]
+    pub palette: PathBuf, // "../../FO4RP/proto/items/items.lst"
     pub private: PrivatePaths, // ["../../FO4RP/logs", "../../FO4RP/dumps", "../../FO4RP/save"]
 }
 
@@ -232,7 +234,7 @@ pub struct Config {
 pub enum ConfigError {
     Io(std::io::Error),
     Toml(toml::de::Error),
-    Canonicalize(std::io::Error),
+    Canonicalize(PathBuf, std::io::Error),
     PrivateSameName(PathBuf),
     PrivateNotDir(PathBuf),
     NoSessionKey,
@@ -241,7 +243,7 @@ pub enum ConfigError {
 }
 
 fn canon(path: &mut PathBuf) -> Result<(), ConfigError> {
-    *path = path.canonicalize().map_err(ConfigError::Canonicalize)?;
+    *path = path.canonicalize().map_err(|err| ConfigError::Canonicalize(path.clone(), err))?;
     Ok(())
 }
 
@@ -252,10 +254,14 @@ pub fn setup() -> Result<Config, ConfigError> {
 
     let paths = &mut config.paths;
     canon(&mut paths.save_clients)?;
+    #[cfg(feature = "fo_proto_format")]
     canon(&mut paths.proto_items)?;
+    #[cfg(feature = "fo_map_format")]
     canon(&mut paths.maps)?;
     canon(&mut paths.working_dir)?;
+    #[cfg(feature = "fo_data")]
     canon(&mut paths.game_client)?;
+    #[cfg(feature = "fo_data")]
     canon(&mut paths.palette)?;
     paths.private.setup()?;
 

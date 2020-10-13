@@ -63,7 +63,12 @@ fn role_to_rank<'b>(config: &'b crate::config::Roles) -> impl 'b + Fn(&mrhandy::
     }
 }
 
-pub fn extract_rank(req: &ServiceRequest) -> Result<Rank, actix_web::Error> {
+pub struct Member {
+    pub id: u64,
+    pub ranks: Vec<Rank>,
+}
+
+pub fn extract_member(req: &ServiceRequest) -> Result<Option<Member>, actix_web::Error> {
     use actix_session::{Session, UserSession};
     use actix_web::{web::Data, FromRequest};
     let data: &Data<AppState> = req
@@ -71,8 +76,12 @@ pub fn extract_rank(req: &ServiceRequest) -> Result<Rank, actix_web::Error> {
         .ok_or("No AppState data")
         .map_err(internal_error)?;
     let session = req.get_session();
-    let user_id = get_user_id(&session).ok_or_else(access_denied("Restricted zone"))?;
-    let ranks = get_ranks(&data, user_id).map_err(internal_error)?;
-    let first_rank = ranks.first().ok_or_else(access_denied("Restricted zone"))?;
-    Ok(*first_rank)
+    let user_id = get_user_id(&session);
+    match user_id {
+        Some(id) => {
+            let ranks = get_ranks(&data, id).map_err(internal_error)?;
+            Ok(Some(Member{id, ranks}))
+        }
+        None => Ok(None),
+    }        
 }

@@ -5,7 +5,7 @@ pub mod server_dll_web {
     use super::*;
 
     pub const HANDSHAKE: u16 = 0xBABA;
-    pub const VERSION: u16 = 2;
+    pub const VERSION: u16 = 3;
 
     #[repr(C)]
     #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -20,6 +20,7 @@ pub mod server_dll_web {
         UpdateCharLeaf { id: u32, ver: u32, secret: u32 },
         SendKeyToPlayer(u32, [u32; 3]),
         SendConfig { player_id: u32, url: CString },
+        StartGame { player_id: u32 },
         Nop,
     }
 }

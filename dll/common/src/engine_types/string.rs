@@ -1,6 +1,6 @@
 use crate::engine_types::stl::{stlp_std_allocator, stlp_std_priv__STLP_alloc_proxy};
-use std::mem::ManuallyDrop;
 use std::ffi::CStr;
+use std::mem::ManuallyDrop;
 
 #[repr(C)]
 union stlp_std_priv__String_base__Buffers<_Tp: Copy> {
@@ -73,7 +73,7 @@ impl ScriptString {
     pub fn string(&self) -> String {
         cp1251_to_utf8(self.inner.buffer._base._M_start_of_storage._M_data)
     }
-    pub fn from_string(string: &str) -> *mut Self {
+    pub fn from_string(api: &crate::engine_functions::AngelScriptApi, string: &str) -> *mut Self {
         use encoding_rs::*;
 
         //assert_eq!(string.as_bytes().last(), b'\0');
@@ -82,7 +82,7 @@ impl ScriptString {
         assert_eq!(encoding_used, WINDOWS_1251);
         assert!(!had_errors);
         let c_str = CStr::from_bytes_with_nul(cow.as_ref()).expect("Null terminated cp1251 string");
-        unsafe { crate::engine_functions::Script_String(c_str) }
+        unsafe { api.Script_String(c_str.as_ptr()) }
     }
 }
 

@@ -93,7 +93,7 @@ mod tests {
     use super::*;
     #[test]
     fn test_gather_paths() {
-        let archives = crate::datafiles::parse_datafile("../../CL4RP").unwrap();
+        let archives = crate::datafiles::parse_datafile(crate::CLIENT_FOLDER).unwrap();
         let res = gather_paths(&archives).unwrap();
         for (entry_name, info) in &res {
             match info.location {

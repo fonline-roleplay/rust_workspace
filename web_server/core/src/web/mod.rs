@@ -17,6 +17,7 @@ mod dir;
 mod gm;
 mod meta;
 mod stats;
+mod char_action;
 
 #[cfg(feature = "fo_data")]
 mod data;
@@ -250,10 +251,16 @@ pub fn run(state: AppState) {
                 .service(
                     web::scope("/char/{id}")
                         .service(
-                            web::scope("/edit").service(
+                            web::scope("/edit").wrap_fn(meta::restrict_ownership).service(
                                 web::resource("/avatar")
                                     .route(web::get().to(avatar::edit))
                                     .route(web::post().to(avatar::upload)),
+                            ),
+                        )
+                        .service(
+                            web::scope("/action").wrap_fn(meta::restrict_ownership).service(
+                                web::resource("/start_game")
+                                    .route(web::get().to(char_action::start_game))
                             ),
                         )
                         .service(web::resource("/avatar").route(web::get().to(avatar::show))),

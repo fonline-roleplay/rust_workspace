@@ -16,8 +16,33 @@ pub mod dll {
 #[cfg(all(windows, feature = "dll"))]
 pub mod engine_functions;
 
+#[cfg(feature = "dll")]
+pub mod state;
+
 #[cfg(all(windows, feature = "dll"))]
 pub use dll::init::console_init;
+
+pub fn message_info(title: &str, content: &str) {
+    msgbox::create(title, content, msgbox::IconType::Info);
+}
+
+use std::sync::atomic::{AtomicBool, Ordering};
+static FIRST_TIME: AtomicBool = AtomicBool::new(true);
+pub fn check_dll_reload() {
+    if FIRST_TIME.swap(false, Ordering::SeqCst) {
+        // First time, it's ok.
+    } else {
+        message_info(
+            r#"¯\_(ツ)_/¯"#,
+            "Произошла повторная загрузка DLL, требуется перезапуск.",
+        );
+        std::process::exit(1);
+    }
+}
+
+pub fn dll_finish() {
+    //FIRST_TIME.store(true, Ordering::SeqCst);
+}
 
 #[no_mangle]
 #[allow(non_snake_case)]
@@ -37,10 +62,12 @@ pub extern "C" fn FloatFromBits(bits: u32) -> f32 {
     f32::from_bits(bits)
 }
 
-mod si {
-    use std::fmt::{Display, Formatter, Result};
+pub mod si {
     use crate::engine_types::ScriptString;
-    static PREFIXES: &[&str] = &["и", "з", "а", "ф", "п", "н", "мк", "м", "", "к", "М", "Г", "Т", "П", "Э", "З", "И"];
+    use std::fmt::{Display, Formatter, Result};
+    static PREFIXES: &[&str] = &[
+        "и", "з", "а", "ф", "п", "н", "мк", "м", "", "к", "М", "Г", "Т", "П", "Э", "З", "И",
+    ];
 
     #[derive(Debug)]
     pub struct SI<'a> {
@@ -51,30 +78,29 @@ mod si {
 
     impl<'a> SI<'a> {
         pub fn new(value: f32, units: &'a str, zeros: u8) -> Self {
-            Self{value, units, zeros}
+            Self {
+                value,
+                units,
+                zeros,
+            }
         }
     }
 
     impl<'a> Display for SI<'a> {
         fn fmt(&self, f: &mut Formatter) -> Result {
-            let level = (self.value.abs().log10()/3.0).floor();
+            let level = (self.value.abs().log10() / 3.0).floor();
             let index = (level as i32 + 8).max(0).min(PREFIXES.len() as i32 - 1);
             let prefix = PREFIXES[index as usize];
-            let mul = 10.0f32.powf(level*3.0);
-            let new_value = self.value/mul;
-            write!(f, "{:.zeros$} {}{}", new_value, prefix, self.units, zeros=self.zeros as usize)
+            let mul = 10.0f32.powf(level * 3.0);
+            let new_value = self.value / mul;
+            write!(
+                f,
+                "{:.zeros$} {}{}",
+                new_value,
+                prefix,
+                self.units,
+                zeros = self.zeros as usize
+            )
         }
-    }
-
-    #[no_mangle]
-    #[allow(non_snake_case)]
-    pub extern "C" fn DisplaySI(value: f32, units: Option<&ScriptString>, zeros: u8) -> *mut ScriptString {
-        use std::ffi::CStr;
-
-        let mut units = units.map(|units| units.string()).unwrap_or_else(String::new);
-        units.push('\0');
-        let si = SI::new(value, &units, zeros);
-        let output = si.to_string();
-        ScriptString::from_string(&output)
     }
 }

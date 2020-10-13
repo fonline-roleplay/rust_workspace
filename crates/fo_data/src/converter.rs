@@ -1,10 +1,9 @@
-use crate::{retriever::Retriever, *};
+use crate::*;
 
 #[derive(Debug)]
 pub enum GetImageError {
     FileType(FileType),
     Utf8(std::str::Utf8Error),
-    Retrieve(retriever::Error),
     FrmParse(nom_prelude::ErrorKind),
     FoFrmParse(fofrm::FoFrmError),
     NoParentFolder,
@@ -16,6 +15,10 @@ pub enum GetImageError {
     PngDecode(image::ImageError),
     Recursion(usize, Box<GetImageError>),
     RecursionLimit,
+    NoPallete,
+    FoRetrieve(<FoRetriever as Retriever>::Error),
+    #[cfg(feature = "sled-retriever")]
+    SledRetrieve(<crate::retriever::sled::SledRetriever as Retriever>::Error),
 }
 impl GetImageError {
     fn recursion(self) -> Self {
@@ -31,13 +34,16 @@ pub trait Converter {
     fn get_rgba(&self, path: &str) -> Result<RawImage, GetImageError>;
 }
 
-impl Converter for Retriever {
+impl<R: Retriever + HasPalette> Converter for R
+where
+    R::Error: Into<GetImageError>,
+{
     fn get_png(&self, path: &str) -> Result<FileData, GetImageError> {
-        let raw = get_raw(self, path, 0)?;
+        let raw = get_raw(self, path, 0, Some(self.palette()))?;
         raw.to_png().map_err(GetImageError::ImageWrite)
     }
     fn get_rgba(&self, path: &str) -> Result<RawImage, GetImageError> {
-        get_raw(self, path, 0)
+        get_raw(self, path, 0, Some(self.palette()))
     }
 }
 
@@ -65,7 +71,15 @@ impl RawImage {
     }
 }
 
-fn get_raw(retriever: &Retriever, path: &str, recursion: usize) -> Result<RawImage, GetImageError> {
+fn get_raw<R: Retriever>(
+    retriever: &R,
+    path: &str,
+    recursion: usize,
+    palette: Option<&[(u8, u8, u8)]>,
+) -> Result<RawImage, GetImageError>
+where
+    R::Error: Into<GetImageError>,
+{
     const RECURSION_LIMIT: usize = 1;
     if recursion > RECURSION_LIMIT {
         return Err(GetImageError::RecursionLimit);
@@ -74,9 +88,7 @@ fn get_raw(retriever: &Retriever, path: &str, recursion: usize) -> Result<RawIma
 
     Ok(match file_type {
         FileType::Png => {
-            let data = retriever
-                .file_by_path(path)
-                .map_err(GetImageError::Retrieve)?;
+            let data = retriever.file_by_path(path).map_err(Into::into)?;
             let mut slice = &data[..];
 
             let dynamic = image::load_from_memory_with_format(slice, image::ImageFormat::Png)
@@ -97,9 +109,8 @@ fn get_raw(retriever: &Retriever, path: &str, recursion: usize) -> Result<RawIma
             }
         }
         FileType::Frm => {
-            let data = retriever
-                .file_by_path(path)
-                .map_err(GetImageError::Retrieve)?;
+            let palette = palette.ok_or(GetImageError::NoPallete)?;
+            let data = retriever.file_by_path(path).map_err(Into::into)?;
             let frm = frm::frm(&data).map_err(GetImageError::FrmParse)?;
             let frame_number = 0;
 
@@ -119,7 +130,7 @@ fn get_raw(retriever: &Retriever, path: &str, recursion: usize) -> Result<RawIma
                 frame.data.to_owned(),
             )
             .ok_or(GetImageError::ImageFromRaw)?;
-            let image = image.expand_palette(&retriever.data().palette, Some(0));
+            let image = image.expand_palette(palette, Some(0));
             RawImage {
                 image,
                 offset_x: direction.shift_x + offset_x - frame.width as i16 / 2,
@@ -131,9 +142,7 @@ fn get_raw(retriever: &Retriever, path: &str, recursion: usize) -> Result<RawIma
                 .parent()
                 .ok_or(GetImageError::NoParentFolder)?
                 .to_owned();
-            let data = retriever
-                .file_by_path(path)
-                .map_err(GetImageError::Retrieve)?;
+            let data = retriever.file_by_path(path).map_err(Into::into)?;
 
             let string = std::str::from_utf8(&data).map_err(GetImageError::Utf8)?;
             let fofrm = fofrm::parse_verbose(&string).map_err(GetImageError::FoFrmParse)?;
@@ -177,8 +186,8 @@ fn get_raw(retriever: &Retriever, path: &str, recursion: usize) -> Result<RawIma
             );
             //dbg!(&full_path);
 
-            let mut image =
-                get_raw(retriever, &full_path, recursion + 1).map_err(GetImageError::recursion)?;
+            let mut image = get_raw(retriever, &full_path, recursion + 1, palette)
+                .map_err(GetImageError::recursion)?;
             image.offset_x += offset_x;
             image.offset_y += offset_y;
             image

@@ -124,7 +124,7 @@ mod tests {
     use super::*;
     #[test]
     fn test_parse_datafile() {
-        let datafiles = parse_datafile("../../CL4RP").unwrap();
+        let datafiles = parse_datafile(crate::CLIENT_FOLDER).unwrap();
         dbg!(datafiles);
     }
 }

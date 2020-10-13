@@ -118,7 +118,7 @@ span {
 .stat-row div:first-child {
   position: absolute;
   color: #c4a028;
-  font-family: Gothic821, 'Comic Sans MS', cursive;
+  font-family: Gothic821, "Comic Sans MS", cursive;
   font-size: 30px;
   width: 35px;
   left: 20px;

@@ -1,5 +1,5 @@
 use crate::config;
-use crate::database::{CharTrunk, Root, VersionedError};
+use crate::database::{CharTrunk, Root, VersionedError, ownership};
 use actix_codec::{AsyncRead, AsyncWrite, Decoder, Encoder, Framed};
 use actix_rt::net::TcpStream;
 use actix_server::{FromStream, Server};
@@ -137,7 +137,16 @@ fn handle_message_async(
             MsgIn::PlayerAuth(cr_id) => {
                 let root = data.tree;
                 let fut = web::block(move || {
-                    let default: [u8; 12] = rand::random();
+                    let owner = ownership::get_ownership(&root, cr_id).map_err(BridgeError::Versioned)?;
+                    if owner.is_some() {
+                        return Ok(None)
+                    }
+                    let default: [u8; 12] = loop {
+                        let random = rand::random();
+                        if random != [0u8; 12] {
+                            break random;
+                        }
+                    };
                     let authkey = root
                         .trunk(cr_id, None, CharTrunk::default())
                         .get_bare_branch_or_default("authkey", &default[..], |val| val.len() == 12)
@@ -152,11 +161,11 @@ fn handle_message_async(
                         None => default,
                     };
                     let authkey: [u32; 3] = unsafe { std::mem::transmute(authkey) };
-                    Ok(authkey)
+                    Ok(Some(authkey))
                 })
                 //.from_err()
                 .err_into()
-                .map_ok(move |authkey| MsgOut::SendKeyToPlayer(cr_id, authkey));
+                .map_ok(move |authkey| MsgOut::SendKeyToPlayer(cr_id, authkey.unwrap_or([0u32; 3])));
                 fut.await
             } //_ => MsgOut::Nop,
         }

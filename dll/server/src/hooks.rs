@@ -1,10 +1,8 @@
 //use crate::webserver;
 use crate::bridge;
-use lazy_static::lazy_static;
-use std::{ffi::CStr, io::Write};
+use cstr::cstr;
 use tnf_common::engine_types::critter::Critter;
 use tnf_common::engine_types::{ScriptArray, ScriptString};
-
 //lazy_static! {
 //    static ref WEBSERVER: webserver::Mailbox = { webserver::run() };
 //}
@@ -18,7 +16,7 @@ pub extern "C" fn main_loop() {
     let messages = bridge::receive();
     for message in messages {
         use crate::{
-            engine_functions::{get_critter, run_client_script},
+            engine_functions::{get_critter, run_client_script, run_critter_script},
             param::change_uparams,
         };
         use bridge::MsgIn;
@@ -38,9 +36,8 @@ pub extern "C" fn main_loop() {
             MsgIn::SendKeyToPlayer(cr_id, key) => {
                 if let Some(cr) = get_critter(cr_id) {
                     #[allow(bad_style)]
-                    let FUNC_LINK_OPEN_WITH_KEY = CStr::from_bytes_with_nul(b"link@OpenWithKey\0")
-                        .expect("Static null terminated string");
-                    run_client_script(
+                    let FUNC_LINK_OPEN_WITH_KEY = cstr!("link@OpenWithKey");
+                    if let Err(err) = run_client_script(
                         cr,
                         FUNC_LINK_OPEN_WITH_KEY,
                         key[0] as i32,
@@ -48,15 +45,41 @@ pub extern "C" fn main_loop() {
                         key[2] as i32,
                         None,
                         None,
-                    );
+                    ) {
+                        eprintln!("MsgIn::SendKeyToPlayer! cr_id: {:?}, err: {:?}", cr_id, err);
+                    }
                 }
             }
             MsgIn::SendConfig { player_id, url } => {
                 if let Some(player) = get_critter(player_id) {
                     #[allow(bad_style)]
-                    let FUNC_LINK_UPDATE_URL = CStr::from_bytes_with_nul(b"link@UpdateUrl\0")
-                        .expect("Static null terminated string");
-                    run_client_script(player, FUNC_LINK_UPDATE_URL, 0, 0, 0, Some(&url), None);
+                    let FUNC_LINK_UPDATE_URL = cstr!("link@UpdateUrl");
+                    if let Err(err) =
+                        run_client_script(player, FUNC_LINK_UPDATE_URL, 0, 0, 0, Some(&url), None)
+                    {
+                        eprintln!(
+                            "MsgIn::SendConfig! player_id: {:?}, err: {:?}",
+                            player_id, err
+                        );
+                    }
+                }
+            }
+            MsgIn::StartGame { player_id } => {
+                if let Some(player) = get_critter(player_id) {
+                    if let Err(err) = run_critter_script(
+                        Some(player),
+                        cstr!("map_start@StartGame"),
+                        0,
+                        0,
+                        0,
+                        None,
+                        None,
+                    ) {
+                        eprintln!(
+                            "MsgIn::StartGame! player_id: {:?}, err: {:?}",
+                            player_id, err
+                        );
+                    }
                 }
             }
             MsgIn::Nop => {

@@ -102,7 +102,7 @@ mod tests {
 
     #[test]
     fn test_parse_palette() {
-        let file = std::fs::read("../../test_assets/COLOR.PAL").unwrap();
+        let file = std::fs::read(crate::palette_path()).unwrap();
         let (rest, palette) = palette_verbose(&file).unwrap();
         println!("frm: {:#?}, rest: {:?}", palette, rest);
     }

@@ -40,10 +40,16 @@ pub async fn auth(
     let user_id: u64 = user.id.parse().map_err(internal_error)?;
 
     session.set(DISCORD_USER_ID_COOKIE_NAME, user_id)?;
+    let location: String = if let Some(location) = session.get(LOCATION_AFTER_AUTH)? {
+        session.remove(LOCATION_AFTER_AUTH);
+        location
+    } else {
+        "/".into()
+    };
 
     Ok(HttpResponse::Found()
         //.content_type("text/plain; charset=utf-8")
-        .header(header::LOCATION, "/")
+        .header(header::LOCATION, location)
         .header(header::ACCESS_CONTROL_MAX_AGE, "0")
         .finish())
 }

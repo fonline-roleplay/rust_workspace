@@ -49,12 +49,15 @@ dynamic_ffi!(ClientApi,
 
     pub fn HexMngr_GetAllItems_ScriptArray(items: *mut ScriptArray) -> size_t;
 
-    pub fn HexMngr_GetScreenHexes(sx: *mut ::std::os::raw::c_int, sy: *mut ::std::os::raw::c_int);
+    pub fn HexMngr_GetScreenHexes(
+        sx: *mut ::std::os::raw::c_int,
+        sy: *mut ::std::os::raw::c_int,
+    ) -> bool;
 
     pub fn HexMngr_GetHexCurrentPosition(
         hx: ushort,
         hy: ushort,
         x: *mut ::std::os::raw::c_int,
         y: *mut ::std::os::raw::c_int,
-    );
+    ) -> bool;
 );

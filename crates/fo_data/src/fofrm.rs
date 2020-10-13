@@ -273,11 +273,13 @@ mod test {
 
     #[test]
     fn parse_all_fofrm() {
-        let fo_data = crate::FoData::init("../../../CL4RP", "../../../CL4RP/COLOR.PAL").unwrap();
-        let retriever = crate::retriever::Retriever::new(fo_data);
-        for (path, file) in &retriever.data().files {
+        let fo_data = crate::FoData::init(crate::CLIENT_FOLDER, crate::palette_path()).unwrap();
+        use crate::retriever::{fo::FoRetriever, Retriever};
+        let retriever = FoRetriever::new(fo_data);
+        //let retriever = crate::test_retriever();
+        for (path, file_info) in &retriever.data().files {
             if crate::retriever::recognize_type(path) == crate::FileType::FoFrm {
-                let bytes = retriever.file_by_info(&fo_data).unwrap();
+                let bytes = retriever.file_by_info(file_info).unwrap();
                 let string = std::str::from_utf8(&bytes).unwrap();
                 let fofrm = parse_verbose(string);
                 match &fofrm {
@@ -311,8 +313,8 @@ mod test {
                 }
                 println!(
                     "Parsing: '{}' from '{:?}': {:#?}",
-                    file.original_path,
-                    file.location(&fo_data),
+                    file_info.original_path,
+                    file_info.location(retriever.data()),
                     fofrm
                 );
             }

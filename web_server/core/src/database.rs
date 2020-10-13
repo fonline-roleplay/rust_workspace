@@ -9,6 +9,8 @@ pub use tree::{Leaf, Root};
 mod character;
 pub use character::CharTrunk;
 
+pub mod ownership;
+
 mod tools;
 
 #[derive(Clone)]

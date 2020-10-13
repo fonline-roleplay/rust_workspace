@@ -1,11 +1,11 @@
 use crate::web::AppState;
 use actix_http::h1::MessageType::Payload;
 use actix_service::Service;
-use actix_session::Session;
+use actix_session::{Session, UserSession};
 use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::{
     error::{BlockingError, InternalError},
-    http::header,
+    http::{header, Method},
     web, HttpRequest, HttpResponse, Responder,
 };
 use futures::{
@@ -19,12 +19,16 @@ const DISCORD_CSRF_COOKIE_NAME: &str = "csrf_discord";
 const DISCORD_USER_ID_COOKIE_NAME: &str = "user_id_discord";
 const DISCORD_API_URL: &str = "https://discordapp.com/api";
 
+const LOCATION_AFTER_AUTH: &str = "location_after_auth";
+
 mod auth;
 mod rank;
+mod ownership;
+pub use ownership::restrict_ownership;
 
 pub use self::{
     auth::auth,
-    rank::{extract_rank, get_ranks, get_user_record, Rank},
+    rank::{extract_member, get_ranks, get_user_record, Rank},
 };
 
 fn bad_request(text: &'static str) -> impl Fn() -> InternalError<&'static str> {
@@ -80,13 +84,14 @@ pub fn restrict_gm<
     req: ServiceRequest,
     srv: &mut S,
 ) -> impl Future<Output = Result<ServiceResponse, actix_web::Error>> {
-    let first_rank = extract_rank(&req);
-    let mut fut = srv.call(req);
+    let first_rank = extract_member(&req);
+    let fut = srv.call(req);
     async move {
-        if first_rank? >= Rank::GameMaster {
-            fut.await
-        } else {
-            Err(access_denied("Rank is too low for this restricted zone")())?
+        match first_rank?.ok_or_else(access_denied("Restricted zone"))?.ranks.first() {
+            Some(rank) if rank >= &Rank::GameMaster => {
+                fut.await
+            },
+            _ => Err(access_denied("Rank is too low for this restricted zone")())?
         }
     }
 }

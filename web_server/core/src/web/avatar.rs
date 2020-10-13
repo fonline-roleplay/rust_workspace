@@ -33,7 +33,8 @@ pub struct Auth {
 
 // ===== Check auth =====
 
-fn parse_auth(auth: &Auth) -> Option<(ArrayVec<[u8; AUTH_LEN]>, String)> {
+pub type AuthVec = ArrayVec<[u8; AUTH_LEN]>;
+pub fn parse_auth(auth: &Auth) -> Option<(AuthVec, String)> {
     let str: &str = auth.auth.as_ref()?.as_str();
     if str.len() != AUTH_HEX_LEN {
         return None;
@@ -72,7 +73,6 @@ pub fn check_auth(root: &Root, char_id: u32, auth: &[u8]) -> Result<(), AvatarUp
 #[derive(Debug, Serialize)]
 struct AvatarEditor {
     char_id: u32,
-    auth: String,
 }
 
 pub fn edit(
@@ -82,36 +82,33 @@ pub fn edit(
 ) -> impl Future<Output = actix_web::Result<HttpResponse>> {
     let char_id = *path;
 
-    let (auth, auth_string) = match parse_auth(&*query) {
+    /*let (auth, auth_string) = match parse_auth(&*query) {
         None => return Either::Left(fut_ok(HttpResponse::Forbidden().finish())),
         Some(auth) => auth,
-    };
+    };*/
 
-    let root = data.sled_db.root.clone();
+    //let root = data.sled_db.root.clone();
 
-    Either::Right(
-        web::block(move || {
-            check_auth(&root, char_id, auth.as_slice())?;
-            templates::render(
-                "edit_avatar.html",
-                &AvatarEditor {
-                    char_id,
-                    auth: auth_string,
-                },
-                &data.config.host,
-            )
-            .map_err(AvatarUploadError::Template)
-        })
-        .err_into()
-        .then(|res| match res {
-            Err(AvatarUploadError::Template(err)) => {
-                eprintln!("AvatarEditor template error: {:#?}", err);
-                HttpResponse::InternalServerError().finish()
-            }
-            Err(_) => HttpResponse::Forbidden().finish(),
-            Ok(body) => HttpResponse::Ok().content_type("text/html").body(body),
-        }),
-    )
+    web::block(move || {
+        //check_auth(&root, char_id, auth.as_slice())?;
+        templates::render(
+            "edit_avatar.html",
+            &AvatarEditor {
+                char_id,
+            },
+            &data.config.host,
+        )
+        .map_err(AvatarUploadError::Template)
+    })
+    .err_into()
+    .then(|res| match res {
+        Err(AvatarUploadError::Template(err)) => {
+            eprintln!("AvatarEditor template error: {:#?}", err);
+            HttpResponse::InternalServerError().finish()
+        }
+        Err(_) => HttpResponse::Forbidden().finish(),
+        Ok(body) => HttpResponse::Ok().content_type("text/html").body(body),
+    })
 }
 
 // ===== Upload avatar =====
@@ -122,10 +119,10 @@ pub fn upload(
     data: web::Data<super::AppState>,
     payload: web::Bytes,
 ) -> impl Future<Output = Result<HttpResponse, AvatarUploadError>> {
-    let (auth, auth_string) = match parse_auth(&*query) {
+    /*let (auth, auth_string) = match parse_auth(&*query) {
         None => return Either::Left(fut_ok(HttpResponse::Forbidden().finish())),
         Some(auth) => auth,
-    };
+    };*/
 
     const MIN_LEN: usize = 16;
     const MAX_LEN: usize = 128 * 1024;
@@ -147,13 +144,13 @@ pub fn upload(
     let sender = data.bridge.get_sender();
     Either::Right(
         web::block(move || {
-            check_auth(&root, char_id, auth.as_slice())?;
+            //check_auth(&root, char_id, auth.as_slice())?;
             let data = &payload[PREFIX_LEN..];
             save_image(&root, char_id, data)
         })
         .err_into()
         .map(move |res| res.and_then(|leaf| update_char_leaf(sender, char_id, leaf)))
-        .map_ok(|_| HttpResponse::Ok().finish()),
+        .map_ok(|_| HttpResponse::NoContent().finish()),
     )
 }
 

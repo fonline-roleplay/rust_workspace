@@ -61,6 +61,7 @@ impl Bridge {
             eprintln!("Bridge loop: {:?}", res);
             thread::sleep(Duration::from_millis(500));
         });
+        //panic!("panic test");
 
         Bridge {
             sender: Mutex::new(send_out),

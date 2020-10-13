@@ -21,7 +21,9 @@ dlopen = { version = "0.1" }
 fo_engine_functions = { path = "../../crates/fo_engine_functions" }
 physical_ui = { path = "../../crates/physical_ui" }
 #crossbeam = "0.7.1"
+crossbeam-channel = "0.5"
 #human-panic = "1.0"
+achtung = {path = "../../crates/achtung"}
 
 [lib]
 crate-type = ["cdylib"]

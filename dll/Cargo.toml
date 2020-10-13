@@ -6,4 +6,5 @@ members = [
 
 [profile.release]
 lto = "fat"
-debug = 0
+debug = 1
+panic = "abort"

@@ -11,6 +11,17 @@ dynamic_ffi!(ServerApi,
         p4_size: size_t,
     ) -> bool;
 
+    pub fn Global_RunCritterScript(
+        cr: *mut Critter,
+        script_name: *const ::std::os::raw::c_char,
+        p0: ::std::os::raw::c_int,
+        p1: ::std::os::raw::c_int,
+        p2: ::std::os::raw::c_int,
+        p3_raw: *const ::std::os::raw::c_char,
+        p4_ptr: *const uint,
+        p4_size: size_t,
+    ) -> bool;
+
     pub fn Global_GetCritter(crid: uint) -> *mut Critter;
 
     pub fn Global_GetMsgStr(lang: size_t, textMsg: size_t, strNum: uint) -> *mut ScriptString;

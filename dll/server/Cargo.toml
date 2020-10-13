@@ -21,6 +21,8 @@ arc-swap = "0.4"
 once_cell = { version = "1.2" }
 dlopen = { version = "0.1" }
 fo_engine_functions = { path = "../../crates/fo_engine_functions" }
+achtung = {path = "../../crates/achtung"}
+cstr = "0.2.5"
 
 [lib]
 crate-type = ["cdylib"]

@@ -12,7 +12,7 @@ mod windows {
     pub(crate) mod ext;
     pub(crate) mod tools;
 }
-use windows::{ext as window_ext, tools as win_tools};
+use windows::tools as win_tools;
 
 use viewports::dependencies::imgui;
 
@@ -44,8 +44,8 @@ fn setup_error_handling() {
     }
 }
 
-fn setup_first_window<T: 'static>(event_loop: &EventLoop<T>) -> (WgpuManager, WindowId) {
-    let instance = wgpu::Instance::new(wgpu::BackendBit::DX12);
+fn setup_first_window<T: 'static>(event_loop: &EventLoop<T>, backends: wgpu::BackendBit, ) -> (WgpuManager, WindowId) {
+    let instance = wgpu::Instance::new(backends);
     let mut manager = WgpuManager::new(instance);
 
     let window = Window::new(&event_loop).unwrap();
@@ -62,16 +62,16 @@ fn setup_first_window<T: 'static>(event_loop: &EventLoop<T>) -> (WgpuManager, Wi
     (manager, main_view)
 }
 
-fn setup_adapter(manager: &WgpuManager, main_view: WindowId) -> wgpu::Adapter {
+fn setup_adapter(manager: &WgpuManager, main_view: WindowId, power_preference: wgpu::PowerPreference) -> wgpu::Adapter {
     block_on(
         manager
             .instance()
             .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::LowPower,
+                power_preference,
                 compatible_surface: Some(manager.viewport(main_view).unwrap().surface()),
             }),
     )
-    .unwrap()
+    .expect("No suitable adapter found")
 }
 
 fn setup_imgui(hidpi_factor: f64) -> imgui::Context {
@@ -115,15 +115,16 @@ fn setup_renderer(adapter: &wgpu::Adapter, imgui: &mut imgui::Context) -> Wgpu {
 fn main() {
     setup_error_handling();
 
-    let config = config::Config::from_args();
+    let config = config::Config::load();
+    println!("{:?}", config);
 
     let event_loop = EventLoop::<overlay::OverlayEvent>::with_user_event();
     let mut overlay = overlay::Overlay::new(&config, event_loop.create_proxy());
 
     // Set up window and GPU
-    let (mut manager, main_view) = setup_first_window(&event_loop);
+    let (mut manager, main_view) = setup_first_window(&event_loop, config.backend_bits());
 
-    let adapter = setup_adapter(&manager, main_view);
+    let adapter = setup_adapter(&manager, main_view, config.power_preference());
     dbg!(adapter.get_info());
 
     let mut imgui = setup_imgui(1.0);
@@ -198,26 +199,11 @@ fn main() {
                 }
             }
             Event::RedrawEventsCleared => {
-                if sleep_or_act(control_flow, &platform) {
-                    *control_flow = ControlFlow::Poll;
-                }
+                overlay.sleep_or_poll(&platform, control_flow);
             }
             _ => {}
         }
     });
-}
-
-fn sleep_or_act(control_flow: &mut ControlFlow, platform: &Platform) -> bool {
-    use std::time::{Duration, Instant};
-    let desired_frame_time = Duration::from_millis(1000 / 12);
-    let now = Instant::now();
-    let wake_up = platform.last_frame() + desired_frame_time;
-    if wake_up > now {
-        *control_flow = ControlFlow::WaitUntil(wake_up);
-        false
-    } else {
-        true
-    }
 }
 
 fn _font_atlas(hidpi_factor: f64) -> imgui::SharedFontAtlas {

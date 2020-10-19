@@ -122,6 +122,12 @@ impl ImageRequester {
             renderer,
         }
     }
+
+    pub(crate) fn finish(self) {
+        if let Err(err) = self.inner.finish().join() {
+            eprintln!("Requester inner thread join: {:?}", err);
+        }
+    }
 }
 
 pub struct TextureRequester<'a> {
@@ -167,7 +173,7 @@ impl<'a> TextureRequester<'a> {
             _ => None,
         }
     }
-    pub fn is_free(&self) -> bool {
+    pub fn _is_free(&self) -> bool {
         self.requester.free
     }
 }

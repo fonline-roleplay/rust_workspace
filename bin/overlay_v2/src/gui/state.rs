@@ -4,14 +4,12 @@ pub(crate) mod color;
 use super::{CharId, Message, AVATARS_SIZES, DEFAULT_AVATAR_SIZE_INDEX};
 use crate::{
     bridge::{Avatar, Char},
-    requester::TextureRequester,
     Rect,
 };
 use character::Character;
-use color::{random_color, Color};
 use std::{
-    collections::hash_map::{Entry, HashMap},
-    time::{Duration, Instant},
+    collections::hash_map::HashMap,
+    time::Instant,
 };
 
 pub(crate) struct GuiState {
@@ -40,7 +38,7 @@ impl GuiState {
     }
     pub(super) fn update_avatars(&mut self, avatars: &[Avatar]) {
         let now = Instant::now();
-        for Avatar { char, pos } in avatars {
+        for Avatar { char, .. } in avatars {
             let character = self.character(char.id);
             character.avatar = Some(*char);
             character.last_seen = Some(now);

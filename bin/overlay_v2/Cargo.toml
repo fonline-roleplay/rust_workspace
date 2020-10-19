@@ -32,6 +32,9 @@ colorsys = "0.6"
 structopt = "0.3"
 winapi = { version = "0.3", features = ["winuser"] }
 
+serde = { version = "1.0", features = ["derive"]}
+toml = { version = "0.5" }
+
 [profile.release]
 lto = "fat"
 debug = 0

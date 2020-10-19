@@ -1,5 +1,4 @@
 use crate::game_window::GameWindow;
-use std::ffi::CStr;
 use viewports::{Viewport, ViewportFlags, WindowSpawner};
 use winit::{
     event_loop::EventLoopWindowTarget,
@@ -9,7 +8,7 @@ use winit::{
 
 use winapi::{
     shared::windef,
-    um::{errhandlingapi as err, wingdi, winuser},
+    um::winuser,
 };
 pub(crate) struct OverlaySpawner(GameWindow);
 impl OverlaySpawner {
@@ -115,10 +114,11 @@ fn _make_window_border(window: &Window) -> Result<(), String> {
     Ok(())
 }
 
+/*
 pub(crate) struct Cursor(windef::HCURSOR);
 
 impl Cursor {
-    pub(crate) fn from_file(file_path: &CStr) -> Option<Cursor> {
+    pub(crate) fn from_file(file_path: &std::ffi::CStr) -> Option<Cursor> {
         unsafe {
             let ptr = winuser::LoadCursorFromFileA(file_path.as_ptr());
             if ptr.is_null() {
@@ -133,3 +133,4 @@ impl Cursor {
         }
     }
 }
+*/

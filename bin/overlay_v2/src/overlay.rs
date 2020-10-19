@@ -1,13 +1,15 @@
 use crate::{
-    bridge::{start as bridge_start, Avatar, BridgeOverlayToClient, Char, MsgIn},
+    bridge::{start as bridge_start, BridgeOverlayToClient, MsgIn},
     config::Config,
     game_window::GameWindow,
     gui::Gui,
-    requester::{self, ImageRequester},
+    requester::ImageRequester,
     windows::ext::OverlaySpawner,
-    Platform, Viewport, Wgpu, WgpuManager,
+    Platform, Viewport, Wgpu, WgpuManager, ControlFlow
 };
-use std::time::Duration;
+use std::{
+    time::Duration, ops::{Deref, DerefMut},
+};
 
 pub(crate) struct Overlay {
     gui: Gui,
@@ -15,7 +17,7 @@ pub(crate) struct Overlay {
     bridge: BridgeOverlayToClient,
     requester: ImageRequester,
     visibility: OverlayVisibility,
-    desired_frame_time: Duration,
+    desired_sleep: Duration,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -40,19 +42,19 @@ impl Overlay {
         let bridge = bridge_start(proxy);
         let gui = Gui::new();
         let game_window = GameWindow::with_config(&config).expect("Can't find game client window.");
-        let requester = ImageRequester::start(config.url.clone());
+        let requester = ImageRequester::start(config.url().expect("Web site url is not specified").into());
         let visibility = OverlayVisibility {
             was_visible: true,
             now_visible: true,
         };
-        let desired_frame_time = Duration::from_millis(1000 / 12);
+        let desired_sleep = config.desired_sleep();
         Self {
             bridge,
             gui,
             game_window,
             requester,
             visibility,
-            desired_frame_time,
+            desired_sleep,
         }
     }
 
@@ -121,6 +123,7 @@ impl Overlay {
 
     fn update_bridge(&mut self) {
         if self.bridge.is_online() {
+            // TODO: Should we handle ping error somehow?
             let _ = self.bridge.ping();
         } else {
             self.gui.update_avatars(Vec::new());
@@ -128,7 +131,7 @@ impl Overlay {
     }
 
     pub(crate) fn _update_visibility(&mut self, manager: &WgpuManager) {
-        let should_be_visible = self.game_window.is_game_foreground(manager);
+        let should_be_visible = self.game_window._is_game_foreground(manager);
         self.visibility.was_visible = self.visibility.now_visible;
 
         if self.visibility.was_visible != should_be_visible {
@@ -150,7 +153,17 @@ impl Overlay {
         if self.gui.dirty > 0 {
             return true;
         }
-        platform.last_frame().elapsed() > self.desired_frame_time
+        platform.last_frame().elapsed() > self.desired_sleep
+    }
+
+    pub(crate) fn sleep_or_poll(&self, platform: &Platform, control_flow: &mut ControlFlow) {
+        let now = std::time::Instant::now();
+        let wake_up = platform.last_frame() + self.desired_sleep;
+        if wake_up > now {
+            *control_flow = ControlFlow::WaitUntil(wake_up);
+        } else {
+            *control_flow = ControlFlow::Poll;
+        }
     }
 
     pub(crate) fn window_spawner(&self) -> OverlaySpawner {
@@ -160,10 +173,36 @@ impl Overlay {
     pub(crate) fn should_exit(&self) -> bool {
         !self.game_window.is_alive()
     }
+
+    pub(crate) fn finish(self) {
+        self.requester.finish();
+        if let Err(err) = self.bridge.finish(true) {
+            eprintln!("Bridge finish err: {:?}", err);
+        }
+    }
+}
+
+pub(crate) struct OverlayWrapper(Option<Overlay>);
+
+impl Deref for OverlayWrapper {
+    type Target = Overlay;
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref().expect("Invaild overlay state")
+    }
+}
+impl DerefMut for OverlayWrapper {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0.as_mut().expect("Invaild overlay state")
+    }
+}
+impl Drop for OverlayWrapper {
+    fn drop(&mut self) {
+        self.0.take().expect("Invaild overlay state").finish();
+    }
 }
 
 fn auto_emote(text: &mut String) {
-    let mut emoted = text.replace("**", "*");
+    let emoted = text.replace("**", "*");
     text.clear();
     for (i, chunk) in emoted.split("*").enumerate() {
         if chunk.len() == 0 {

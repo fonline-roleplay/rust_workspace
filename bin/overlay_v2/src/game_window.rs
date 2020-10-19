@@ -8,12 +8,12 @@ pub(crate) struct GameWindow(windef::HWND);
 impl GameWindow {
     pub(crate) fn with_config(config: &crate::config::Config) -> Option<Self> {
         loop {
-            let res = if let Some(pid) = config.pid {
+            let res = if let Some(pid) = config.pid() {
                 GameWindow::from_pid(pid)
             } else {
                 GameWindow::find()
             };
-            if res.is_none() && config.wait {
+            if res.is_none() && config.wait() {
                 std::thread::sleep(Duration::from_secs(1));
                 continue;
             } else {
@@ -112,7 +112,7 @@ impl GameWindow {
         })
     }
 
-    pub(crate) fn window_pos(&self) -> Option<(i32, i32)> {
+    pub(crate) fn _window_pos(&self) -> Option<(i32, i32)> {
         self.winapi_rect().map(|rect| (rect.left, rect.top))
     }
     pub(crate) fn raw(&self) -> windef::HWND {
@@ -122,7 +122,7 @@ impl GameWindow {
         unsafe { winuser::SetForegroundWindow(self.0) };
     }
 
-    pub(crate) fn is_game_foreground(&self, manager: &WgpuManager) -> bool {
+    pub(crate) fn _is_game_foreground(&self, manager: &WgpuManager) -> bool {
         let game_window = self.raw();
         let focus = unsafe { winuser::GetForegroundWindow() };
         if focus as usize == 0 {

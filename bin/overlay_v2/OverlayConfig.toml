@@ -1,0 +1,14 @@
+# Allowed backends
+# default: ["Vulkan", "Dx12"]
+
+backends = ["Vulkan", "Dx12", "Dx11"]
+
+# Uncomment to set High Power GPU preference: prefer discrete GPU over integrated
+# default: false
+
+#hipow = true
+
+# Sets the max sleep time between frames based on desired FPS, actual FPS can be a lot higher because of the reaction to events
+# default: 12
+
+minfps = 12

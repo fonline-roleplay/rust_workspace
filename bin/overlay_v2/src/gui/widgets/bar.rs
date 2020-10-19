@@ -68,7 +68,7 @@ impl UiLogic for Bar {
     fn draw(
         &mut self,
         ui: &imgui::Ui,
-        state: &mut GuiState,
+        _state: &mut GuiState,
         _texture_requester: &mut TextureRequester,
     ) {
         let size = [0.0, 24.0];

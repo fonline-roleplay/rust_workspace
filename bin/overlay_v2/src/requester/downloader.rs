@@ -1,13 +1,6 @@
 use super::ImageData;
 use crate::bridge::Char;
 
-use std::{
-    net::{TcpListener, TcpStream},
-    sync::{atomic::AtomicBool, Arc},
-    thread::{self, JoinHandle, Thread},
-    time::Duration,
-};
-
 const MIN_LEN: usize = 16;
 const MAX_LEN: usize = 128 * 1024;
 

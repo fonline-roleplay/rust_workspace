@@ -1,6 +1,6 @@
 use super::{GuiState, TextureRequester, UiLogic};
-use crate::imgui::{im_str, ChildWindow, ImString, ImageButton, StyleVar, Ui};
-use std::time::{Duration, Instant};
+use crate::imgui::{im_str, ChildWindow, ImString, ImageButton, Ui};
+use std::time::Instant;
 
 const AVATAR_SIZE: [f32; 2] = [64.0; 2];
 

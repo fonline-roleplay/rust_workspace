@@ -17,7 +17,7 @@ mod test {
         }
     }
     impl_param!(
-        { 
+        {
             lt: ('a), data: &'a Foo<'a>,
             with_args: (impl_base!("База"), impl_ext!("Эффект"), impl_calc!()),
             with_decls: ( impl_boxed_formulas!(boxed_formulas) ),
@@ -36,7 +36,7 @@ mod test {
         }
     }
     impl_param!(
-        { 
+        {
             lt: (), data: Bar,
             with_args: (impl_base!("База"), impl_ext!("Эффект")),
             no_args: (impl_calc!()),

@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput, Data, Fields, Visibility, Type, Ident};
+use syn::{parse_macro_input, Data, DeriveInput, Fields, Ident, Type, Visibility};
 
 fn convert_type(ty: &str) -> Option<&'static str> {
     Some(match ty {
@@ -23,38 +23,34 @@ fn detect_type(ty: &Type) -> &'static str {
     match ty {
         Type::Path(type_path) if type_path.qself.is_none() => {
             match type_path.path.get_ident().map(|ident| ident.to_string()) {
-                Some(ident) => {
-                    match convert_type(&ident) {
-                        Some(as_type) => {
-                            as_type
-                        },
-                        None => panic!("Type \"{}\" is not supported", ident),
-                    }
+                Some(ident) => match convert_type(&ident) {
+                    Some(as_type) => as_type,
+                    None => panic!("Type \"{}\" is not supported", ident),
                 },
                 None => panic!("Only single word type idents are supported"),
             }
-        },
+        }
         _ => panic!("Only absolute path types are supported"),
     }
 }
 
 fn detect_fields(data: &Data) -> Vec<(&'static str, Ident)> {
     match data {
-        Data::Struct(data_struct) => {
-            match &data_struct.fields {
-                Fields::Named(fields_named) => {
-                    fields_named.named.iter().filter_map(|field| {
-                        if let Visibility::Public(..) = field.vis {
-                            let as_type = detect_type(&field.ty);
-                            let name = field.ident.clone().expect("Field name");
-                            Some((as_type, name))
-                        } else {
-                            None
-                        }
-                    }).collect()                    
-                },
-                _ => panic!("Only named fileds are supported"),
-            }
+        Data::Struct(data_struct) => match &data_struct.fields {
+            Fields::Named(fields_named) => fields_named
+                .named
+                .iter()
+                .filter_map(|field| {
+                    if let Visibility::Public(..) = field.vis {
+                        let as_type = detect_type(&field.ty);
+                        let name = field.ident.clone().expect("Field name");
+                        Some((as_type, name))
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+            _ => panic!("Only named fileds are supported"),
         },
         _ => panic!("Only structs are supported"),
     }

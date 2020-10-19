@@ -52,7 +52,7 @@ pub mod client_dll_overlay {
 
     #[repr(C)]
     #[derive(
-        Debug, Clone, Deserialize, Serialize, Copy, Default, PartialEq, Eq, PartialOrd, Ord,
+        Debug, Clone, Deserialize, Serialize, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash,
     )]
     pub struct Char {
         pub id: u32,

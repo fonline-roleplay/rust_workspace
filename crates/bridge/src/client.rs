@@ -21,7 +21,9 @@ impl<MIn: 'static + Send + DeserializeOwned + Debug, MOut: 'static + Send + Seri
             stream: None,
         }
     }
-    fn process(worker: &mut BridgeWorker<Self>) -> Result<(), BridgeError> {
+    fn process<S: Channel<Self::MsgIn>>(
+        worker: &mut BridgeWorker<Self, S>,
+    ) -> Result<(), BridgeError> {
         print!("Bridge client: connecting...");
         let timeout = Duration::from_millis(2000);
         let mut stream = loop {

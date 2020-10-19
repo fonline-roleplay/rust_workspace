@@ -8,3 +8,13 @@ edition = "2018"
 
 [dependencies]
 achtung = {path = "../../crates/achtung"}
+
+[profile.release]
+lto = "fat"
+debug = 0
+codegen-units = 1
+
+[profile.dev]
+lto = false
+opt-level = 0
+debug = 2

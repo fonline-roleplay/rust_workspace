@@ -220,7 +220,7 @@ impl Backend for WinitGlBackend {
     }
 
     fn drop_texture(context: &Rc<BackendContext<Self>>, texture: &BackendTexture<Self>) {
-        texture.drop_for(context);
+        texture.drop_for(context, false);
     }
     fn font_atlas(&mut self, hidpi_factor: f64) -> FontAtlasRef {
         dbg!(hidpi_factor);

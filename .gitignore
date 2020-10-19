@@ -3,3 +3,6 @@
 **/Cargo.lock
 ffi/*.rs_raw
 web/db
+*.sh
+.cargo
+fo_data.bin

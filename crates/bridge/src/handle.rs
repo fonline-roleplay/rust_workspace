@@ -3,17 +3,38 @@ use super::*;
 use std::time::Instant;
 
 impl<T: BridgeTask> BridgeHandle<T> {
+    pub fn start(addr: SocketAddr, handshake: u16, version: u16) -> Self {
+        let (sender_in, receiver_in) = channel();
+
+        Self::start_ext(addr, handshake, version, sender_in, receiver_in)
+    }
+
+    pub fn receive<'a>(&'a mut self) -> impl Iterator<Item = T::MsgIn> + 'a {
+        //self.sender.send(BridgeMessage::Data(msg)).map_err(|_| BridgeError::ChannelDropped)
+        self.receiver.try_iter().filter_map(|msg| match msg {
+            BridgeMessage::Data(data) => Some(data),
+            _ => None,
+        })
+    }
+}
+
+impl<T: BridgeTask, S: Channel<T::MsgIn>> BridgeHandle<T, S> {
     pub fn is_online(&self) -> bool {
         self.online.load(Ordering::Relaxed)
     }
     /*pub(super) fn hang(&mut self) {
         let _ = self.sender.send(BridgeMessage::Hang);
     }*/
-    pub fn start(addr: SocketAddr, handshake: u16, version: u16) -> Self {
+    pub fn start_ext(
+        addr: SocketAddr,
+        handshake: u16,
+        version: u16,
+        sender_in: S,
+        receiver_in: S::Receiver,
+    ) -> Self {
         let (sender_out, receiver_out) = channel();
-        let (sender_in, receiver_in) = channel();
 
-        let inner = BridgeWorker::<T>::new(
+        let inner = BridgeWorker::<T, S>::new(
             receiver_out,
             sender_in,
             sender_out.clone(),
@@ -60,13 +81,6 @@ impl<T: BridgeTask> BridgeHandle<T> {
             .send(BridgeMessage::Data(msg))
             .map_err(|_| BridgeError::ChannelDropped)
     }
-    pub fn receive<'a>(&'a mut self) -> impl Iterator<Item = T::MsgIn> + 'a {
-        //self.sender.send(BridgeMessage::Data(msg)).map_err(|_| BridgeError::ChannelDropped)
-        self.receiver.try_iter().filter_map(|msg| match msg {
-            BridgeMessage::Data(data) => Some(data),
-            _ => None,
-        })
-    }
     pub fn ping(&mut self) -> Result<(), BridgeError> {
         if self.last_ping.elapsed() > Duration::from_millis(1000) {
             self.sender
@@ -78,9 +92,12 @@ impl<T: BridgeTask> BridgeHandle<T> {
     }
 }
 
-pub struct BridgeHandle<T: BridgeTask> {
+pub struct BridgeHandle<
+    T: BridgeTask,
+    S: Channel<T::MsgIn> = DefaultSender<<T as BridgeTask>::MsgIn>,
+> {
     sender: Sender<BridgeMessage<T::MsgOut>>,
-    receiver: Receiver<BridgeMessage<T::MsgIn>>,
+    receiver: S::Receiver,
     thread: JoinHandle<()>,
     online: Arc<AtomicBool>,
     last_ping: Instant,

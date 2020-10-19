@@ -194,7 +194,12 @@ pub fn kv_sep<'a, E: ParseError<&'a str>, O, F>(
 where
     F: Fn(&'a str) -> IResult<&'a str, O, E>,
 {
-    move |i| preceded(tag(key), delimited(tuple((space0, tag(sep), space0)), &parser, end_of_line))(i)
+    move |i| {
+        preceded(
+            tag(key),
+            delimited(tuple((space0, tag(sep), space0)), &parser, end_of_line),
+        )(i)
+    }
 }
 
 pub fn kv_eq<'a, E: ParseError<&'a str>, O, F>(
@@ -238,7 +243,12 @@ where
     F: Fn(&'a str) -> IResult<&'a str, O, E>,
     K: Fn(&'a str) -> IResult<&'a str, O2, E>,
 {
-    move |i| tuple((&key, delimited(tuple((space0, tag(sep), space0)), &parser, end_of_line)))(i)
+    move |i| {
+        tuple((
+            &key,
+            delimited(tuple((space0, tag(sep), space0)), &parser, end_of_line),
+        ))(i)
+    }
 }
 
 pub fn key_int<'a, E: ParseError<&'a str>, O: FromStr>(

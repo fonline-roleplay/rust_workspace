@@ -1,8 +1,11 @@
 use super::*;
 
-pub struct BridgeWorker<T: BridgeTask> {
+pub struct BridgeWorker<
+    T: BridgeTask,
+    S: Channel<<T as BridgeTask>::MsgIn> = DefaultSender<<T as BridgeTask>::MsgIn>,
+> {
     receiver: Receiver<BridgeMessage<T::MsgOut>>,
-    sender: Sender<BridgeMessage<T::MsgIn>>,
+    sender: S,
     service: Sender<BridgeMessage<T::MsgOut>>,
     addr: SocketAddr,
     thread: Option<JoinHandle<Result<(), BridgeError>>>,
@@ -12,10 +15,10 @@ pub struct BridgeWorker<T: BridgeTask> {
     task: T,
 }
 
-impl<T: BridgeTask> BridgeWorker<T> {
+impl<T: BridgeTask, S: Channel<<T as BridgeTask>::MsgIn>> BridgeWorker<T, S> {
     pub(super) fn new(
         receiver: Receiver<BridgeMessage<T::MsgOut>>,
-        sender: Sender<BridgeMessage<T::MsgIn>>,
+        sender: S,
         service: Sender<BridgeMessage<T::MsgOut>>,
         addr: SocketAddr,
         handshake: u16,
@@ -117,7 +120,7 @@ impl<T: BridgeTask> BridgeWorker<T> {
             msg => Err(BridgeError::NoHandshake),
         }
     }
-    pub fn sender(&self) -> Sender<BridgeMessage<T::MsgIn>> {
+    pub fn sender(&self) -> S {
         self.sender.clone()
     }
     pub fn receive(&mut self) -> Result<BridgeMessage<T::MsgOut>, BridgeError> {

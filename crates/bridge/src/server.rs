@@ -21,7 +21,9 @@ impl<MIn: 'static + Send + DeserializeOwned + Debug, MOut: 'static + Send + Seri
             stream: None,
         }
     }
-    fn process(worker: &mut BridgeWorker<Self>) -> Result<(), BridgeError> {
+    fn process<S: Channel<Self::MsgIn>>(
+        worker: &mut BridgeWorker<Self, S>,
+    ) -> Result<(), BridgeError> {
         /*let mut stream = TcpStream::connect_timeout(
             &worker.address(),
             std::time::Duration::from_micros(1000),

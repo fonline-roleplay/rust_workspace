@@ -20,11 +20,7 @@ mod tests {
     }
 
     impl Engine for ASEngine {
-        fn register_object_type<T>(
-            &mut self,
-            obj: &str,
-            flags: u32,
-        ) -> Result<(), i32> {
+        fn register_object_type<T>(&mut self, obj: &str, flags: u32) -> Result<(), i32> {
             self.obj = Some((obj.to_owned(), flags));
             Ok(())
         }
@@ -35,7 +31,8 @@ mod tests {
             declaration: &str,
             byte_offset: usize,
         ) -> Result<(), i32> {
-            self.fields.push((obj.to_owned(), declaration.to_owned(), byte_offset));
+            self.fields
+                .push((obj.to_owned(), declaration.to_owned(), byte_offset));
             Ok(())
         }
     }
@@ -45,9 +42,12 @@ mod tests {
         let mut engine = ASEngine::default();
         Foo::register(&mut engine);
         assert_eq!(&engine.obj, &Some(("Foo".to_owned(), 0)));
-        assert_eq!(&engine.fields, &[
-            ("Foo".to_owned(), "int8 baz".to_owned(), 4),
-            ("Foo".to_owned(), "float bah".to_owned(), 8),
-        ]);
+        assert_eq!(
+            &engine.fields,
+            &[
+                ("Foo".to_owned(), "int8 baz".to_owned(), 4),
+                ("Foo".to_owned(), "float bah".to_owned(), 8),
+            ]
+        );
     }
 }

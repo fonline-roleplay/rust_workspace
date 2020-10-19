@@ -12,7 +12,7 @@ mod impl_param {
                 impl_fn!(super::sum_and_armor)
             ),
         },
-        
+
         (Normal,    "ПоглощениеНормальногоУрона",       ST_NORMAL_ABSORB,   ST_NORMAL_ABSORB_EXT,   (0, 999), (DamageType::Normal)),
         (Laser,     "ПоглощениеЛазерногоУрона",         ST_LASER_ABSORB,    ST_LASER_ABSORB_EXT,    (0, 999), (DamageType::Laser)),
         (Fire,      "ПоглощениеОгненногоУрона",         ST_FIRE_ABSORB,     ST_FIRE_ABSORB_EXT,     (0, 999), (DamageType::Fire)),

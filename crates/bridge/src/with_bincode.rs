@@ -1,8 +1,8 @@
 use super::*;
 use bincode::deserialize_from;
-pub fn reader<M: DeserializeOwned + Debug>(
+pub fn reader<M: DeserializeOwned + Debug, S: Channel<M>>(
     mut stream: BufReader<TcpStream>,
-    sender: Sender<BridgeMessage<M>>,
+    sender: S,
 ) -> Result<(), BridgeError> {
     loop {
         /*use byteorder::{ReadBytesExt, BE};

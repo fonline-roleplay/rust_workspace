@@ -29,7 +29,8 @@ pub type BridgeClientCell<MsgIn, MsgOut> = BridgeCell<BridgeHandle<BridgeClient<
 
 mod server;
 pub use server::BridgeServer;
-pub type BridgeServerHandle<MsgIn, MsgOut> = BridgeHandle<BridgeServer<MsgIn, MsgOut>>;
+pub type BridgeServerHandle<MsgIn, MsgOut, S = Sender<BridgeMessage<MsgIn>>> =
+    BridgeHandle<BridgeServer<MsgIn, MsgOut>, S>;
 
 mod with_bincode;
 
@@ -60,6 +61,25 @@ pub trait BridgeTask: 'static + Sized + Send {
     type MsgOut: 'static + Send + Serialize + Debug;
 
     fn new() -> Self;
-    fn process(worker: &mut BridgeWorker<Self>) -> Result<(), BridgeError>;
+    fn process<S: Channel<Self::MsgIn>>(
+        worker: &mut BridgeWorker<Self, S>,
+    ) -> Result<(), BridgeError>;
     fn shutdown(&mut self);
+}
+
+pub trait Channel<T>: Clone + Send + 'static {
+    type Receiver;
+
+    fn send(&self, msg: BridgeMessage<T>) -> Result<(), ()>;
+}
+
+pub type DefaultSender<T> = Sender<BridgeMessage<T>>;
+pub type DefaultReceiver<T> = Receiver<BridgeMessage<T>>;
+
+impl<T: Send + 'static> Channel<T> for DefaultSender<T> {
+    type Receiver = DefaultReceiver<T>;
+
+    fn send(&self, msg: BridgeMessage<T>) -> Result<(), ()> {
+        self.send(msg).ok().ok_or(())
+    }
 }

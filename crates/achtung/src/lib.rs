@@ -54,6 +54,14 @@ pub fn panic_handler(info: &std::panic::PanicInfo) {
     let local = CONFIG.get().and_then(|config| {
         let (path, local) = config.report().ok()?;
         let full_message = full_message(exe, info);
+        println!(
+            "\n\
+            =================================\n\
+            ===========>> PANIC! <<==========\n\
+            =================================\n\
+            \n{}",
+            &full_message
+        );
         std::fs::write(path, full_message)
             .ok()
             .map(|_| format!("Подробное сообщение в файле:\n{:?}\n", local))
@@ -67,6 +75,6 @@ pub fn panic_handler(info: &std::panic::PanicInfo) {
         local.unwrap_or(String::new()),
         info,
     );
-    msgbox::create("Шеф! Все пропало!", &message, msgbox::IconType::Error);
+    let _ = msgbox::create("Шеф! Все пропало!", &message, msgbox::IconType::Error);
     std::process::exit(1);
 }

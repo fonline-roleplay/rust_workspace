@@ -1,0 +1,43 @@
+[package]
+name = "overlay_v2"
+version = "0.1.0"
+authors = ["qthree <qthree3@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+winit = "0.23"
+futures = "0.3"
+wgpu = "0.6"
+tracing = "0.1"
+tracing-subscriber = "0.2"
+
+#viewports = { path = "../../../../rust/wgpu/viewports", features = ["wgpu-renderer", "from-image"] }
+viewports = { git = "https://github.com/qthree/viewports.git", features = ["wgpu-renderer", "from-image"] }
+achtung = { path = "../../crates/achtung" }
+
+# downloader stuff, should probably remove it or extract in separate crate
+image = { version = "0.23", default-features = false, features = ["png"] }
+reqwest = { version = "0.10", default-features = false, features = ["rustls-tls", "blocking"] }
+crossbeam = "0.8"
+
+protocol = {path = "../../crates/protocol"}
+bridge = { path = "../../crates/bridge" }
+fo_defines = {path = "../../crates/fo_defines"}
+
+clipboard = "0.5"
+colorsys = "0.6"
+#clap = "2.33"
+structopt = "0.3"
+winapi = { version = "0.3", features = ["winuser"] }
+
+[profile.release]
+lto = "fat"
+debug = 0
+codegen-units = 1
+
+[profile.dev]
+lto = false
+opt-level = 1
+debug = 0

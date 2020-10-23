@@ -1,4 +1,4 @@
-use super::{super::Avatar, FixedPosition, GuiState, TextureRequester, UiLogic};
+use super::{super::Avatar, FixedPosition, GuiState, TextureRequester, UiLogic, Layer};
 use crate::imgui::{im_str, ImString, ImageButton, StyleVar, Ui};
 
 impl UiLogic for Avatar {
@@ -40,6 +40,9 @@ impl UiLogic for Avatar {
     }
     fn padding(&self, _state: &GuiState) -> Option<(u8, u8)> {
         Some((0, 0))
+    }
+    fn layer(&self) -> Layer {
+        Layer::BottomMost
     }
 }
 

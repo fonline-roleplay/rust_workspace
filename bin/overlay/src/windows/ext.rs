@@ -5,16 +5,36 @@ use winit::{
     platform::windows::WindowExtWindows,
     window::{Window, WindowBuilder},
 };
+use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 
 use winapi::{
     shared::windef,
     um::winuser,
 };
-pub(crate) struct OverlaySpawner(GameWindow);
-impl OverlaySpawner {
-    pub(crate) fn new(game_window: GameWindow) -> Self {
-        Self(game_window)
+
+unsafe impl HasRawWindowHandle for OverlaySpawner {
+    fn raw_window_handle(&self) -> RawWindowHandle {
+        //self.main_view
+        self._game_window.raw_window_handle()
     }
+}
+
+pub(crate) struct OverlaySpawner{
+    _game_window: GameWindow,
+    _main_view: RawWindowHandle,
+}
+impl OverlaySpawner {
+    pub(crate) fn new(_game_window: GameWindow, first_window: Option<&Window>) -> Self {
+        //Self(game_window)
+        let _main_view = first_window.expect("Expect main view window").raw_window_handle();
+        Self{
+            _game_window, _main_view
+        }
+    }
+    fn is_alive(&self) -> bool {
+        let parent = winapi_hwnd(self);
+        unsafe { winuser::IsWindow(parent) != 0 }
+    }   
 }
 
 impl<V: Viewport> WindowSpawner<V> for OverlaySpawner {
@@ -23,6 +43,10 @@ impl<V: Viewport> WindowSpawner<V> for OverlaySpawner {
         event_loop: &EventLoopWindowTarget<T>,
         flags: ViewportFlags,
     ) -> Window {
+        if !self.is_alive() {
+            panic!("Parent window is dead.");
+        }
+
         let decorations = !flags.contains(ViewportFlags::NO_DECORATIONS);
         let window = WindowBuilder::new()
             .with_decorations(decorations)
@@ -30,9 +54,10 @@ impl<V: Viewport> WindowSpawner<V> for OverlaySpawner {
             //.with_always_on_top(true)
             .build(event_loop)
             .unwrap();
-        dbg!(flags);
+        //dbg!(flags);
         make_window_popup(&window).unwrap();
-        reparent(&window, self.0.raw());
+        reparent(&window, self);
+        //set_parent(&window, self);
         //window.set_visible(true);
         window
     }
@@ -75,10 +100,19 @@ fn make_window_popup(window: &Window) -> Result<(), String> {
     Ok(())
 }
 
-fn reparent(window: &Window, owner: windef::HWND) {
-    let handle = window.hwnd() as _;
+pub(crate) fn reparent<A: HasRawWindowHandle, B: HasRawWindowHandle>(window: &A, owner: &B) {
+    let window = winapi_hwnd(window);
+    let owner = winapi_hwnd(owner);
     unsafe {
-        winuser::SetWindowLongPtrA(handle, winuser::GWL_HWNDPARENT, owner as _);
+        winuser::SetWindowLongPtrA(window, winuser::GWL_HWNDPARENT, owner as _);
+    }
+}
+
+pub(crate) fn set_parent<A: HasRawWindowHandle, B: HasRawWindowHandle>(window: &A, owner: &B) {
+    let window = winapi_hwnd(window);
+    let owner = winapi_hwnd(owner);
+    unsafe {
+        assert_eq!(winuser::SetParent(window, owner).is_null(), false);
     }
 }
 
@@ -134,3 +168,122 @@ impl Cursor {
     }
 }
 */
+
+pub(crate) fn place_window_on_top<A: HasRawWindowHandle>(window: &A) {
+    let window = winapi_hwnd(window);
+    let flags = winuser::SWP_NOACTIVATE | winuser::SWP_NOMOVE | winuser::SWP_NOREDRAW | winuser::SWP_NOSIZE;
+    assert!(unsafe  {
+        winuser::SetWindowPos(window, winuser::HWND_TOP, 0, 0, 0, 0, flags)
+    } != 0);
+}
+/*
+pub(crate) fn place_window_on_bottom<A: HasRawWindowHandle>(window: &A) {
+    let window = winapi_hwnd(window);
+    let flags = winuser::SWP_NOACTIVATE | winuser::SWP_NOMOVE | winuser::SWP_NOREDRAW | winuser::SWP_NOSIZE;
+    assert!(unsafe  {
+        winuser::SetWindowPos(window, winuser::HWND_BOTTOMMOST, 0, 0, 0, 0, flags)
+    } != 0);
+}*/
+
+pub(crate) fn place_window_after<A: HasRawWindowHandle, B: HasRawWindowHandle>(window: &A, after: &B) {
+    let window = winapi_hwnd(window);
+    let after = winapi_hwnd(after);
+    //dbg!(window);
+    //dbg!(after);
+
+    let flags = winuser::SWP_NOACTIVATE | winuser::SWP_NOMOVE | winuser::SWP_NOREDRAW | winuser::SWP_NOSIZE;
+    // | winuser::SWP_NOSENDCHANGING
+
+    assert!(unsafe  {
+        winuser::SetWindowPos(after, window, 0, 0, 0, 0, flags)
+    } != 0);
+
+    /*assert!(unsafe  {
+        winuser::SetWindowPos(window, after, 0, 0, 0, 0, flags)
+    } != 0);
+    assert!(unsafe  {
+        winuser::SetWindowPos(after, window, 0, 0, 0, 0, flags)
+    } != 0);*/
+    /*unsafe {
+        let defer = winuser::BeginDeferWindowPos(2);
+        assert_eq!(defer.is_null(), false);
+        let defer = winuser::DeferWindowPos(
+            defer,
+            window,
+            after,
+            0,
+            0,
+            0,
+            0,
+            flags
+        );
+        //assert_eq!(defer.is_null(), false);
+        if defer.is_null() {
+            println!("fail first");
+            return;
+        }
+        let defer = winuser::DeferWindowPos(
+            defer,
+            after,
+            window,
+            0,
+            0,
+            0,
+            0,
+            flags
+        );
+        //assert_eq!(defer.is_null(), false);
+        if defer.is_null() {
+            println!("fail second");
+            return;
+        }
+        let defer_result = winuser::EndDeferWindowPos(
+            defer
+        );
+        assert!(defer_result != 0);
+    }*/
+}
+
+#[allow(deprecated)]
+pub(crate) fn winapi_hwnd<A: HasRawWindowHandle>(window: &A) -> windef::HWND {
+    match window.raw_window_handle() {
+        RawWindowHandle::Windows(handle) => handle.hwnd as _,
+        RawWindowHandle::__NonExhaustiveDoNotUse(..) => unreachable!(),
+    }
+}
+
+pub(crate) fn defer_order(windows: &[windef::HWND]) {
+    let flags = winuser::SWP_NOACTIVATE | winuser::SWP_NOMOVE | winuser::SWP_NOREDRAW | winuser::SWP_NOSIZE;
+    if windows.is_empty() {
+        return;
+    }
+
+    unsafe {
+        let mut defer = winuser::BeginDeferWindowPos(windows.len() as i32);
+        assert_eq!(defer.is_null(), false);
+        let mut iter = windows.windows(2);
+        while let Some(&[after, before]) = iter.next() {
+            dbg!(after, before);
+            defer = winuser::DeferWindowPos(
+                defer,
+                before,
+                after,
+                0,
+                0,
+                0,
+                0,
+                flags
+            );
+
+            if defer.is_null() {
+                println!("defer failed");
+                return;
+            }
+        }
+
+        let defer_result = winuser::EndDeferWindowPos(
+            defer
+        );
+        assert!(defer_result != 0);
+    }
+}

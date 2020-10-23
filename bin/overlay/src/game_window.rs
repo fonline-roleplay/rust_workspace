@@ -2,9 +2,11 @@ use crate::{Rect, Viewport, WgpuManager};
 use std::time::Duration;
 use winapi::{shared::windef, um::winuser};
 use winit::platform::windows::WindowExtWindows;
+use raw_window_handle::{RawWindowHandle, windows::WindowsHandle, HasRawWindowHandle};
+use crate::windows::ext::winapi_hwnd;
 
 #[derive(Clone)]
-pub(crate) struct GameWindow(windef::HWND);
+pub(crate) struct GameWindow(RawWindowHandle);
 impl GameWindow {
     pub(crate) fn with_config(config: &crate::config::Config) -> Option<Self> {
         loop {
@@ -21,8 +23,16 @@ impl GameWindow {
             }
         }
     }
-    fn from_handle(handle: windef::HWND) -> Self {
-        GameWindow(handle)
+    fn from_handle(hwnd: windef::HWND) -> Self {
+        assert_eq!(hwnd.is_null(), false);
+        let hinstance = unsafe { winuser::GetWindowLongPtrA(hwnd, winuser::GWLP_HINSTANCE) };
+        assert!(hinstance != 0);
+        let windows_handle = WindowsHandle{
+            hwnd: hwnd as _,
+            hinstance: hinstance as _,
+            ..WindowsHandle::empty()
+        };
+        GameWindow(RawWindowHandle::Windows(windows_handle))
     }
     pub(crate) fn from_pid(pid: u32) -> Option<Self> {
         if pid == 0 {
@@ -69,12 +79,12 @@ impl GameWindow {
         if ret.is_null() {
             None
         } else {
-            Some(GameWindow(ret))
+            Some(GameWindow::from_handle(ret))
         }
     }
     fn client_rect(&self) -> Option<windef::RECT> {
         let mut rect: windef::RECT = unsafe { std::mem::zeroed() };
-        let ret = unsafe { winuser::GetClientRect(self.0, &mut rect) };
+        let ret = unsafe { winuser::GetClientRect(self.hwnd(), &mut rect) };
         if ret == 0 {
             None
         } else {
@@ -87,7 +97,7 @@ impl GameWindow {
         unsafe {
             winapi::um::errhandlingapi::SetLastError(0);
             let _ret = winuser::MapWindowPoints(
-                self.0,
+                self.hwnd(),
                 0 as _,
                 &mut rect as *mut windef::RECT as usize as _,
                 2,
@@ -115,33 +125,70 @@ impl GameWindow {
     pub(crate) fn _window_pos(&self) -> Option<(i32, i32)> {
         self.winapi_rect().map(|rect| (rect.left, rect.top))
     }
-    pub(crate) fn raw(&self) -> windef::HWND {
-        self.0
+    pub(crate) fn hwnd(&self) -> windef::HWND {
+        winapi_hwnd(self)
     }
     pub(crate) fn to_foreground(&self) {
-        unsafe { winuser::SetForegroundWindow(self.0) };
+        unsafe { winuser::SetForegroundWindow(self.hwnd()) };
     }
 
-    pub(crate) fn _is_game_foreground(&self, manager: &WgpuManager) -> bool {
-        let game_window = self.raw();
+    pub(crate) fn which_foreground(&self, manager: &WgpuManager) -> Foreground {
+        let top = unsafe { winuser::GetTopWindow(std::ptr::null_mut()) };
+        let focus = unsafe { winuser::GetForegroundWindow() };
+        dbg!(top);
+        dbg!(focus);
+
+        if top.is_null() && focus.is_null() {
+            return Foreground::Other;
+        }
+
+        let game_window = self.hwnd();
+        dbg!(game_window);
+        if !top.is_null() && top == game_window {
+            return Foreground::Game;
+        }
+
+        for (_window_id, viewport) in manager.viewports_iter() {
+            let window = viewport.window();
+            let handle = winapi_hwnd(window);
+            dbg!(handle);
+            if !top.is_null() && handle == top {
+                return Foreground::Overlay;
+            }
+            if !focus.is_null() && handle == focus {
+                return Foreground::Overlay;
+            }
+        }
+
+        if !focus.is_null() && focus == game_window {
+            Foreground::Game
+        } else {
+            Foreground::Other
+        }
+    }
+    pub(crate) fn is_foreground(&self) -> bool {
+        let game_window = self.hwnd();
         let focus = unsafe { winuser::GetForegroundWindow() };
         if focus as usize == 0 {
             return false;
         }
-        if focus == game_window {
-            return true;
-        }
-        for (_window_id, viewport) in manager.viewports_iter() {
-            let window = viewport.window();
-            let handle = window.hwnd() as usize;
-            if handle == focus as usize {
-                return true;
-            }
-        }
-        false
+        focus == game_window
     }
     pub(crate) fn is_alive(&self) -> bool {
-        let game_window = self.raw();
+        let game_window = self.hwnd();
         unsafe { winuser::IsWindow(game_window) != 0 }
     }
+}
+
+unsafe impl HasRawWindowHandle for GameWindow {
+    fn raw_window_handle(&self) -> RawWindowHandle {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Foreground {
+    Game,
+    Overlay,
+    Other
 }

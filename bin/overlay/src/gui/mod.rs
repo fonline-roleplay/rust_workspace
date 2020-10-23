@@ -1,79 +1,40 @@
 mod state;
 mod widgets;
 
-use super::imgui::{self, Condition, StyleVar, Window};
+use super::imgui::{self, Condition, StyleVar, Window, ImString};
 use crate::{bridge::Avatar, requester::TextureRequester};
 use protocol::message::client_dll_overlay::Message;
 use state::GuiState;
-use widgets::{bar::Bar, chars_panel::CharsPanel, chat::Chat, UiLogic};
+use widgets::{Widgets, UiLogic};
+use std::collections::hash_map::{HashMap, Entry};
 
 const AVATARS_SIZES: [u16; 7] = [32, 48, 64, 80, 96, 112, 128];
 const DEFAULT_AVATAR_SIZE_INDEX: usize = 2; // 64
 
 type CharId = u32;
 
-pub struct Gui {
-    bar: Bar,
-    chat: Chat,
-    chars_panel: CharsPanel,
-    avatars: Vec<Avatar>,
-    pub(crate) state: GuiState,
-    pub(crate) hide: bool,
-    pub(crate) dirty: i8,
-    //message_generator: MessageGenerator,
+pub enum Layer {
+    BottomMost,
+    Bottom,
+    Middle,
+    Top,
+    TopMost,
 }
-impl Gui {
-    pub fn new() -> Self {
-        Self {
-            bar: Bar::new(),
-            chat: Chat::new(),
-            chars_panel: CharsPanel::new(),
-            avatars: vec![],
-            state: GuiState::new(),
-            hide: false,
-            dirty: 3,
-            //message_generator: MessageGenerator::new(1),
-        }
-    }
-    pub fn frame(&mut self, ui: &imgui::Ui, texture_requester: &mut TextureRequester) {
-        if self.hide {
-            self.dirty = 0;
-            return;
-        }
+type Layers = HashMap<ImString, Layer>;
 
-        /*if let Some(msg) = self.message_generator.message() {
-            self.chat.push_message(msg);
-        }*/
-        if self.bar.show_faces {
-            for avatar in &mut self.avatars {
-                Self::render_window(ui, &mut self.state, avatar, texture_requester);
-            }
-        }
-
-        Self::render_window(ui, &mut self.state, &mut self.bar, texture_requester);
-
-        if self.bar.show_chars_panel {
-            Self::render_window(
-                ui,
-                &mut self.state,
-                &mut self.chars_panel,
-                texture_requester,
-            );
-        }
-
-        if self.bar.show_chat {
-            Self::render_window(ui, &mut self.state, &mut self.chat, texture_requester);
-        }
-
-        let active = ui.is_mouse_dragging(imgui::MouseButton::Left);
-        self.dirty = (self.dirty - 1).max(if active { 1 } else { 0 });
-    }
-    fn render_window<L: UiLogic>(
-        ui: &imgui::Ui,
-        state: &mut GuiState,
+struct GuiBundle<'a, 'b, 'c> {
+    ui: &'a imgui::Ui<'c>,
+    texture_requester: &'a mut TextureRequester<'b>,
+    state: &'a mut GuiState,
+    layers: &'a mut Layers,
+}
+impl GuiBundle<'_, '_, '_> {
+    fn render<L: UiLogic>(
+        &mut self,
         logic: &mut L,
-        texture_requester: &mut TextureRequester,
     ) {
+        let GuiBundle{ui, state, texture_requester, ..} = self;
+
         if !logic.visible(state) {
             return;
         }
@@ -120,12 +81,62 @@ impl Gui {
         if let Some(style) = style {
             style.pop(ui);
         }
+
+        match self.layers.entry(title) {
+            Entry::Occupied(occupied) => {
+                panic!("Two windows with same title: {:?}", occupied.key());
+            }
+            Entry::Vacant(vacant) => {
+                vacant.insert(logic.layer());
+            }
+        }
+    }
+}
+
+pub struct Gui {
+    widgets: Widgets,
+    layers: Layers,
+    pub(crate) state: GuiState,
+    pub(crate) hide: bool,
+    pub(crate) dirty: i8,
+    //message_generator: MessageGenerator,
+}
+impl Gui {
+    pub fn new() -> Self {
+        Self {
+            widgets: Widgets::new(),
+            layers: Layers::new(),
+            state: GuiState::new(),
+            hide: false,
+            dirty: 3,
+            //message_generator: MessageGenerator::new(1),
+        }
+    }
+    pub fn frame(&mut self, ui: &imgui::Ui, texture_requester: &mut TextureRequester) {
+        if self.hide {
+            self.dirty = 0;
+            return;
+        }
+        self.layers.clear();
+
+        /*if let Some(msg) = self.message_generator.message() {
+            self.chat.push_message(msg);
+        }*/
+
+        let bundle = GuiBundle{
+            ui, texture_requester, state: &mut self.state, layers: &mut self.layers
+        };
+
+        self.widgets.frame(bundle);
+
+        let active = false; //ui.is_mouse_dragging(imgui::MouseButton::Left);
+        self.dirty = (self.dirty - 1).max(if active { 1 } else { 0 });
     }
     // return true if avatars changed
     pub(crate) fn update_avatars(&mut self, avatars: Vec<Avatar>) -> bool {
-        if self.avatars != avatars {
-            self.avatars = avatars;
-            self.state.update_avatars(&self.avatars);
+        if self.widgets.avatars != avatars {
+            self.state.update_avatars(&avatars);
+            self.widgets.avatars = avatars;
             true
         } else {
             false
@@ -133,7 +144,7 @@ impl Gui {
     }
     pub(crate) fn push_message(&mut self, mut message: Message) {
         self.state.push_message(&mut message);
-        self.chat.push_message(message);
+        self.widgets.chat.push_message(message);
     }
 }
 

@@ -1,4 +1,4 @@
-use super::{FixedPosition, GuiState, TextureRequester, UiLogic};
+use super::{FixedPosition, GuiState, TextureRequester, UiLogic, Layer};
 use crate::gui::state::color::Color;
 use crate::imgui::{self, im_str, ImStr, ImString, Ui};
 
@@ -99,5 +99,8 @@ impl UiLogic for Bar {
     }
     fn padding(&self, _state: &GuiState) -> Option<(u8, u8)> {
         Some((PADDING, PADDING))
+    }
+    fn layer(&self) -> Layer {
+        Layer::Bottom
     }
 }

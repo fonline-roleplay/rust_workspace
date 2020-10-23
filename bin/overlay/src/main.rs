@@ -8,6 +8,7 @@ mod overlay;
 mod bridge;
 mod requester;
 
+#[cfg(windows)]
 mod windows {
     pub(crate) mod ext;
     pub(crate) mod tools;
@@ -27,7 +28,7 @@ use winit::{
 
 use viewports::{
     wgpu::{Wgpu, WgpuManager},
-    Manager, Platform, Viewport,
+    Manager, Platform, Viewport, WithLoop,
 };
 
 fn setup_error_handling() {
@@ -55,6 +56,7 @@ fn setup_first_window<T: 'static>(event_loop: &EventLoop<T>, backends: wgpu::Bac
     });
     window.set_outer_position(winit::dpi::PhysicalPosition { x: 0, y: 0 });
     window.set_title("OverlayV2");
+    //window.set_always_on_top(true);
     window.set_visible(false);
 
     let main_view = manager.add_window(window);
@@ -68,7 +70,7 @@ fn setup_adapter(manager: &WgpuManager, main_view: WindowId, power_preference: w
             .instance()
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference,
-                compatible_surface: Some(manager.viewport(main_view).unwrap().surface()),
+                compatible_surface: manager.viewport(main_view).unwrap().surface(),
             }),
     )
     .expect("No suitable adapter found")
@@ -119,10 +121,11 @@ fn main() {
     println!("{:?}", config);
 
     let event_loop = EventLoop::<overlay::OverlayEvent>::with_user_event();
-    let mut overlay = overlay::Overlay::new(&config, event_loop.create_proxy());
 
     // Set up window and GPU
     let (mut manager, main_view) = setup_first_window(&event_loop, config.backend_bits());
+
+    let mut overlay = overlay::Overlay::new(&config, event_loop.create_proxy(), main_view);
 
     let adapter = setup_adapter(&manager, main_view, config.power_preference());
     dbg!(adapter.get_info());
@@ -143,6 +146,7 @@ fn main() {
     ).expect("Cursor image");*/
 
     overlay.make_game_foreground();
+    overlay.reparent_game_window(&manager);
 
     event_loop.run(move |event, event_loop, control_flow| {
         //*control_flow = ControlFlow::Wait;
@@ -151,7 +155,7 @@ fn main() {
 
         platform.handle_event(imgui.io_mut(), &mut manager, &event);
 
-        let mut manager_with_loop = manager.with_spawner(event_loop, overlay.window_spawner());
+        let mut manager_with_loop = overlay.spawning_manager(&mut manager, &event_loop);
         match event {
             Event::NewEvents(..) => {
                 if overlay.should_exit() {
@@ -179,15 +183,13 @@ fn main() {
                 }
             }
             Event::MainEventsCleared => {
-                //overlay.update_visibility(&manager_with_loop);
+                //overlay.reorder_windows(&mut manager_with_loop);
                 if overlay.should_render(&platform) {
-                    //if sleep_or_act(control_flow, &platform) {
                     platform.frame(&mut imgui, &mut manager_with_loop, |ui, _delta| {
                         overlay.frame(ui, &mut renderer);
                         //ui.show_demo_window(&mut demo_open);
                     });
                     manager_with_loop.reqwest_redraws();
-                    //}
                 }
             }
             Event::RedrawRequested(window_id) => {

@@ -4,14 +4,18 @@ use crate::{
     game_window::GameWindow,
     gui::Gui,
     requester::ImageRequester,
-    windows::ext::OverlaySpawner,
-    Platform, Viewport, Wgpu, WgpuManager, ControlFlow
+    windows::ext::{OverlaySpawner, self as windows_ext},
+    Platform, Viewport, Wgpu, WgpuManager, ControlFlow, Manager, WithLoop
 };
 use std::{
     time::Duration, ops::{Deref, DerefMut},
 };
+use winit::{
+    event_loop::EventLoopWindowTarget
+};
 
 pub(crate) struct Overlay {
+    main_view: crate::WindowId,
     gui: Gui,
     game_window: GameWindow,
     bridge: BridgeOverlayToClient,
@@ -38,7 +42,7 @@ pub enum OverlayEvent {
 pub type OverlayEventProxy = winit::event_loop::EventLoopProxy<OverlayEvent>;
 
 impl Overlay {
-    pub(crate) fn new(config: &Config, proxy: OverlayEventProxy) -> Self {
+    pub(crate) fn new(config: &Config, proxy: OverlayEventProxy, main_view: crate::WindowId) -> Self {
         let bridge = bridge_start(proxy);
         let gui = Gui::new();
         let game_window = GameWindow::with_config(&config).expect("Can't find game client window.");
@@ -49,6 +53,7 @@ impl Overlay {
         };
         let desired_sleep = config.desired_sleep();
         Self {
+            main_view,
             bridge,
             gui,
             game_window,
@@ -130,8 +135,8 @@ impl Overlay {
         }
     }
 
-    pub(crate) fn _update_visibility(&mut self, manager: &WgpuManager) {
-        let should_be_visible = self.game_window._is_game_foreground(manager);
+    /*pub(crate) fn _update_visibility(&mut self, manager: &WgpuManager) {
+        let should_be_visible = self.game_window.which_foreground(manager);
         self.visibility.was_visible = self.visibility.now_visible;
 
         if self.visibility.was_visible != should_be_visible {
@@ -141,7 +146,7 @@ impl Overlay {
             }
             self.visibility.now_visible = should_be_visible;
         }
-    }
+    }*/
     pub(crate) fn make_game_foreground(&self) {
         self.game_window.to_foreground();
     }
@@ -166,8 +171,48 @@ impl Overlay {
         }
     }
 
-    pub(crate) fn window_spawner(&self) -> OverlaySpawner {
-        OverlaySpawner::new(self.game_window.clone())
+    pub(crate) fn spawning_manager<'a>(&self, manager: &'a mut WgpuManager, event_loop: &'a EventLoopWindowTarget<OverlayEvent>) -> WithLoop<'a, WgpuManager, OverlayEvent, OverlaySpawner> {
+        let main_view = manager.viewport(self.main_view).map(|vp| vp.window());
+        let spawner = OverlaySpawner::new(self.game_window.clone(), main_view);
+        manager.with_spawner(event_loop, spawner)
+    }
+
+    pub(crate) fn reorder_windows<'a>(&self, manager: &'a mut WgpuManager) {
+        /*use crate::game_window::Foreground;
+        match dbg!(self.game_window.which_foreground(manager)) {
+            Foreground::Game => {
+                let main_view = manager.viewport(self.main_view).map(|vp| vp.window()).expect("Expect main view");
+                crate::windows::ext::place_window_after(main_view, &self.game_window);
+                //crate::windows::ext::place_window_on_top(main_view);
+            }
+            _ => {}
+        }*/
+        let top = self.game_window.is_foreground();
+
+        let main_view = manager.viewport(self.main_view).map(|vp| vp.window()).expect("Expect main view");
+        main_view.set_always_on_top(top);
+
+        if top {
+            let main_view = windows_ext::winapi_hwnd(main_view);
+
+            let mut windows = vec![main_view];
+            windows.extend(manager.viewports_iter().filter_map(|(wid, vp)| {
+                if *wid == self.main_view {
+                    None
+                } else {
+                    Some(windows_ext::winapi_hwnd(vp.window()))
+                }
+            }));
+            windows.push(windows_ext::winapi_hwnd(&self.game_window));
+            windows_ext::defer_order(&windows);
+        }
+    }
+
+    pub(crate) fn reparent_game_window(&self, manager: &WgpuManager) {
+        let main_view = manager.viewport(self.main_view).map(|vp| vp.window()).unwrap();
+        //windows_ext::reparent(&self.game_window, main_view);
+        //windows_ext::set_parent(&self.game_window, main_view);
+        //windows_ext::place_window_on_bottom(&self.game_window);
     }
 
     pub(crate) fn should_exit(&self) -> bool {

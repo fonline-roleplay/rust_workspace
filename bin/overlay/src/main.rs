@@ -224,7 +224,7 @@ fn add_fonts(atlas: &mut imgui::FontAtlas, font_size: f32) {
     };
     let font = imgui::FontSource::TtfData {
         config: Some(config),
-        data: include_bytes!("../../overlay/resources/clacon.ttf"),
+        data: include_bytes!("../assets/clacon.ttf"),
         //data: include_bytes!("../../resources/fallout_display.ttf"),
         size_pixels: font_size,
     };

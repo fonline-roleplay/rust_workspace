@@ -2,7 +2,7 @@ mod state;
 mod widgets;
 
 use super::imgui::{self, Condition, StyleVar, Window, ImString};
-use crate::{bridge::Avatar, requester::TextureRequester};
+use crate::{bridge::{Avatar}, requester::TextureRequester};
 use protocol::message::client_dll_overlay::Message;
 use state::GuiState;
 use widgets::{Widgets, UiLogic};
@@ -13,7 +13,9 @@ const DEFAULT_AVATAR_SIZE_INDEX: usize = 2; // 64
 
 type CharId = u32;
 
-pub enum Layer {
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
+#[allow(dead_code)]
+pub(super) enum Layer {
     BottomMost,
     Bottom,
     Middle,
@@ -145,6 +147,9 @@ impl Gui {
     pub(crate) fn push_message(&mut self, mut message: Message) {
         self.state.push_message(&mut message);
         self.widgets.chat.push_message(message);
+    }
+    pub(super) fn layer_by_title(&self, title: &imgui::ImStr) -> Layer {
+        self.layers.get(title).copied().unwrap_or(Layer::TopMost)
     }
 }
 

@@ -146,7 +146,7 @@ fn main() {
     ).expect("Cursor image");*/
 
     overlay.make_game_foreground();
-    overlay.reparent_game_window(&manager);
+    //overlay.reparent_game_window(&manager);
 
     event_loop.run(move |event, event_loop, control_flow| {
         //*control_flow = ControlFlow::Wait;
@@ -183,8 +183,9 @@ fn main() {
                 }
             }
             Event::MainEventsCleared => {
-                //overlay.reorder_windows(&mut manager_with_loop);
                 if overlay.should_render(&platform) {
+                    overlay.reorder_windows2(&mut manager_with_loop, platform.focus_order(&mut imgui));
+
                     platform.frame(&mut imgui, &mut manager_with_loop, |ui, _delta| {
                         overlay.frame(ui, &mut renderer);
                         //ui.show_demo_window(&mut demo_open);

@@ -160,7 +160,7 @@ impl<'a> TextureRequester<'a> {
             None
         }
     }
-    pub fn texture_for_cr_id(&mut self, cr_id: u32) -> Option<TextureId> {
+    pub fn _texture_for_cr_id(&mut self, cr_id: u32) -> Option<TextureId> {
         match self.requester.textures.get_mut(&cr_id) {
             Some(AvatarTexture {
                 id,

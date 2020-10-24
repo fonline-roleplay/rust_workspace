@@ -19,6 +19,7 @@ struct ConfigFile {
     wait: Option<bool>,
     hipow: Option<bool>,
     minfps: Option<u16>,
+    maxfps: Option<u16>,
     backends: Option<Vec<Backend>>,
     url: Option<String>,
 }
@@ -37,6 +38,10 @@ pub(crate) struct Args {
     /// Sets the max sleep time between frames based on desired FPS, actual FPS can be a lot higher because of the reaction to events
     #[structopt(long)]
     minfps: Option<u16>,
+
+    /// Sets the minimal sleep time between frames
+    #[structopt(long)]
+    maxfps: Option<u16>,
 
     /// Permited backends to use: Vulkan, Dx12, Dx11
     #[structopt(long, short="B")]
@@ -93,9 +98,13 @@ impl Config {
     pub(crate) fn wait(&self) -> bool {
         self.args.wait.or(self.file.wait).unwrap_or(false)
     }
-    pub(crate) fn desired_sleep(&self) -> Duration {
-        let fps = self.args.minfps.or(self.file.minfps).unwrap_or(12).min(1000);
-        Duration::from_millis(1000 / fps as u64)
+    pub(crate) fn min_delay(&self) -> Duration {
+        let max_fps = self.args.minfps.or(self.file.minfps).unwrap_or(60).max(12).min(1000);
+        Duration::from_millis(1000 / max_fps as u64)
+    }
+    pub(crate) fn max_delay(&self) -> Duration {
+        let min_fps = self.args.minfps.or(self.file.minfps).unwrap_or(12).max(12).min(1000);
+        Duration::from_millis(1000 / min_fps as u64)
     }
     pub(crate) fn pid(&self) -> Option<u32> {
         self.args.pid

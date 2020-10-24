@@ -1,7 +1,8 @@
 # Allowed backends
+# all: ["Vulkan", "Dx12", "Dx11"]
 # default: ["Vulkan", "Dx12"]
 
-backends = ["Vulkan", "Dx12", "Dx11"]
+backends = ["Vulkan", "Dx12"]
 
 # Uncomment to set High Power GPU preference: prefer discrete GPU over integrated
 # default: false
@@ -9,6 +10,14 @@ backends = ["Vulkan", "Dx12", "Dx11"]
 #hipow = true
 
 # Sets the max sleep time between frames based on desired FPS, actual FPS can be a lot higher because of the reaction to events
+# range: 12 to 1000
 # default: 12
 
-minfps = 12
+minfps = 24
+
+# Sets the minimal sleep time between frames, highter fps value may result in lags with mouse in a game client
+# range: minfps to 1000
+# default: 60
+maxfps = 60
+
+url = "https://web.frp.su"

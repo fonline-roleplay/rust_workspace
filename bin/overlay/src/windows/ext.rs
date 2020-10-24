@@ -108,7 +108,7 @@ pub(crate) fn reparent<A: HasRawWindowHandle, B: HasRawWindowHandle>(window: &A,
     }
 }
 
-pub(crate) fn set_parent<A: HasRawWindowHandle, B: HasRawWindowHandle>(window: &A, owner: &B) {
+pub(crate) fn _set_parent<A: HasRawWindowHandle, B: HasRawWindowHandle>(window: &A, owner: &B) {
     let window = winapi_hwnd(window);
     let owner = winapi_hwnd(owner);
     unsafe {
@@ -169,7 +169,7 @@ impl Cursor {
 }
 */
 
-pub(crate) fn place_window_on_top<A: HasRawWindowHandle>(window: &A) {
+pub(crate) fn _place_window_on_top<A: HasRawWindowHandle>(window: &A) {
     let window = winapi_hwnd(window);
     let flags = winuser::SWP_NOACTIVATE | winuser::SWP_NOMOVE | winuser::SWP_NOREDRAW | winuser::SWP_NOSIZE;
     assert!(unsafe  {
@@ -185,7 +185,7 @@ pub(crate) fn place_window_on_bottom<A: HasRawWindowHandle>(window: &A) {
     } != 0);
 }*/
 
-pub(crate) fn place_window_after<A: HasRawWindowHandle, B: HasRawWindowHandle>(window: &A, after: &B) {
+pub(crate) fn _place_window_after<A: HasRawWindowHandle, B: HasRawWindowHandle>(window: &A, after: &B) {
     let window = winapi_hwnd(window);
     let after = winapi_hwnd(after);
     //dbg!(window);
@@ -261,9 +261,9 @@ pub(crate) fn defer_order(windows: &[windef::HWND]) {
     unsafe {
         let mut defer = winuser::BeginDeferWindowPos(windows.len() as i32);
         assert_eq!(defer.is_null(), false);
-        let mut iter = windows.windows(2);
-        while let Some(&[after, before]) = iter.next() {
-            dbg!(after, before);
+        let mut iter = windows.windows(2).rev();
+        while let Some(&[before, after]) = iter.next() {
+            //dbg!(after, before);
             defer = winuser::DeferWindowPos(
                 defer,
                 before,

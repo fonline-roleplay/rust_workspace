@@ -2,11 +2,11 @@ pub(crate) mod character;
 pub(crate) mod color;
 
 use super::{CharId, Message, AVATARS_SIZES, DEFAULT_AVATAR_SIZE_INDEX};
-use crate::{
+pub(super) use crate::{
     bridge::{Avatar, Char},
     Rect,
 };
-use character::Character;
+pub(super) use character::Character;
 use std::{
     collections::hash_map::HashMap,
     time::Instant,
@@ -45,6 +45,9 @@ impl GuiState {
         }
     }
     pub(super) fn push_message(&mut self, message: &mut Message) {
+        if message.say_type > fo_defines::Say::WhisperOnHead {
+            return;
+        }
         let character = self.character(message.cr_id);
         if let Some(name) = message.name.take() {
             character.name = Some(name.into());

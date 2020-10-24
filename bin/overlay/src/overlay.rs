@@ -21,7 +21,8 @@ pub(crate) struct Overlay {
     bridge: BridgeOverlayToClient,
     requester: ImageRequester,
     visibility: OverlayVisibility,
-    desired_sleep: Duration,
+    min_delay: Duration,
+    max_delay: Duration,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -51,7 +52,9 @@ impl Overlay {
             was_visible: true,
             now_visible: true,
         };
-        let desired_sleep = config.desired_sleep();
+        let min_delay = config.min_delay();
+        let max_delay = config.max_delay();
+        assert!(min_delay <= max_delay);
         Self {
             main_view,
             bridge,
@@ -59,7 +62,8 @@ impl Overlay {
             game_window,
             requester,
             visibility,
-            desired_sleep,
+            min_delay,
+            max_delay,
         }
     }
 
@@ -155,20 +159,36 @@ impl Overlay {
         if self.visibility.is_changed() || !self.visibility.now_visible {
             return false;
         }
-        if self.gui.dirty > 0 {
+        let elapsed = platform.last_frame().elapsed();
+        if self.gui.dirty > 0 && elapsed > self.min_delay {
             return true;
         }
-        platform.last_frame().elapsed() > self.desired_sleep
+        platform.last_frame().elapsed() > self.max_delay
     }
 
-    pub(crate) fn sleep_or_poll(&self, platform: &Platform, control_flow: &mut ControlFlow) {
+    pub(crate) fn sleep_or_poll(&self, platform: &Platform, _control_flow: &mut ControlFlow) {
+        /*let now = std::time::Instant::now();
+        let wake_up = platform.last_frame() + self.max_delay;
+        if wake_up > now {
+            *control_flow = ControlFlow::WaitUntil(wake_up);
+        } else {
+            *control_flow = ControlFlow::WaitUntil(now + self.min_delay);
+        }*/
+        
         let now = std::time::Instant::now();
-        let wake_up = platform.last_frame() + self.desired_sleep;
+        let wake_up = platform.last_frame() + self.max_delay;
+        if wake_up > now {
+            std::thread::sleep(self.min_delay.min(wake_up - now));
+        }
+        //*control_flow = ControlFlow::Poll;
+
+        /*let now = std::time::Instant::now();
+        let wake_up = platform.last_frame() + self.min_delay;
         if wake_up > now {
             *control_flow = ControlFlow::WaitUntil(wake_up);
         } else {
             *control_flow = ControlFlow::Poll;
-        }
+        }*/
     }
 
     pub(crate) fn spawning_manager<'a>(&self, manager: &'a mut WgpuManager, event_loop: &'a EventLoopWindowTarget<OverlayEvent>) -> WithLoop<'a, WgpuManager, OverlayEvent, OverlaySpawner> {
@@ -177,7 +197,37 @@ impl Overlay {
         manager.with_spawner(event_loop, spawner)
     }
 
-    pub(crate) fn reorder_windows<'a>(&self, manager: &'a mut WgpuManager) {
+    pub(crate) fn reorder_windows2<'a, 'b>(&self, manager: &'a mut WgpuManager, iter: impl Iterator<Item = (&'b super::imgui::ImStr, super::WindowId)>) {
+        //let top = self.game_window.is_foreground();
+        //dbg!(top);
+
+        //let main_view = manager.viewport(self.main_view).map(|vp| vp.window()).expect("Expect main view");
+        //main_view.set_always_on_top(top);
+
+        let mut windows: Vec<_> = iter.filter_map(|(title, wid)| {
+            if wid == self.main_view {
+                None
+            } else {
+                manager.viewport(wid).map(|vp| {
+                    (
+                        windows_ext::winapi_hwnd(vp.window()),
+                        title,
+                        self.gui.layer_by_title(title),
+                    )
+                })
+            }
+        }).collect();
+        windows.sort_by_key(|(_hwnd, _title, layer)| *layer);
+        /*for (_hwnd, title, layer) in &windows {
+            println!("title: {:?}, layer: {:?}", title, layer);
+        }*/
+        let windows: Vec<_> = windows.into_iter().map(|(hwnd, ..)| hwnd).collect();
+        //windows.reverse();
+
+        windows_ext::defer_order(&windows);
+    }
+
+    pub(crate) fn _reorder_windows<'a>(&self, manager: &'a mut WgpuManager) {
         /*use crate::game_window::Foreground;
         match dbg!(self.game_window.which_foreground(manager)) {
             Foreground::Game => {
@@ -187,7 +237,7 @@ impl Overlay {
             }
             _ => {}
         }*/
-        let top = self.game_window.is_foreground();
+        let top = self.game_window._is_foreground();
 
         let main_view = manager.viewport(self.main_view).map(|vp| vp.window()).expect("Expect main view");
         main_view.set_always_on_top(top);
@@ -208,9 +258,9 @@ impl Overlay {
         }
     }
 
-    pub(crate) fn reparent_game_window(&self, manager: &WgpuManager) {
+    pub(crate) fn _reparent_game_window(&self, manager: &WgpuManager) {
         let main_view = manager.viewport(self.main_view).map(|vp| vp.window()).unwrap();
-        //windows_ext::reparent(&self.game_window, main_view);
+        windows_ext::reparent(&self.game_window, main_view);
         //windows_ext::set_parent(&self.game_window, main_view);
         //windows_ext::place_window_on_bottom(&self.game_window);
     }

@@ -3,13 +3,50 @@ use std::borrow::Cow;
 
 use super::{
     super::{
-        state::color::rgb_to_rgb_arr, CharId, Message, AVATARS_SIZES, DEFAULT_AVATAR_SIZE_INDEX,
+        state::{self, color::{rgb_to_rgb_arr, Color}}, CharId, Message, AVATARS_SIZES, DEFAULT_AVATAR_SIZE_INDEX,
     },
     GuiState, TextureRequester, UiLogic,
 };
 
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
+enum MessageSender {
+    Char(CharId),
+    Radio,
+}
+impl MessageSender {
+    const RADIO: Color = Color {
+        normal: [0.3, 0.7, 0.5, 1.0],
+        lighter: [0.4, 0.8, 0.6, 1.0],
+        darker: [0.2, 0.6, 0.4, 1.0],
+    };
+    fn info(self, state: &mut GuiState) -> MessageSenderInfo<'_> {
+        match self {
+            MessageSender::Char(char_id) => {
+                let character = state.character(char_id);
+                MessageSenderInfo {
+                    color: character.color(),
+                    name: character.name(),
+                    avatar: Some(character.avatar())
+                }
+            }
+            MessageSender::Radio => {
+                MessageSenderInfo {
+                    color: &Self::RADIO,
+                    name: im_str!("Рация"),
+                    avatar: None,
+                }
+            }
+        }
+    }
+}
+struct MessageSenderInfo<'a> {
+    color: &'a Color,
+    name: &'a ImStr,
+    avatar: Option<Option<state::Char>>,
+}
+
 pub(crate) struct Chat {
-    messages: Vec<(CharId, ImString, SayType)>,
+    messages: Vec<(MessageSender, ImString, SayType)>,
     filter: ChatFilter,
     avatars_sizes_index: usize,
     stick_to_bottom: bool,
@@ -20,11 +57,11 @@ const AVATAR_SIZE: [f32; 2] = [32.0; 2];
 
 struct ChatFilter {
     add: bool,
-    ids: Vec<CharId>,
+    ids: Vec<MessageSender>,
 }
 impl ChatFilter {
-    fn has_char_id(&self, char_id: CharId) -> bool {
-        self.ids.iter().any(|filter| char_id == *filter)
+    fn has_sender(&self, sender: MessageSender) -> bool {
+        self.ids.iter().any(|filter| sender == *filter)
     }
 }
 
@@ -42,8 +79,12 @@ impl Chat {
     }
     pub fn push_message(&mut self, message: Message) {
         let say_type = SayType(message.say_type);
+        let sender = match message.say_type {
+            fo_defines::Say::Radio => MessageSender::Radio,
+            _ => MessageSender::Char(message.cr_id)
+        };
         self.messages
-            .push((message.cr_id, say_type.format(&message.text), say_type));
+            .push((sender, say_type.format(&message.text), say_type));
     }
     fn stick_bottom(&mut self, ui: &Ui) {
         let scroll = ui.scroll_y();
@@ -91,6 +132,11 @@ impl SayType {
     fn text_wrapped<T: AsRef<ImStr>>(self, ui: &Ui, text: T) {
         let style = ui.push_style_color(StyleColor::Text, self.color());
         ui.text_wrapped(text.as_ref());
+        style.pop(ui);
+    }
+    fn text<T: AsRef<ImStr>>(self, ui: &Ui, text: T) {
+        let style = ui.push_style_color(StyleColor::Text, self.color());
+        ui.text(text.as_ref());
         style.pop(ui);
     }
     fn format(self, text: &str) -> ImString {
@@ -199,13 +245,12 @@ impl UiLogic for Chat {
         ui.text(im_str!("Фильтр: "));
         ui.same_line(0.0);
 
+        // Filters
         if !filter.ids.is_empty() {
             let mut delete = None;
-            for (i, char_id) in filter.ids.iter().enumerate() {
-                let character = state.character(*char_id);
-                if character
-                    .color()
-                    .small_button(ui, &im_str!("{}##filter", character.name()))
+            for (i, sender) in filter.ids.iter().enumerate() {
+                let info = sender.info(state);
+                if info.color.small_button(ui, &im_str!("{}##filter", info.name))
                 {
                     //*filter = None;
                     delete = Some(i);
@@ -236,17 +281,17 @@ impl UiLogic for Chat {
                 let messages = &mut self.messages;
 
                 // last message: Critter id, message type, messages under same header
-                let mut last_msg: Option<(CharId, SayType, u32)> = None;
-                for (i, (char_id, text, say_type)) in messages.into_iter().enumerate() {
+                let mut last_msg: Option<(MessageSender, SayType, u32)> = None;
+                for (i, (sender, text, say_type)) in messages.into_iter().enumerate() {
                     //let character = state.character(*char_id);
                     if !filter.add && !ui.io().key_alt && !filter.ids.is_empty() {
-                        if !filter.has_char_id(*char_id) {
+                        if !filter.has_sender(*sender) {
                             continue;
                         }
                     }
                     match &mut last_msg {
                         Some((last_id, last_say_type, times))
-                            if (*char_id == *last_id
+                            if (*sender == *last_id
                                 && *say_type == *last_say_type
                                 && *times < 10) =>
                         {
@@ -260,14 +305,16 @@ impl UiLogic for Chat {
                         None => {}
                     }
                     if last_msg.is_none() {
-                        let character = state.character(*char_id);
+                        let info = sender.info(state);
 
                         ui.spacing();
                         ui.columns(2, im_str!("columns"), false);
                         ui.set_current_column_width(40.0);
-                        {
-                            if let Some(texture_id) = texture_requester.texture_for_cr_id(*char_id)
-                            {
+                        
+                        // If sender can have avatar
+                        if let Some(avatar) = info.avatar {
+                            // If sender actually have avatar and it's loaded
+                            if let Some(texture_id) = avatar.and_then(|avatar| texture_requester.texture_for_char(avatar)) {
                                 let avatar = imgui::Image::new(texture_id, AVATAR_SIZE);
                                 avatar.build(ui);
                             } else {
@@ -276,27 +323,28 @@ impl UiLogic for Chat {
                             ui.same_line(0.0);
                         }
                         ui.next_column();
-                        let label = im_str!("{}##name_{}", character.name(), i);
+                        let label = im_str!("{}##name_{}", info.name, i);
                         {
-                            if character.color().small_button(ui, &label) {
-                                if !filter.has_char_id(*char_id) {
-                                    filter.ids.push(*char_id);
+                            if info.color.small_button(ui, &label) {
+                                if !filter.has_sender(*sender) {
+                                    filter.ids.push(*sender);
                                 }
                             }
                         }
                         {
                             if let Some(text) = say_type.action() {
                                 ui.same_line(0.0);
-                                SayType::unknown().text_wrapped(ui, text);
+                                SayType::unknown().text(ui, text);
                             }
                         }
-                        last_msg = Some((*char_id, *say_type, 1));
+                        last_msg = Some((*sender, *say_type, 1));
                     }
                     say_type.text_wrapped(ui, &text);
 
                     if let Some(log) = &mut copy_text {
-                        let character = state.character(*char_id);
-                        log.push_str(character.name().to_str());
+                        let info = sender.info(state);
+
+                        log.push_str(info.name.to_str());
                         log.push_str(": ");
                         log.push_str(text.to_str());
                         //say_type.push_str(log, text.to_str());

@@ -1,7 +1,6 @@
 use crate::{Rect, Viewport, WgpuManager};
 use std::time::Duration;
 use winapi::{shared::windef, um::winuser};
-use winit::platform::windows::WindowExtWindows;
 use raw_window_handle::{RawWindowHandle, windows::WindowsHandle, HasRawWindowHandle};
 use crate::windows::ext::winapi_hwnd;
 
@@ -132,7 +131,7 @@ impl GameWindow {
         unsafe { winuser::SetForegroundWindow(self.hwnd()) };
     }
 
-    pub(crate) fn which_foreground(&self, manager: &WgpuManager) -> Foreground {
+    pub(crate) fn _which_foreground(&self, manager: &WgpuManager) -> Foreground {
         let top = unsafe { winuser::GetTopWindow(std::ptr::null_mut()) };
         let focus = unsafe { winuser::GetForegroundWindow() };
         dbg!(top);
@@ -166,7 +165,7 @@ impl GameWindow {
             Foreground::Other
         }
     }
-    pub(crate) fn is_foreground(&self) -> bool {
+    pub(crate) fn _is_foreground(&self) -> bool {
         let game_window = self.hwnd();
         let focus = unsafe { winuser::GetForegroundWindow() };
         if focus as usize == 0 {
@@ -187,6 +186,7 @@ unsafe impl HasRawWindowHandle for GameWindow {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub(crate) enum Foreground {
     Game,
     Overlay,

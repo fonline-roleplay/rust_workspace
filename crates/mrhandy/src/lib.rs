@@ -11,6 +11,7 @@ use serenity::{
     CacheAndHttp,
 };
 use std::{env, sync::Arc, thread::JoinHandle};
+use parking_lot::{RwLock, RwLockReadGuard};
 
 #[group]
 #[commands(private)]
@@ -42,13 +43,23 @@ impl MrHandy {
         user_id: u64,
         fun: F,
     ) -> Result<O, &'static str> {
-        let mut cache = self.cache_and_http.cache.read();
+        let cache = self.cache_and_http.cache.read();
         let guild = cache
             .guild(self.main_guild_id)
             .ok_or("MainGuild isn't in cache.")?;
         let guild = guild.read();
         let member = guild.members.get(&user_id.into()).ok_or("Member is None")?;
         Ok(fun(&*guild, &*member))
+    }
+
+    pub fn get_server(
+        &self,
+    ) -> Result<Server, &'static str> {
+        let cache = self.cache_and_http.cache.read();
+        let guild = cache
+            .guild(self.main_guild_id)
+            .ok_or("MainGuild isn't in cache.")?;
+        Ok(Server{guild})
     }
 
     pub fn get_roles<O, F: Fn(&Role) -> O>(guild: &Guild, member: &Member, fun: F) -> Vec<O> {
@@ -68,6 +79,27 @@ impl MrHandy {
 impl Drop for MrHandy {
     fn drop(&mut self) {
         self.shutdown();
+    }
+}
+
+
+pub struct Server {
+    guild: Arc<RwLock<Guild>>,
+}
+impl Server {
+    pub fn read(&self) -> ServerRead<'_> {
+        ServerRead{guild: self.guild.read()}
+    }
+}
+
+pub struct ServerRead<'a> {
+    guild: RwLockReadGuard<'a, Guild>,
+}
+
+impl ServerRead<'_> {
+    pub fn get_member(&self, user_id: u64) -> Result<&Member, &'static str> {
+        let member = self.guild.members.get(&user_id.into()).ok_or("Member is None")?;
+        Ok(member)
     }
 }
 

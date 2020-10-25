@@ -14,3 +14,4 @@ serenity = { version = "0.8", default-features = false, features = ["model"]}
 #serenity = { path = "D:\\rust\\serenity", features = ["model"]}
 #reqwest = { version = "= 0.10.2", default-features = false }
 reqwest = { version = "0.10", default-features = false }
+parking_lot = "0.11"

@@ -68,6 +68,7 @@ function update_rows() {
         <th>MapId</th>
         <th>MapPid</th>
         <th>Game mode</th>
+        <th>Discord</th>
         <th>IPs</th>
     </tr>
     {% for client in clients %}
@@ -110,6 +111,7 @@ function update_rows() {
                 <td>{{client.info.map_id}}</td>
                 <td>{{client.info.map_pid}}</td>
                 <td class="client-{{client.info.gamemode}}">{{client.info.gamemode}}</td>
+                <td>{{client.info.discord}}</td>
                 {% for ip in client.info.ip %}
                     <td>{{ip}}</td>
                 {% endfor %}

@@ -276,6 +276,19 @@ span {
     color: grey;
 }
 
+.client-owner-id {
+    color: grey;
+}
+.client-owner-error {
+    color: darkred;
+}
+.client-owner-name {
+    color: $color-small;
+}
+.client-owner-name span {
+    color: grey;
+}
+
 .bg-green {
     color: lightgreen;
 }

@@ -98,7 +98,7 @@ function update_rows() {
 
             {% if client.info %}
                 <td class="client-cell-{{client.info.cond}}">{{client.info.cond}}</td>
-            {% else%}
+            {% else %}
                 <td class="bg-grey">?</td>
             {% endif %}
 
@@ -111,7 +111,21 @@ function update_rows() {
                 <td>{{client.info.map_id}}</td>
                 <td>{{client.info.map_pid}}</td>
                 <td class="client-{{client.info.gamemode}}">{{client.info.gamemode}}</td>
-                <td>{{client.info.discord}}</td>
+
+                {% if client.info.discord.Ok %}
+                    {% set owner = client.info.discord.Ok %}
+                
+                    {% if owner.Id %}
+                        <td class="client-owner-id">{{owner.Id}}</td>
+                    {% elif owner.Name %}
+                        <td class="client-owner-name">{{owner.Name}}</td>
+                    {% else %}
+                        <td class="client-owner-name">{{owner.NickName.0}} <span>{{owner.NickName.1}}</span></td>
+                    {% endif %}
+                {% else %}
+                    <td class="client-owner-error">{{client.info.discord.Err}}</td>
+                {% endif %}
+
                 {% for ip in client.info.ip %}
                     <td>{{ip}}</td>
                 {% endfor %}

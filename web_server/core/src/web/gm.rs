@@ -16,6 +16,7 @@ pub fn clients(data: web::Data<AppState>) -> impl Future<Output = actix_web::Res
         match ClientsList::new(clients.clients().iter(), &data.sled_db.root, &server_read).render(&data.config.host) {
             Ok(body) => Ok(body),
             Err(err) => {
+                eprintln!("Template error: {:?}", err);
                 Err(())
             }
         }
@@ -23,7 +24,9 @@ pub fn clients(data: web::Data<AppState>) -> impl Future<Output = actix_web::Res
         Ok(body) => {
             Ok(HttpResponse::Ok().content_type("text/html").body(body))
         }
-        Err(_) => Ok(HttpResponse::InternalServerError().into()),
+        Err(_) => {
+            Ok(HttpResponse::InternalServerError().into())
+        }
     })
 }
 
@@ -47,21 +50,33 @@ struct ClientRowInfo<'a> {
     map_pid: u16,
     cond: &'static str,
     gamemode: &'static str,
-    discord: Cow<'a, str>,
+    discord: Result<OwnerInfo<'a>, &'static str>,
     ip: &'a [Ipv4Addr],
 }
 
 const GAMEMODS: [&'static str; fos::GAME_MAX as usize] =
     ["START", "ADVENTURE", "SURVIVAL", "ARCADE", "TEST"];
 
-fn get_name<'a, E>(server: &'a Result<mrhandy::ServerRead<'a>, E>, root: &Root, id: u32) -> Result<Cow<'a, str>, &'static str> {
+fn get_name<'a, E>(server: &'a Result<mrhandy::ServerRead<'a>, E>, root: &Root, id: u32) -> Result<OwnerInfo<'a>, &'static str> {
     let server = server.as_ref().map_err(|_| "Err")?;
     let owner = get_ownership(root, id).map_err(|_| "Err")?.ok_or("None")?;
-    let member = server.get_member(owner).map_err(|_| "Err")?;
-    Ok(match member.display_name() {
-        Cow::Borrowed(string) => Cow::Borrowed(string.as_str()),
-        Cow::Owned(owned) => Cow::Owned(owned),
+    let member = match server.get_member(owner) {
+        Ok(member) => member,
+        Err(_) => return Ok(OwnerInfo::Id(owner)),
+    };
+    let user_read = member.user.read();
+    let name = &user_read.name;
+    Ok(match member.nick.as_ref() {
+        None => OwnerInfo::Name(name.clone()),
+        Some(nick) => OwnerInfo::NickName(name.clone(), nick.as_str()),
     })
+}
+
+#[derive(Debug, Serialize)]
+enum OwnerInfo<'a> {
+    Id(u64),
+    Name(String),
+    NickName(String, &'a str)
 }
 
 impl<'a> ClientsList<'a> {
@@ -78,7 +93,7 @@ impl<'a> ClientsList<'a> {
                         cond: info.cond(),
                         gamemode: GAMEMODS
                             [info.uparam(Param::QST_GAMEMODE).min(fos::GAME_MAX - 1) as usize],
-                        discord: get_name(server_read, root, info.id).unwrap_or_else(|err| Cow::Borrowed(err)),
+                        discord: get_name(server_read, root, info.id), //.unwrap_or_else(|err| Cow::Borrowed(err)),
                         ip: &info.ip[..],
                     });
                     ClientRow {

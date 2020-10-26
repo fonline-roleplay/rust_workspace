@@ -345,6 +345,22 @@ span {
   color: grey;
 }
 
+.client-owner-id {
+  color: grey;
+}
+
+.client-owner-error {
+  color: darkred;
+}
+
+.client-owner-name {
+  color: #48fc00f0;
+}
+
+.client-owner-name span {
+  color: grey;
+}
+
 .bg-green {
   color: lightgreen;
 }

@@ -131,18 +131,15 @@ impl GameWindow {
         unsafe { winuser::SetForegroundWindow(self.hwnd()) };
     }
 
-    pub(crate) fn _which_foreground(&self, manager: &WgpuManager) -> Foreground {
+    /*pub(crate) fn which_foreground(&self, manager: &WgpuManager) -> Foreground {
         let top = unsafe { winuser::GetTopWindow(std::ptr::null_mut()) };
         let focus = unsafe { winuser::GetForegroundWindow() };
-        dbg!(top);
-        dbg!(focus);
 
         if top.is_null() && focus.is_null() {
             return Foreground::Other;
         }
 
         let game_window = self.hwnd();
-        dbg!(game_window);
         if !top.is_null() && top == game_window {
             return Foreground::Game;
         }
@@ -150,10 +147,32 @@ impl GameWindow {
         for (_window_id, viewport) in manager.viewports_iter() {
             let window = viewport.window();
             let handle = winapi_hwnd(window);
-            dbg!(handle);
             if !top.is_null() && handle == top {
                 return Foreground::Overlay;
             }
+            if !focus.is_null() && handle == focus {
+                return Foreground::Overlay;
+            }
+        }
+
+        if !focus.is_null() && focus == game_window {
+            Foreground::Game
+        } else {
+            Foreground::Other
+        }
+    }*/
+    pub(crate) fn which_foreground(&self, manager: &WgpuManager) -> Foreground {
+        let focus = unsafe { winuser::GetForegroundWindow() };
+        
+        if focus.is_null() {
+            return Foreground::Other;
+        }
+
+        let game_window = self.hwnd();
+
+        for (_window_id, viewport) in manager.viewports_iter() {
+            let window = viewport.window();
+            let handle = winapi_hwnd(window);
             if !focus.is_null() && handle == focus {
                 return Foreground::Overlay;
             }

@@ -5,7 +5,7 @@ impl UiLogic for Avatar {
     const INITIAL_SIZE: (u32, u32) = (64, 64);
     const TITLE_BAR: bool = false;
     fn title(&self) -> ImString {
-        im_str!("Char_{}", self.char.id).into()
+        im_str!("Char_{}", self.char.id)
     }
     fn draw(&mut self, ui: &Ui, state: &mut GuiState, texture_requester: &mut TextureRequester) {
         let size = state.avatar_size as f32;

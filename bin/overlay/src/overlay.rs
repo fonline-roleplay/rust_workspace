@@ -1,6 +1,6 @@
 use crate::{
     bridge::{start as bridge_start, BridgeOverlayToClient, MsgIn},
-    config::Config,
+    config::{Config, OverlayMode},
     game_window::GameWindow,
     gui::Gui,
     requester::ImageRequester,
@@ -23,6 +23,7 @@ pub(crate) struct Overlay {
     visibility: OverlayVisibility,
     min_delay: Duration,
     max_delay: Duration,
+    mode: OverlayMode,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -54,6 +55,8 @@ impl Overlay {
         };
         let min_delay = config.min_delay();
         let max_delay = config.max_delay();
+        let mode = config.mode();
+
         assert!(min_delay <= max_delay);
         Self {
             main_view,
@@ -64,6 +67,7 @@ impl Overlay {
             visibility,
             min_delay,
             max_delay,
+            mode,
         }
     }
 
@@ -92,8 +96,8 @@ impl Overlay {
         match event {
             MsgIn::UpdateAvatars(avatars) => self.gui.update_avatars(avatars),
             MsgIn::OverlayHide(hide) => {
-                if self.gui.hide != hide {
-                    self.gui.hide = hide;
+                if self.gui.hide.client_asks_to_hide != hide {
+                    self.gui.hide.client_asks_to_hide = hide;
                     true
                 } else {
                     false
@@ -107,12 +111,6 @@ impl Overlay {
                     }
                     _ => return false,
                 };
-                match msg.say_type {
-                    Say::Normal | Say::NormalOnHead => {
-                        auto_emote(&mut msg.text);
-                    }
-                    _ => {}
-                }
                 // TODO: hide while texting
                 /*
                 if msg.text.chars().count() > 15 {
@@ -166,7 +164,23 @@ impl Overlay {
         platform.last_frame().elapsed() > self.max_delay
     }
 
-    pub(crate) fn sleep_or_poll(&self, platform: &Platform, _control_flow: &mut ControlFlow) {
+    pub(crate) fn sleep_or_poll(&self, platform: &Platform, control_flow: &mut ControlFlow) {
+        match self.mode {
+            OverlayMode::Reparent => {
+                std::thread::sleep(Duration::from_millis(5));
+                *control_flow = ControlFlow::Poll;
+            },
+            _ => {
+                let now = std::time::Instant::now();
+                let wake_up = platform.last_frame() + self.max_delay;
+                if wake_up > now {
+                    *control_flow = ControlFlow::WaitUntil(wake_up);
+                } else {
+                    *control_flow = ControlFlow::Poll;
+                    //ControlFlow::WaitUntil(now + self.min_delay);
+                }
+            }
+        }
         /*let now = std::time::Instant::now();
         let wake_up = platform.last_frame() + self.max_delay;
         if wake_up > now {
@@ -175,11 +189,14 @@ impl Overlay {
             *control_flow = ControlFlow::WaitUntil(now + self.min_delay);
         }*/
         
-        let now = std::time::Instant::now();
+        /*let now = std::time::Instant::now();
         let wake_up = platform.last_frame() + self.max_delay;
         if wake_up > now {
             std::thread::sleep(self.min_delay.min(wake_up - now));
-        }
+        }*/
+
+        
+
         //*control_flow = ControlFlow::Poll;
 
         /*let now = std::time::Instant::now();
@@ -193,16 +210,33 @@ impl Overlay {
 
     pub(crate) fn spawning_manager<'a>(&self, manager: &'a mut WgpuManager, event_loop: &'a EventLoopWindowTarget<OverlayEvent>) -> WithLoop<'a, WgpuManager, OverlayEvent, OverlaySpawner> {
         let main_view = manager.viewport(self.main_view).map(|vp| vp.window());
-        let spawner = OverlaySpawner::new(self.game_window.clone(), main_view);
+        let spawner = OverlaySpawner::new(self.game_window.clone(), main_view, self.mode);
         manager.with_spawner(event_loop, spawner)
     }
 
-    pub(crate) fn reorder_windows2<'a, 'b>(&self, manager: &'a mut WgpuManager, iter: impl Iterator<Item = (&'b super::imgui::ImStr, super::WindowId)>) {
-        //let top = self.game_window.is_foreground();
-        //dbg!(top);
+    pub(crate) fn reorder_windows<'a, 'b>(&mut self, manager: &'a mut WgpuManager, iter: impl Iterator<Item = (&'b super::imgui::ImStr, super::WindowId)>) {
+        use crate::game_window::Foreground;
+        let top = match self.game_window.which_foreground(manager) {
+            Foreground::Other => false,
+            _ => true
+        };
 
-        //let main_view = manager.viewport(self.main_view).map(|vp| vp.window()).expect("Expect main view");
-        //main_view.set_always_on_top(top);
+        let main_view = manager.viewport(self.main_view).map(|vp| vp.window()).expect("Expect main view");
+        
+        if let OverlayMode::AutoSort = self.mode {
+            main_view.set_always_on_top(top);
+            if top {
+                main_view.set_always_on_top(false);
+            }
+            //windows_ext::_place_window_on_top(main_view);
+        }
+
+        if !top && self.mode == OverlayMode::TopMost {
+            self.gui.hide.client_is_not_visible = true;
+            return;
+        }        
+
+        let main_view_hwnd = windows_ext::winapi_hwnd(main_view);
 
         let mut windows: Vec<_> = iter.filter_map(|(title, wid)| {
             if wid == self.main_view {
@@ -221,48 +255,18 @@ impl Overlay {
         /*for (_hwnd, title, layer) in &windows {
             println!("title: {:?}, layer: {:?}", title, layer);
         }*/
-        let windows: Vec<_> = windows.into_iter().map(|(hwnd, ..)| hwnd).collect();
+        let mut windows: Vec<_> = windows.into_iter().map(|(hwnd, ..)| hwnd).collect();
         //windows.reverse();
+        
+        if let OverlayMode::AutoSort = self.mode {
+            windows.insert(0, self.game_window.hwnd());
+            //windows_ext::_place_window_on_top_hwnd(*windows.last().unwrap());
+            windows.push(main_view_hwnd);
+        }
 
         windows_ext::defer_order(&windows);
-    }
 
-    pub(crate) fn _reorder_windows<'a>(&self, manager: &'a mut WgpuManager) {
-        /*use crate::game_window::Foreground;
-        match dbg!(self.game_window.which_foreground(manager)) {
-            Foreground::Game => {
-                let main_view = manager.viewport(self.main_view).map(|vp| vp.window()).expect("Expect main view");
-                crate::windows::ext::place_window_after(main_view, &self.game_window);
-                //crate::windows::ext::place_window_on_top(main_view);
-            }
-            _ => {}
-        }*/
-        let top = self.game_window._is_foreground();
-
-        let main_view = manager.viewport(self.main_view).map(|vp| vp.window()).expect("Expect main view");
-        main_view.set_always_on_top(top);
-
-        if top {
-            let main_view = windows_ext::winapi_hwnd(main_view);
-
-            let mut windows = vec![main_view];
-            windows.extend(manager.viewports_iter().filter_map(|(wid, vp)| {
-                if *wid == self.main_view {
-                    None
-                } else {
-                    Some(windows_ext::winapi_hwnd(vp.window()))
-                }
-            }));
-            windows.push(windows_ext::winapi_hwnd(&self.game_window));
-            windows_ext::defer_order(&windows);
-        }
-    }
-
-    pub(crate) fn _reparent_game_window(&self, manager: &WgpuManager) {
-        let main_view = manager.viewport(self.main_view).map(|vp| vp.window()).unwrap();
-        windows_ext::reparent(&self.game_window, main_view);
-        //windows_ext::set_parent(&self.game_window, main_view);
-        //windows_ext::place_window_on_bottom(&self.game_window);
+        self.gui.hide.client_is_not_visible = false;
     }
 
     pub(crate) fn should_exit(&self) -> bool {
@@ -293,23 +297,5 @@ impl DerefMut for OverlayWrapper {
 impl Drop for OverlayWrapper {
     fn drop(&mut self) {
         self.0.take().expect("Invaild overlay state").finish();
-    }
-}
-
-fn auto_emote(text: &mut String) {
-    let emoted = text.replace("**", "*");
-    text.clear();
-    for (i, chunk) in emoted.split("*").enumerate() {
-        if chunk.len() == 0 {
-            continue;
-        }
-        let odd = i % 2 == 1;
-        if odd {
-            text.push_str("**");
-        }
-        text.push_str(chunk);
-        if odd {
-            text.push_str("**");
-        }
     }
 }

@@ -9,11 +9,18 @@ backends = ["Vulkan", "Dx12"]
 
 #hipow = true
 
+# How overlay should keep windows on top of game client?
+# "reparent" - Transfer overlay windows ownership to game client. Can result in strange client behavior, like sticky mouse or keyboard buttons. Original mode of "Overlay V2"
+# "topmost" - Make all overlay windows topmost, "Old Overlay"-style. Can't place other windows over overlay windows, so have to hide overlay if client or overlay is not foreground.
+# "autosort" - If client or any of overlay windows is foreground then make one window topmost and sort all the other windows and client under topmost window. May be flickery.
+# Default: "autosort"
+mode = "autosort"
+
 # Sets the max sleep time between frames based on desired FPS, actual FPS can be a lot higher because of the reaction to events
 # range: 12 to 1000
 # default: 12
 
-minfps = 24
+minfps = 12
 
 # Sets the minimal sleep time between frames, highter fps value may result in lags with mouse in a game client
 # range: minfps to 1000

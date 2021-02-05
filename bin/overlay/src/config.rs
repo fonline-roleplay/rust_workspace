@@ -18,6 +18,8 @@ pub(crate) struct Config {
 struct ConfigFile {
     wait: Option<bool>,
     hipow: Option<bool>,
+    mode: Option<String>,
+    reparent: Option<bool>,
     minfps: Option<u16>,
     maxfps: Option<u16>,
     backends: Option<Vec<Backend>>,
@@ -34,6 +36,13 @@ pub(crate) struct Args {
     // Prefer high power discrete gpu over integrated one
     #[structopt(long, short="H")]
     hipow: Option<bool>,
+
+    // How overlay should keep windows on top of game client?
+    // "reparent" - Transfer overlay windows ownership to game client. Can result in strange client behavior, like sticky mouse or keyboard buttons
+    // "autosort" - If client or any of overlay windows is foreground then make one window topmost and sort all the other windows and client under topmost window. May be flickery.
+    // "topmost" - Make all overlay windows topmost, Old overlay style. Can't place other windows over overlay windows, so have to hide overlay if client or overlay is not foreground.
+    #[structopt(long, short="M")]
+    mode: Option<String>,
 
     /// Sets the max sleep time between frames based on desired FPS, actual FPS can be a lot higher because of the reaction to events
     #[structopt(long)]
@@ -112,6 +121,23 @@ impl Config {
     pub(crate) fn url(&self) -> Option<&str> {
         self.args.url.as_deref().or(self.file.url.as_deref())
     }
+    pub(crate) fn mode(&self) -> OverlayMode {
+        self.args.mode.as_deref().or(self.file.mode.as_deref()).map(|mode| {
+            match mode {
+                "reparent" => OverlayMode::Reparent,
+                "autosort" => OverlayMode::AutoSort,
+                "topmost" => OverlayMode::TopMost,
+                _ => panic!("Unsupported mode: {}", mode),
+            }
+        }).unwrap_or(OverlayMode::AutoSort)
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub(crate) enum OverlayMode {
+    Reparent,
+    AutoSort,
+    TopMost,
 }
 
 #[derive(Debug, Copy, Clone, Deserialize)]

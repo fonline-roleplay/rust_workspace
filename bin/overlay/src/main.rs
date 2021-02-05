@@ -146,8 +146,7 @@ fn main() {
     ).expect("Cursor image");*/
 
     overlay.make_game_foreground();
-    //overlay.reparent_game_window(&manager);
-
+    
     event_loop.run(move |event, event_loop, control_flow| {
         //*control_flow = ControlFlow::Wait;
 
@@ -184,24 +183,24 @@ fn main() {
             }
             Event::MainEventsCleared => {
                 if overlay.should_render(&platform) {
-                    overlay.reorder_windows2(&mut manager_with_loop, platform.focus_order(&mut imgui));
-
+                    overlay.reorder_windows(&mut manager_with_loop, platform.focus_order(&mut imgui));
                     platform.frame(&mut imgui, &mut manager_with_loop, |ui, _delta| {
                         overlay.frame(ui, &mut renderer);
                         //ui.show_demo_window(&mut demo_open);
                     });
-                    manager_with_loop.reqwest_redraws();
+                    manager_with_loop.request_redraws();
                 }
             }
-            Event::RedrawRequested(window_id) => {
-                if let Some(draw_data) = platform.draw_data(&mut imgui, window_id) {
-                    let viewport = manager_with_loop
-                        .viewport_mut(window_id)
-                        .expect("Expect viewport");
-                    viewport.on_draw(&mut renderer, draw_data);
+            Event::RedrawRequested (window_id) => {
+                if let Some(viewport) = manager_with_loop.viewport_mut(window_id) {
+                    viewport.complete_redraw();
                 }
             }
             Event::RedrawEventsCleared => {
+                for (window_id, viewport) in manager_with_loop.viewports_to_redraw() {
+                    let draw_data = platform.draw_data(&mut imgui, *window_id);
+                    viewport.on_draw(&mut renderer, draw_data);
+                }
                 overlay.sleep_or_poll(&platform, control_flow);
             }
             _ => {}

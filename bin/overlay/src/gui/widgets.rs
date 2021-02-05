@@ -6,11 +6,13 @@ mod avatar;
 mod bar;
 mod chars_panel;
 mod chat;
+mod dummy;
 
 use super::Avatar;
 use bar::Bar;
 use chars_panel::CharsPanel;
 use chat::Chat;
+use dummy::Dummy;
 
 pub(super) trait UiLogic {
     const INITIAL_SIZE: (u32, u32);
@@ -81,5 +83,7 @@ impl Widgets {
         if self.bar.show_chat {
             gui.render(&mut self.chat);
         }
+
+        //gui.render(&mut Dummy(1));
     }
 }

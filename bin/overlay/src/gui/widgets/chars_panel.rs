@@ -68,7 +68,7 @@ impl UiLogic for CharsPanel {
     const INITIAL_SIZE: (u32, u32) = (480, 640);
     const TITLE_BAR: bool = true;
     fn title(&self) -> ImString {
-        im_str!("Characters").into()
+        im_str!("Characters",)
     }
     fn draw(&mut self, ui: &Ui, state: &mut GuiState, texture_requester: &mut TextureRequester) {
         let now = Instant::now();

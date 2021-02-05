@@ -4,6 +4,7 @@ use std::borrow::Cow;
 use super::{
     super::{
         state::{self, color::{rgb_to_rgb_arr, Color}}, CharId, Message, AVATARS_SIZES, DEFAULT_AVATAR_SIZE_INDEX,
+        helpers::rich_text,
     },
     GuiState, TextureRequester, UiLogic,
 };
@@ -46,7 +47,7 @@ struct MessageSenderInfo<'a> {
 }
 
 pub(crate) struct Chat {
-    messages: Vec<(MessageSender, ImString, SayType)>,
+    messages: Vec<(MessageSender, String, SayType)>,
     filter: ChatFilter,
     avatars_sizes_index: usize,
     stick_to_bottom: bool,
@@ -77,14 +78,33 @@ impl Chat {
             stick_to_bottom: true,
         }
     }
-    pub fn push_message(&mut self, message: Message) {
+    pub fn push_message(&mut self, mut message: Message) {
+        //use fo_defines::Say;
+
+        //remove_colors(&mut message.text);
+        /*match message.say_type {
+            Say::Normal => {
+                if auto_emote(&mut message.text) {
+                    message.say_type = Say::Emote
+                }
+            }
+            Say::NormalOnHead => {
+                if auto_emote(&mut message.text) {
+                    message.say_type = Say::EmoteOnHead
+                }
+            }
+            _ => {}
+        }*/
+
         let say_type = SayType(message.say_type);
         let sender = match message.say_type {
             fo_defines::Say::Radio => MessageSender::Radio,
             _ => MessageSender::Char(message.cr_id)
         };
+        
         self.messages
-            .push((sender, say_type.format(&message.text), say_type));
+            //.push((sender, message.text, say_type));
+            .push((sender, say_type.format_rich(&message.text), say_type));
     }
     fn stick_bottom(&mut self, ui: &Ui) {
         let scroll = ui.scroll_y();
@@ -102,8 +122,76 @@ impl Chat {
     }
 }
 
+fn auto_emote(text: &mut String) -> bool {
+    let emoted = text.replace("**", "*");
+    text.clear();
+    let mut emotes = 0;
+    for (i, chunk) in emoted.split("*").enumerate() {
+        if chunk.len() == 0 {
+            continue;
+        }
+        let odd = i % 2 == 1;
+        if odd {
+            text.push_str("**");
+        }
+        emotes += 1;
+        text.push_str(chunk);
+        if odd {
+            text.push_str("**");
+        }
+    }
+    emotes == 1 && text.starts_with("**") && text.ends_with("**")
+}
+
+fn remove_colors(text: &mut String) {
+    let mut is_color = false;
+    text.retain(|ch| {
+        is_char_part_of_color(ch, &mut is_color)
+    });
+}
+
+fn push_str_wihout_colors(buffer: &mut String, text: &str) {
+    let mut is_color = false;
+    for ch in text.chars() {
+        if is_char_part_of_color(ch, &mut is_color) {
+            buffer.push(ch);
+        }
+    };
+}
+
+fn is_char_part_of_color(ch: char, is_color: &mut bool) -> bool {
+    if *is_color {
+        if ch.is_whitespace() {
+            *is_color = false;
+        }
+        false
+    } else if ch == '|' {
+        *is_color = true;
+        false
+    } else {
+        true
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_remove_colors() {
+        let mut string = "(Джек Гримстоун): |4294506899 Ладно. |4294506899 Пойдем.".into();
+        remove_colors(&mut string);
+        assert_eq!(&string, "(Джек Гримстоун): Ладно. Пойдем.");
+    }
+}
+
 #[derive(Clone, Copy, PartialEq)]
 struct SayType(fo_defines::Say);
+
+fn draw_rich_text(drawer: &mut rich_text::Drawer, style: SayType, text: &str) {
+    let style = drawer.ui().push_style_color(StyleColor::Text, style.color());
+    drawer.draw_line(&text);
+    style.pop(drawer.ui());
+}
 
 impl SayType {
     fn unknown() -> Self {
@@ -129,7 +217,7 @@ impl SayType {
             _ => None,
         }
     }
-    fn text_wrapped<T: AsRef<ImStr>>(self, ui: &Ui, text: T) {
+    fn _text_wrapped<T: AsRef<ImStr>>(self, ui: &Ui, text: T) {
         let style = ui.push_style_color(StyleColor::Text, self.color());
         ui.text_wrapped(text.as_ref());
         style.pop(ui);
@@ -139,11 +227,21 @@ impl SayType {
         ui.text(text.as_ref());
         style.pop(ui);
     }
-    fn format(self, text: &str) -> ImString {
+    fn format_rich(self, text: &str) -> String {
+        use fo_defines::Say::*;
+        match self.0 {
+            Shout => format!("!!!{}| !!!", text.to_uppercase()),
+            Emote => format!("**{}| **", text.trim_matches('*')),
+            Whisper => format!("...{}| ...", text.to_lowercase()),
+            Radio => format!("..{}| ..", text),
+            _ => format!("{}| ", text),
+        }
+    }
+    fn _format_to_imstring(self, text: &str) -> ImString {
         use fo_defines::Say::*;
         match self.0 {
             Shout => im_str!("!!!{}!!!", text.to_uppercase()),
-            Emote => im_str!("**{}**", text),
+            Emote => im_str!("**{}**", text.trim_matches('*')),
             Whisper => im_str!("...{}...", text.to_lowercase()),
             Radio => im_str!("..{}..", text),
             _ => im_str!("{}", text),
@@ -170,7 +268,7 @@ impl SayType {
             }
             Emote => {
                 str.push_str("**");
-                str.push_str(text);
+                str.push_str(text.trim_matches('*'));
                 str.push_str("**");
             }
             Whisper => {
@@ -192,7 +290,7 @@ impl UiLogic for Chat {
     const INITIAL_SIZE: (u32, u32) = (480, 640);
     const TITLE_BAR: bool = true;
     fn title(&self) -> ImString {
-        im_str!("FOnline Chat").into()
+        im_str!("FOnline Chat",)
     }
     fn draw(
         &mut self,
@@ -282,6 +380,7 @@ impl UiLogic for Chat {
 
                 // last message: Critter id, message type, messages under same header
                 let mut last_msg: Option<(MessageSender, SayType, u32)> = None;
+                let mut drawer = rich_text::Drawer::new(ui, 4.0);
                 for (i, (sender, text, say_type)) in messages.into_iter().enumerate() {
                     //let character = state.character(*char_id);
                     if !filter.add && !ui.io().key_alt && !filter.ids.is_empty() {
@@ -339,15 +438,15 @@ impl UiLogic for Chat {
                         }
                         last_msg = Some((*sender, *say_type, 1));
                     }
-                    say_type.text_wrapped(ui, &text);
+                    //say_type.text_wrapped(ui, &text);
+                    draw_rich_text(&mut drawer, *say_type, &text);
 
                     if let Some(log) = &mut copy_text {
                         let info = sender.info(state);
 
                         log.push_str(info.name.to_str());
                         log.push_str(": ");
-                        log.push_str(text.to_str());
-                        //say_type.push_str(log, text.to_str());
+                        push_str_wihout_colors(log, text.as_str());
                         log.push('\n');
                     }
                 }

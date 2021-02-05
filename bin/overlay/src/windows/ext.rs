@@ -1,4 +1,7 @@
-use crate::game_window::GameWindow;
+use crate::{
+    game_window::GameWindow,
+    config::OverlayMode,
+};
 use viewports::{Viewport, ViewportFlags, WindowSpawner};
 use winit::{
     event_loop::EventLoopWindowTarget,
@@ -22,13 +25,14 @@ unsafe impl HasRawWindowHandle for OverlaySpawner {
 pub(crate) struct OverlaySpawner{
     _game_window: GameWindow,
     _main_view: RawWindowHandle,
+    mode: OverlayMode,
 }
 impl OverlaySpawner {
-    pub(crate) fn new(_game_window: GameWindow, first_window: Option<&Window>) -> Self {
-        //Self(game_window)
+    pub(crate) fn new(_game_window: GameWindow, first_window: Option<&Window>, mode: OverlayMode) -> Self {
+
         let _main_view = first_window.expect("Expect main view window").raw_window_handle();
         Self{
-            _game_window, _main_view
+            _game_window, _main_view, mode
         }
     }
     fn is_alive(&self) -> bool {
@@ -47,18 +51,26 @@ impl<V: Viewport> WindowSpawner<V> for OverlaySpawner {
             panic!("Parent window is dead.");
         }
 
+        let always_on_top = if let OverlayMode::TopMost = self.mode {
+            true
+        } else {
+            false
+        };
+
         let decorations = !flags.contains(ViewportFlags::NO_DECORATIONS);
         let window = WindowBuilder::new()
             .with_decorations(decorations)
             .with_visible(false)
-            //.with_always_on_top(true)
+            .with_always_on_top(always_on_top)
             .build(event_loop)
             .unwrap();
         //dbg!(flags);
         make_window_popup(&window).unwrap();
-        reparent(&window, self);
-        //set_parent(&window, self);
-        //window.set_visible(true);
+
+        if let OverlayMode::Reparent = self.mode {
+            reparent(&window, self);
+        }
+        
         window
     }
     fn show_window(&mut self, viewport: &V) {
@@ -171,11 +183,16 @@ impl Cursor {
 
 pub(crate) fn _place_window_on_top<A: HasRawWindowHandle>(window: &A) {
     let window = winapi_hwnd(window);
+    _place_window_on_top_hwnd(window);
+}
+pub(crate) fn _place_window_on_top_hwnd(window: windef::HWND) {
     let flags = winuser::SWP_NOACTIVATE | winuser::SWP_NOMOVE | winuser::SWP_NOREDRAW | winuser::SWP_NOSIZE;
     assert!(unsafe  {
-        winuser::SetWindowPos(window, winuser::HWND_TOP, 0, 0, 0, 0, flags)
-    } != 0);
+        winuser::SetWindowPos(window, winuser::HWND_NOTOPMOST, 0, 0, 0, 0, flags) != 0 &&
+        winuser::SetWindowPos(window, winuser::HWND_TOPMOST, 0, 0, 0, 0, flags) != 0
+    });
 }
+
 /*
 pub(crate) fn place_window_on_bottom<A: HasRawWindowHandle>(window: &A) {
     let window = winapi_hwnd(window);

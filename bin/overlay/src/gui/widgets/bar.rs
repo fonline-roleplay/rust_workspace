@@ -63,7 +63,7 @@ impl UiLogic for Bar {
     const INITIAL_SIZE: (u32, u32) = (320, 35);
     const TITLE_BAR: bool = false;
     fn title(&self) -> ImString {
-        im_str!("FOnline Bar").into()
+        im_str!("FOnline Bar",)
     }
     fn draw(
         &mut self,

@@ -1,5 +1,6 @@
 mod state;
 mod widgets;
+mod helpers;
 
 use super::imgui::{self, Condition, StyleVar, Window, ImString};
 use crate::{bridge::{Avatar}, requester::TextureRequester};
@@ -95,11 +96,22 @@ impl GuiBundle<'_, '_, '_> {
     }
 }
 
+#[derive(Default)]
+pub(crate) struct Hider {
+    pub(crate) client_asks_to_hide: bool,
+    pub(crate) client_is_not_visible: bool,
+}
+impl Hider {
+    fn should_hide_gui(&self) -> bool {
+        self.client_asks_to_hide || self.client_is_not_visible
+    }
+}
+
 pub struct Gui {
     widgets: Widgets,
     layers: Layers,
     pub(crate) state: GuiState,
-    pub(crate) hide: bool,
+    pub(crate) hide: Hider,
     pub(crate) dirty: i8,
     //message_generator: MessageGenerator,
 }
@@ -109,13 +121,13 @@ impl Gui {
             widgets: Widgets::new(),
             layers: Layers::new(),
             state: GuiState::new(),
-            hide: false,
+            hide: Default::default(),
             dirty: 3,
             //message_generator: MessageGenerator::new(1),
         }
     }
     pub fn frame(&mut self, ui: &imgui::Ui, texture_requester: &mut TextureRequester) {
-        if self.hide {
+        if self.hide.should_hide_gui() {
             self.dirty = 0;
             return;
         }
@@ -157,6 +169,26 @@ impl Gui {
 #[allow(dead_code)]
 mod test {
     use super::*;
+
+
+    /*#[test]
+    fn test_imstr() {
+        use imgui::im_str;
+        use std::ops::Deref;
+        use std::hash::Hash;
+        use std::collections::hash_map::DefaultHasher;
+        //use std::hash::
+
+        let im_str1 = im_str!("FOnline Chat\0");
+        let im_string2 = im_str!("FOnline Chat{}", "");
+        let im_str2 = im_string2.deref();
+
+        let mut state = DefaultHasher::new();
+
+        assert_eq!(im_str1, im_str2);
+        assert_eq!(im_str1.hash(&mut state), im_str2.hash(&mut state));
+    }*/
+    /*
     use std::time::Instant;
     struct MessageGenerator {
         last_message_time: Instant,
@@ -210,4 +242,5 @@ mod test {
             })
         }
     }
+    */
 }

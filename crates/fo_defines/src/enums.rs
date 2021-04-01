@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[repr(C)]
 #[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Say {
     Normal,
     NormalOnHead,

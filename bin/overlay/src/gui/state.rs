@@ -48,6 +48,9 @@ impl GuiState {
         if message.say_type > fo_defines::Say::WhisperOnHead {
             return;
         }
+        if message.masked {
+            return;
+        }
         let character = self.character(message.cr_id);
         if let Some(name) = message.name.take() {
             character.name = Some(name.into());

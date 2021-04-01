@@ -11,7 +11,7 @@ use super::{
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 enum MessageSender {
-    Char(CharId),
+    Char{char_id: CharId, masked: bool},
     Radio,
 }
 impl MessageSender {
@@ -20,14 +20,29 @@ impl MessageSender {
         lighter: [0.4, 0.8, 0.6, 1.0],
         darker: [0.2, 0.6, 0.4, 1.0],
     };
+    fn is_masked(&self) -> bool {
+        match self {
+            MessageSender::Char{masked, ..} if *masked => true,
+            _ => false,
+        }
+    }
     fn info(self, state: &mut GuiState) -> MessageSenderInfo<'_> {
         match self {
-            MessageSender::Char(char_id) => {
+            MessageSender::Char{char_id, masked} => {
                 let character = state.character(char_id);
-                MessageSenderInfo {
-                    color: character.color(),
-                    name: character.name(),
-                    avatar: Some(character.avatar())
+                let color = character.color();
+                if masked {
+                    MessageSenderInfo {
+                        color,
+                        name: im_str!("[Лицо скрыто]"),
+                        avatar: None,
+                    }
+                } else {
+                    MessageSenderInfo {
+                        color,
+                        name: character.name(),
+                        avatar: Some(character.avatar())
+                    }
                 }
             }
             MessageSender::Radio => {
@@ -99,7 +114,7 @@ impl Chat {
         let say_type = SayType(message.say_type);
         let sender = match message.say_type {
             fo_defines::Say::Radio => MessageSender::Radio,
-            _ => MessageSender::Char(message.cr_id)
+            _ => MessageSender::Char{char_id: message.cr_id, masked: message.masked},
         };
         
         self.messages
@@ -384,7 +399,7 @@ impl UiLogic for Chat {
                 for (i, (sender, text, say_type)) in messages.into_iter().enumerate() {
                     //let character = state.character(*char_id);
                     if !filter.add && !ui.io().key_alt && !filter.ids.is_empty() {
-                        if !filter.has_sender(*sender) {
+                        if sender.is_masked() || !filter.has_sender(*sender) {
                             continue;
                         }
                     }
@@ -425,7 +440,7 @@ impl UiLogic for Chat {
                         let label = im_str!("{}##name_{}", info.name, i);
                         {
                             if info.color.small_button(ui, &label) {
-                                if !filter.has_sender(*sender) {
+                                if !sender.is_masked() && !filter.has_sender(*sender) {
                                     filter.ids.push(*sender);
                                 }
                             }

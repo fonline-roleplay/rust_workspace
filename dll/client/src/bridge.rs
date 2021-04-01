@@ -183,6 +183,7 @@ pub extern "C" fn message_in(
     cr_id: u32,
     delay: u32,
     name: Option<&ScriptString>,
+    masked: bool,
 ) {
     let _res = BRIDGE.with_online(|bridge| {
         let text = text.string();
@@ -194,6 +195,7 @@ pub extern "C" fn message_in(
             cr_id,
             delay,
             name,
+            masked,
         });
         bridge.send(msg)
     });

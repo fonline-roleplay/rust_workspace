@@ -17,7 +17,7 @@ toml = "0.5"
 custom_error = "1.7"
 #pdb = "0.5"
 derivative = "2.1"
-arc-swap = "0.4"
+arc-swap = "1.2"
 once_cell = { version = "1.2" }
 dlopen = { version = "0.1" }
 fo_engine_functions = { path = "../../crates/fo_engine_functions" }

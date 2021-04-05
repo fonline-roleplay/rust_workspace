@@ -1,9 +1,8 @@
 use super::{
-    tree::{Bark, Leaf, Root, Trunk},
+    tree::{Bark, Leaf, Trunk},
     versioned::VersionedError,
     ArcSlice,
 };
-use bytes::Bytes;
 
 //pub type CharTrunk<'a> = Trunk<'a, CharTrun>;
 pub struct CharTrunk {

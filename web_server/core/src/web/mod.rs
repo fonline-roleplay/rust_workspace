@@ -1,11 +1,11 @@
-use futures::{
-    future::{ok as fut_ok, Either},
-    Future,
+use actix_service::Service;
+use actix_web::{
+    body::MessageBody,
+    dev::{ServiceRequest, ServiceResponse},
+    middleware, web, App, HttpRequest, HttpResponse, HttpServer,
 };
-
-use std::path::PathBuf;
-use std::sync::mpsc::channel;
-use std::sync::Arc;
+use futures::Future;
+use std::{collections::BTreeMap, sync::Arc};
 
 use crate::{bridge, config, critters_db::CrittersDb, database::SledDb};
 
@@ -13,11 +13,11 @@ use crate::{bridge, config, critters_db::CrittersDb, database::SledDb};
 use fo_data::FoRetriever;
 
 mod avatar;
+mod char_action;
 mod dir;
 mod gm;
 mod meta;
 mod stats;
-mod char_action;
 
 #[cfg(feature = "fo_data")]
 mod data;
@@ -25,16 +25,6 @@ mod data;
 mod map_viewer;
 
 const STATIC_PATH: &'static str = "./static/";
-
-/*
-pub struct Mailbox(actix::Addr<CrittersDb>);
-impl Mailbox {
-    pub fn update_critter(&self, cr: &Critter) -> Result<(), SendError<UpdateCritterInfo>> {
-        self.0
-            .try_send(UpdateCritterInfo::from(CritterInfo::from(cr)))
-    }
-}
-*/
 
 async fn index(
     _req: HttpRequest,
@@ -73,7 +63,7 @@ async fn index(
                          <li><a href=\"private/\">private</a></li>\
                          {}\
                          </ul>",
-                         maps
+                        maps
                     )
                 });
             format!(
@@ -184,14 +174,6 @@ impl AppState {
     }
 }
 
-use actix_service::Service;
-use actix_web::body::MessageBody;
-use actix_web::dev::{ServiceRequest, ServiceResponse};
-use actix_web::{
-    http, middleware, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder,
-};
-use std::collections::BTreeMap;
-
 pub fn oauth2_client(
     config: &config::OAuth,
     redirect: String,
@@ -251,17 +233,21 @@ pub fn run(state: AppState) {
                 .service(
                     web::scope("/char/{id}")
                         .service(
-                            web::scope("/edit").wrap_fn(meta::restrict_ownership).service(
-                                web::resource("/avatar")
-                                    .route(web::get().to(avatar::edit))
-                                    .route(web::post().to(avatar::upload)),
-                            ),
+                            web::scope("/edit")
+                                .wrap_fn(meta::restrict_ownership)
+                                .service(
+                                    web::resource("/avatar")
+                                        .route(web::get().to(avatar::edit))
+                                        .route(web::post().to(avatar::upload)),
+                                ),
                         )
                         .service(
-                            web::scope("/action").wrap_fn(meta::restrict_ownership).service(
-                                web::resource("/start_game")
-                                    .route(web::get().to(char_action::start_game))
-                            ),
+                            web::scope("/action")
+                                .wrap_fn(meta::restrict_ownership)
+                                .service(
+                                    web::resource("/start_game")
+                                        .route(web::get().to(char_action::start_game)),
+                                ),
                         )
                         .service(web::resource("/avatar").route(web::get().to(avatar::show))),
                 )
@@ -340,14 +326,12 @@ pub fn run(state: AppState) {
 
 fn req_host(req: &ServiceRequest) -> Option<&str> {
     let mut host = req.uri().host();
-    //println!("uri host: {:?}", host);
     if host.is_none() {
         host = req
             .headers()
             .get(actix_http::http::header::HOST)
             .and_then(|header| header.to_str().ok())
             .and_then(|host_port| host_port.split(':').next());
-        //println!("headers host: {:?}", host);
     }
     host
 }
@@ -362,7 +346,7 @@ fn restrict_web<
     let data: &web::Data<AppState> = req.app_data().expect("AppData");
     let host = req_host(&req);
     let check = host.map_or(false, |host| host == data.config.host.web.domain);
-    let mut fut = srv.call(req);
+    let fut = srv.call(req);
     async move {
         if check {
             fut.await
@@ -372,7 +356,7 @@ fn restrict_web<
     }
 }
 
-fn restrict_files<
+fn _restrict_files<
     B: MessageBody,
     S: Service<Response = ServiceResponse<B>, Request = ServiceRequest, Error = actix_web::Error>,
 >(
@@ -380,10 +364,9 @@ fn restrict_files<
     srv: &mut S,
 ) -> impl Future<Output = Result<ServiceResponse<B>, actix_web::Error>> {
     let data: &web::Data<AppState> = req.app_data().expect("AppData");
-    let host = req.headers().get("host");
     let host = req_host(&req);
     let check = host.map_or(false, |host| host == data.config.host.files.domain);
-    let mut fut = srv.call(req);
+    let fut = srv.call(req);
     async move {
         if check {
             fut.await

@@ -1,5 +1,6 @@
 use super::*;
 use actix_session::UserSession;
+use actix_web::web::Data;
 
 pub fn get_ranks(data: &AppState, user_id: u64) -> Result<Vec<Rank>, &'static str> {
     data.mrhandy
@@ -69,8 +70,6 @@ pub struct Member {
 }
 
 pub fn extract_member(req: &ServiceRequest) -> Result<Option<Member>, actix_web::Error> {
-    use actix_session::{Session, UserSession};
-    use actix_web::{web::Data, FromRequest};
     let data: &Data<AppState> = req
         .app_data()
         .ok_or("No AppState data")
@@ -80,8 +79,8 @@ pub fn extract_member(req: &ServiceRequest) -> Result<Option<Member>, actix_web:
     match user_id {
         Some(id) => {
             let ranks = get_ranks(&data, id).map_err(internal_error)?;
-            Ok(Some(Member{id, ranks}))
+            Ok(Some(Member { id, ranks }))
         }
         None => Ok(None),
-    }        
+    }
 }

@@ -8,7 +8,7 @@ fn main() -> std::io::Result<()> {
         .init();
     if Path::new("./working.path").exists() {
         let path = std::fs::read_to_string("./working.path").unwrap();
-        std::env::set_current_dir(path);
+        std::env::set_current_dir(path).unwrap();
     }
     let config = config::setup().expect("config.toml file");
     //println!("{:?}", config);

@@ -1,6 +1,6 @@
 use super::{web, AppState, HttpResponse};
 use crate::templates;
-use futures::{future as fut, Future, FutureExt, TryFutureExt};
+use futures::{Future, TryFutureExt};
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
@@ -20,37 +20,6 @@ struct Sprite<'a> {
     z: i32,
     path: &'a str,
 }
-/*
-pub fn tilemap() -> impl Future<Output = actix_web::Result<HttpResponse>> {
-    use tnf_common::{primitives::Hex, utils::sprites};
-    fut::ready({
-        let width = 75;
-        let height = 75;
-        let tiles = (0..height)
-            .flat_map(|y| (0..width).zip(std::iter::repeat(y)))
-            .map(|(x, y)| Sprite {
-                x,
-                y,
-                z: sprites::draw_order_pos_int(sprites::DRAW_ORDER_FLAT, Hex { x, y }).unwrap_or(0),
-                path: "art/tiles/EDGS001.FRM",
-            })
-            .collect();
-        templates::render(
-            "tilemap.html",
-            &SpriteMap {
-                width,
-                height,
-                tiles,
-                objects: vec![],
-            },
-        )
-        .map_err(|err| {
-            eprintln!("Tilemap template error: {:#?}", err);
-            HttpResponse::InternalServerError().into()
-        })
-        .map(|body| HttpResponse::Ok().content_type("text/html").body(body))
-    })
-}*/
 
 pub fn list() -> impl Future<Output = actix_web::Result<HttpResponse>> {
     web::block(|| -> Result<String, std::io::Error> {

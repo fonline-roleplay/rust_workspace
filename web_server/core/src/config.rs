@@ -1,7 +1,6 @@
 use serde::Deserialize;
 use std::collections::BTreeMap;
-use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Cert {
@@ -243,7 +242,9 @@ pub enum ConfigError {
 }
 
 fn canon(path: &mut PathBuf) -> Result<(), ConfigError> {
-    *path = path.canonicalize().map_err(|err| ConfigError::Canonicalize(path.clone(), err))?;
+    *path = path
+        .canonicalize()
+        .map_err(|err| ConfigError::Canonicalize(path.clone(), err))?;
     Ok(())
 }
 

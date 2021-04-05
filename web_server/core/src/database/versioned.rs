@@ -4,7 +4,6 @@ use super::{
 };
 use actix_web::error::BlockingError;
 use arrayvec::{Array, ArrayVec};
-use bytes::Bytes;
 use sled::IVec;
 use std::{
     fmt::Write,

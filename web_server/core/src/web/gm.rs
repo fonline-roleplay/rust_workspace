@@ -1,32 +1,35 @@
 use super::{web, AppState, HttpResponse};
-use crate::{config::Host, templates, database::{Root, ownership::get_ownership}};
-use clients_db::{fix_encoding::os_str_debug, ClientRecord, CritterInfo};
+use crate::{
+    config::Host,
+    database::{ownership::get_ownership, Root},
+    templates,
+};
+use clients_db::{fix_encoding::os_str_debug, ClientRecord};
 use fo_defines::CritterParam;
 use fo_defines_fo4rp::{fos, param::Param};
-use futures::{future as fut, Future, FutureExt};
+use futures::{Future, FutureExt};
 use serde::Serialize;
 use std::{borrow::Cow, net::Ipv4Addr, time::Duration};
 
 pub fn clients(data: web::Data<AppState>) -> impl Future<Output = actix_web::Result<HttpResponse>> {
-    web::block(move || -> Result<_, ()> { 
+    web::block(move || -> Result<_, ()> {
         let clients = data.critters_db.list_clients();
         let mrhandy = data.mrhandy.as_ref().expect("Discord config");
         let server = mrhandy.get_server();
         let server_read = server.as_ref().map(mrhandy::Server::read);
-        match ClientsList::new(clients.clients().iter(), &data.sled_db.root, &server_read).render(&data.config.host) {
+        match ClientsList::new(clients.clients().iter(), &data.sled_db.root, &server_read)
+            .render(&data.config.host)
+        {
             Ok(body) => Ok(body),
             Err(err) => {
                 eprintln!("Template error: {:?}", err);
                 Err(())
             }
         }
-    }).map(|res| match res {
-        Ok(body) => {
-            Ok(HttpResponse::Ok().content_type("text/html").body(body))
-        }
-        Err(_) => {
-            Ok(HttpResponse::InternalServerError().into())
-        }
+    })
+    .map(|res| match res {
+        Ok(body) => Ok(HttpResponse::Ok().content_type("text/html").body(body)),
+        Err(_) => Ok(HttpResponse::InternalServerError().into()),
     })
 }
 
@@ -57,7 +60,11 @@ struct ClientRowInfo<'a> {
 const GAMEMODS: [&'static str; fos::GAME_MAX as usize] =
     ["START", "ADVENTURE", "SURVIVAL", "ARCADE", "TEST"];
 
-fn get_name<'a, E>(server: &'a Result<mrhandy::ServerRead<'a>, E>, root: &Root, id: u32) -> Result<OwnerInfo<'a>, &'static str> {
+fn get_name<'a, E>(
+    server: &'a Result<mrhandy::ServerRead<'a>, E>,
+    root: &Root,
+    id: u32,
+) -> Result<OwnerInfo<'a>, &'static str> {
     let server = server.as_ref().map_err(|_| "Err")?;
     let owner = get_ownership(root, id).map_err(|_| "Err")?.ok_or("None")?;
     let member = match server.get_member(owner) {
@@ -76,11 +83,15 @@ fn get_name<'a, E>(server: &'a Result<mrhandy::ServerRead<'a>, E>, root: &Root, 
 enum OwnerInfo<'a> {
     Id(u64),
     Name(String),
-    NickName(String, &'a str)
+    NickName(String, &'a str),
 }
 
 impl<'a> ClientsList<'a> {
-    fn new<E, I: Iterator<Item = (&'a String, &'a ClientRecord)>>(clients: I, root: &Root, server_read: &'a Result<mrhandy::ServerRead<'a>, E>) -> Self {
+    fn new<E, I: Iterator<Item = (&'a String, &'a ClientRecord)>>(
+        clients: I,
+        root: &Root,
+        server_read: &'a Result<mrhandy::ServerRead<'a>, E>,
+    ) -> Self {
         Self {
             clients: clients
                 .map(|(name, record)| {

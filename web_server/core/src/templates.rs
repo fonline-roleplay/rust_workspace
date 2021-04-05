@@ -28,6 +28,7 @@ impl Templates {
         templates.write_css().unwrap();
         templates
     }
+    #[cfg(feature = "live_reload")]
     fn remake(&mut self) -> Result<(), TemplatesError> {
         self.css = Self::compile_css()?;
         self.tera.full_reload()?;
@@ -48,11 +49,9 @@ impl Templates {
 
 #[cfg(not(feature = "live_reload"))]
 lazy_static! {
-    static ref TEMPLATES: Templates = {
-        let mut templates = Templates::new();
-        templates
-    };
+    static ref TEMPLATES: Templates = Templates::new();
 }
+
 #[cfg(feature = "live_reload")]
 lazy_static! {
     static ref TEMPLATES: std::sync::Mutex<Templates> = {

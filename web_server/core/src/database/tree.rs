@@ -1,14 +1,9 @@
 use super::{
-    tools::slice_to_u32,
-    versioned::{get_value, new_leaf, update_branch, VersionedError},
-    ArcSlice, SledDb,
+    tools::ivec_to_u32,
+    versioned::{get_value, new_leaf, VersionedError},
+    ArcSlice,
 };
-use crate::database::tools::ivec_to_u32;
-use bytes::Bytes;
-use std::convert::TryFrom;
-use std::fmt::Write;
-use std::marker::PhantomData;
-use std::ops::Bound;
+use std::{fmt::Write, ops::Bound};
 
 #[derive(Clone)]
 pub struct Root {
@@ -138,6 +133,7 @@ impl<'a, T: Bark> Trunk<'a, T> {
         })
     }
 
+    // TODO: Use or remove
     /*pub fn update_branch<V, F>(&self, tree: &TreeRoot, branch: &str, f: F) -> Result<Option<sled::IVec>, VersionedError>
     where
         F: Fn(Option<&[u8]>) -> Option<V>>,

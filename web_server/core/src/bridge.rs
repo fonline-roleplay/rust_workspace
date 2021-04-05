@@ -1,26 +1,19 @@
-use crate::config;
-use crate::database::{CharTrunk, Root, VersionedError, ownership};
-use actix_codec::{AsyncRead, AsyncWrite, Decoder, Encoder, Framed};
+use crate::{
+    config,
+    database::{ownership, CharTrunk, Root, VersionedError},
+};
+use actix_codec::{Decoder, Encoder, Framed};
 use actix_rt::net::TcpStream;
-use actix_server::{FromStream, Server};
-use actix_service::{fn_service, IntoService};
+use actix_server::Server;
+use actix_service::fn_service;
 use actix_web::{error::BlockingError, web};
 use bytes::BytesMut;
 use futures::{
-    channel::mpsc::{channel, Receiver, Sender, TrySendError},
-    future,
-    future::Either,
-    Future, FutureExt, Sink, SinkExt, Stream, StreamExt, TryFutureExt, TryStreamExt,
+    channel::mpsc::{channel, Sender, TrySendError},
+    future, Future, StreamExt, TryFutureExt, TryStreamExt,
 };
 use parking_lot::RwLock;
-use std::{
-    convert::TryInto,
-    ffi::{CStr, CString},
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc,
-    },
-};
+use std::{convert::TryInto, ffi::CStr, sync::Arc};
 
 pub use protocol::message::server_dll_web::{ServerDllToWeb as MsgIn, ServerWebToDll as MsgOut};
 pub type MsgOutSender = Sender<MsgOut>;
@@ -81,7 +74,6 @@ struct BridgeData {
 }
 
 fn start_impl(data: BridgeData) {
-    let num = Arc::new(AtomicUsize::new(0));
     Server::build()
         .bind(
             // configure service pipeline
@@ -91,15 +83,13 @@ fn start_impl(data: BridgeData) {
                 let data = data.clone();
                 // service for converting incoming TcpStream to a SslStream<TcpStream>
                 fn_service(move |tcp_stream: TcpStream| {
-                    use futures::future::Either;
-
                     let data = data.clone();
 
                     let (sender, receiver) = channel(128);
                     data.bridge.set_sender(sender);
 
                     let framed = Framed::new(tcp_stream, WebSide);
-                    let (mut sink, mut stream) = framed.split();
+                    let (sink, stream) = framed.split();
 
                     futures::stream::select(
                         stream
@@ -137,9 +127,10 @@ fn handle_message_async(
             MsgIn::PlayerAuth(cr_id) => {
                 let root = data.tree;
                 let fut = web::block(move || {
-                    let owner = ownership::get_ownership(&root, cr_id).map_err(BridgeError::Versioned)?;
+                    let owner =
+                        ownership::get_ownership(&root, cr_id).map_err(BridgeError::Versioned)?;
                     if owner.is_some() {
-                        return Ok(None)
+                        return Ok(None);
                     }
                     let default: [u8; 12] = loop {
                         let random = rand::random();
@@ -165,7 +156,9 @@ fn handle_message_async(
                 })
                 //.from_err()
                 .err_into()
-                .map_ok(move |authkey| MsgOut::SendKeyToPlayer(cr_id, authkey.unwrap_or([0u32; 3])));
+                .map_ok(move |authkey| {
+                    MsgOut::SendKeyToPlayer(cr_id, authkey.unwrap_or([0u32; 3]))
+                });
                 fut.await
             } //_ => MsgOut::Nop,
         }

@@ -1,16 +1,15 @@
 use crate::web::AppState;
-use actix_http::h1::MessageType::Payload;
 use actix_service::Service;
 use actix_session::{Session, UserSession};
 use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::{
-    error::{BlockingError, InternalError},
+    error::InternalError,
     http::{header, Method},
-    web, HttpRequest, HttpResponse, Responder,
+    web, HttpResponse,
 };
 use futures::{
-    future::{err as fut_err, ok as fut_ok, Either},
-    Future, FutureExt, TryFutureExt,
+    future::{err as fut_err, Either},
+    Future, TryFutureExt,
 };
 use oauth2::{AsyncCodeTokenRequest, AuthorizationCode, CsrfToken, Scope, TokenResponse};
 use serde::Deserialize;
@@ -22,8 +21,8 @@ const DISCORD_API_URL: &str = "https://discordapp.com/api";
 const LOCATION_AFTER_AUTH: &str = "location_after_auth";
 
 mod auth;
-mod rank;
 mod ownership;
+mod rank;
 pub use ownership::restrict_ownership;
 
 pub use self::{
@@ -87,11 +86,13 @@ pub fn restrict_gm<
     let first_rank = extract_member(&req);
     let fut = srv.call(req);
     async move {
-        match first_rank?.ok_or_else(access_denied("Restricted zone"))?.ranks.first() {
-            Some(rank) if rank >= &Rank::GameMaster => {
-                fut.await
-            },
-            _ => Err(access_denied("Rank is too low for this restricted zone")())?
+        match first_rank?
+            .ok_or_else(access_denied("Restricted zone"))?
+            .ranks
+            .first()
+        {
+            Some(rank) if rank >= &Rank::GameMaster => fut.await,
+            _ => Err(access_denied("Rank is too low for this restricted zone")())?,
         }
     }
 }

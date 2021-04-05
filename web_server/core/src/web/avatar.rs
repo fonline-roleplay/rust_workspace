@@ -3,17 +3,13 @@ use crate::{
     database::{CharTrunk, Leaf, Root, VersionedError},
     templates,
 };
-use actix_web::body::Body;
-use actix_web::{error::BlockingError, web, HttpRequest, HttpResponse, Responder};
+use actix_web::{error::BlockingError, web, HttpResponse};
 use arrayvec::ArrayVec;
 use futures::{
     future::{err as fut_err, ok as fut_ok, Either},
     Future, FutureExt, TryFutureExt,
 };
 use serde::{Deserialize, Serialize};
-use std::io::Write;
-use std::path::PathBuf;
-use std::sync::Arc;
 
 // size of square image in pixels, 128 means 128x128
 const IMAGE_SIZE: u32 = 128;
@@ -55,19 +51,6 @@ pub fn parse_auth(auth: &Auth) -> Option<(AuthVec, String)> {
     Some((arr, auth_string))
 }
 
-pub fn check_auth(root: &Root, char_id: u32, auth: &[u8]) -> Result<(), AvatarUploadError> {
-    let authkey = root
-        .trunk(char_id, None, CharTrunk::default())
-        .get_bare_branch("authkey")
-        .map_err(AvatarUploadError::SledVersioned)?;
-    println!("stored:   {:?}", authkey.as_ref());
-    println!("received: {:?}", auth);
-    if authkey.as_ref() != auth {
-        return Err(AvatarUploadError::AccessDenied);
-    }
-    Ok(())
-}
-
 // ===== Avatar editor =====
 
 #[derive(Debug, Serialize)]
@@ -77,25 +60,14 @@ struct AvatarEditor {
 
 pub fn edit(
     path: web::Path<u32>,
-    query: web::Query<Auth>,
     data: web::Data<super::AppState>,
 ) -> impl Future<Output = actix_web::Result<HttpResponse>> {
     let char_id = *path;
 
-    /*let (auth, auth_string) = match parse_auth(&*query) {
-        None => return Either::Left(fut_ok(HttpResponse::Forbidden().finish())),
-        Some(auth) => auth,
-    };*/
-
-    //let root = data.sled_db.root.clone();
-
     web::block(move || {
-        //check_auth(&root, char_id, auth.as_slice())?;
         templates::render(
             "edit_avatar.html",
-            &AvatarEditor {
-                char_id,
-            },
+            &AvatarEditor { char_id },
             &data.config.host,
         )
         .map_err(AvatarUploadError::Template)
@@ -115,18 +87,11 @@ pub fn edit(
 
 pub fn upload(
     path: web::Path<u32>,
-    query: web::Query<Auth>,
     data: web::Data<super::AppState>,
     payload: web::Bytes,
 ) -> impl Future<Output = Result<HttpResponse, AvatarUploadError>> {
-    /*let (auth, auth_string) = match parse_auth(&*query) {
-        None => return Either::Left(fut_ok(HttpResponse::Forbidden().finish())),
-        Some(auth) => auth,
-    };*/
-
     const MIN_LEN: usize = 16;
     const MAX_LEN: usize = 128 * 1024;
-
     const PREFIX_LEN: usize = 22;
     const PREFIX: &[u8; PREFIX_LEN] = b"data:image/png;base64,";
 
@@ -144,7 +109,6 @@ pub fn upload(
     let sender = data.bridge.get_sender();
     Either::Right(
         web::block(move || {
-            //check_auth(&root, char_id, auth.as_slice())?;
             let data = &payload[PREFIX_LEN..];
             save_image(&root, char_id, data)
         })
@@ -162,23 +126,14 @@ fn save_image(root: &Root, char_id: u32, data: &[u8]) -> Result<Leaf<()>, Avatar
         base64::decode_config(&data, base64::STANDARD).map_err(AvatarUploadError::Base64)?;
     println!("Decoded in {:?}", instant.elapsed());
     let instant2 = std::time::Instant::now();
-    //std::fs::write("test.png", &decoded).map_err(|_| ())
     let image = image::load_from_memory_with_format(&decoded, ImageFormat::Png)
         .map_err(AvatarUploadError::ImageLoad)?;
     println!("Loaded in {:?}", instant2.elapsed());
-    /*match &image {
-        DynamicImage::ImageRgb8(_) => {println!("DynamicImage::ImageRgb8")},
-        DynamicImage::ImageRgba8(_) => {println!("DynamicImage::ImageRgba8")},
-        DynamicImage::ImageBgr8(_) => {println!("DynamicImage::ImageBgr8")},
-        DynamicImage::ImageBgra8(_) => {println!("DynamicImage::ImageBgra8")},
-        _ => {println!("DynamicImage::...")},
-    };*/
     let instant2 = std::time::Instant::now();
-    //println!("Width: {}, Height: {}", image.width(), image.height());
     if image.width() != IMAGE_SIZE || image.height() != IMAGE_SIZE {
         return Err(AvatarUploadError::ImageSize(image.width(), image.height()));
     }
-    let new_image = DynamicImage::ImageRgb8(image.to_rgb());
+    let new_image = DynamicImage::ImageRgb8(image.to_rgb8());
 
     let mut buffer = decoded;
     buffer.clear();
@@ -265,12 +220,9 @@ pub enum AvatarUploadError {
     Base64(base64::DecodeError),
     ImageLoad(image::ImageError),
     ImageSize(u32, u32),
-    //ImageSave(std::io::Error),
     ImageWrite(image::ImageError),
-    //SledSet(sled::Error),
     SledVersioned(VersionedError),
     FuturesSyncSend,
-    AccessDenied,
     Template(templates::TemplatesError),
 }
 
@@ -296,6 +248,7 @@ impl actix_web::error::ResponseError for AvatarUploadError {
         use actix_web::http::StatusCode;
         HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)
     }
+    // TODO: Investigate error rendering
     /*
     /// Constructs an error response
     fn render_response(&self) -> HttpResponse {

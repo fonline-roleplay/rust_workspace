@@ -1,9 +1,6 @@
-use actix_web::{error::BlockingError, web, HttpRequest, HttpResponse, Responder};
+use actix_web::{web, HttpResponse};
 use fo_data::Converter;
-use futures::{
-    future::{err as fut_err, ok as fut_ok, Either},
-    Future, FutureExt, TryFutureExt,
-};
+use futures::{Future, TryFutureExt};
 
 pub fn get(
     path: web::Path<String>,

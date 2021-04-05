@@ -326,13 +326,6 @@ pub fn run(state: AppState) {
             .service(actix_files::Files::new("/static", STATIC_PATH))
             .service(
                 web::scope("/char/{id}")
-                    .service(
-                        web::scope("/edit").service(
-                            web::resource("/avatar")
-                                .route(web::get().to(avatar::edit))
-                                .route(web::post().to(avatar::upload)),
-                        ),
-                    )
                     .service(web::resource("/avatar").route(web::get().to(avatar::show))),
             )
     })

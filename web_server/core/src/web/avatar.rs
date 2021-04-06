@@ -2,6 +2,7 @@ use crate::{
     bridge,
     database::{CharTrunk, Leaf, Root, VersionedError},
     templates,
+    utils::blocking,
 };
 use actix_web::{error::BlockingError, web, HttpResponse};
 use arrayvec::ArrayVec;
@@ -29,7 +30,7 @@ pub struct Auth {
 
 // ===== Check auth =====
 
-pub type AuthVec = ArrayVec<[u8; AUTH_LEN]>;
+pub type AuthVec = ArrayVec<u8, AUTH_LEN>;
 pub fn parse_auth(auth: &Auth) -> Option<(AuthVec, String)> {
     let str: &str = auth.auth.as_ref()?.as_str();
     if str.len() != AUTH_HEX_LEN {
@@ -37,7 +38,7 @@ pub fn parse_auth(auth: &Auth) -> Option<(AuthVec, String)> {
     }
     let auth_string = str.to_uppercase();
     dbg!(&auth_string);
-    let mut arr = ArrayVec::<[u8; AUTH_LEN]>::new();
+    let mut arr = AuthVec::new();
     let mut cur = auth_string.as_str();
     while !cur.is_empty() {
         let (chunk, rest) = cur.split_at(std::cmp::min(2, cur.len()));
@@ -64,7 +65,7 @@ pub fn edit(
 ) -> impl Future<Output = actix_web::Result<HttpResponse>> {
     let char_id = *path;
 
-    web::block(move || {
+    blocking(move || {
         templates::render(
             "edit_avatar.html",
             &AvatarEditor { char_id },
@@ -72,7 +73,6 @@ pub fn edit(
         )
         .map_err(AvatarUploadError::Template)
     })
-    .err_into()
     .then(|res| match res {
         Err(AvatarUploadError::Template(err)) => {
             eprintln!("AvatarEditor template error: {:#?}", err);
@@ -108,11 +108,10 @@ pub fn upload(
     let root = data.sled_db.root.clone();
     let sender = data.bridge.get_sender();
     Either::Right(
-        web::block(move || {
+        blocking(move || {
             let data = &payload[PREFIX_LEN..];
             save_image(&root, char_id, data)
         })
-        .err_into()
         .map(move |res| res.and_then(|leaf| update_char_leaf(sender, char_id, leaf)))
         .map_ok(|_| HttpResponse::NoContent().finish()),
     )
@@ -189,7 +188,7 @@ pub fn show(
 
     let root = data.sled_db.root.clone();
     Either::Right(
-        web::block(move || {
+        blocking(move || {
             let instant = std::time::Instant::now();
             let leaf = root
                 .trunk(*path, ver, CharTrunk::default())
@@ -197,11 +196,10 @@ pub fn show(
             println!("Getting image, completed in {:?}", instant.elapsed());
             Ok(leaf)
         })
-        .err_into()
         .then(|res| match res {
             Ok(image) => HttpResponse::Ok()
-                .header("q-ver", image.ver as u64)
-                .header("q-length", image.data.len())
+                .append_header(("q-ver", image.ver as u64))
+                .append_header(("q-length", image.data.len()))
                 .content_type("image/png")
                 .body(bytes::Bytes::copy_from_slice(image.data.as_ref())),
             Err(VersionedError::NotFound) => HttpResponse::NotFound().finish(),
@@ -226,12 +224,9 @@ pub enum AvatarUploadError {
     Template(templates::TemplatesError),
 }
 
-impl From<BlockingError<AvatarUploadError>> for AvatarUploadError {
-    fn from(err: BlockingError<AvatarUploadError>) -> Self {
-        match err {
-            BlockingError::Error(err) => err,
-            BlockingError::Canceled => AvatarUploadError::Blocking,
-        }
+impl From<BlockingError> for AvatarUploadError {
+    fn from(_err: BlockingError) -> Self {
+        AvatarUploadError::Blocking
     }
 }
 

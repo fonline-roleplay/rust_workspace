@@ -8,18 +8,22 @@ body {
   font-family: Gothic821;
   src: url(fonts/Gothic821.ttf);
 }
+
 @font-face {
   font-family: Terminus;
   src: url(fonts/TerminusTTFWindows-4.47.0.ttf);
 }
+
 @font-face {
   font-family: FoDisplay;
   src: url(fonts/fallout_display.ttf);
 }
+
 @font-face {
   font-family: Crasng;
   src: url(fonts/Crasng.ttf);
 }
+
 
 img {
   display: block;

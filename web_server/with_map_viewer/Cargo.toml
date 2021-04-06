@@ -8,4 +8,4 @@ edition = "2018"
 
 [dependencies]
 web_server_core = {path = "../core", features = ["map_viewer"]}
-env_logger = "0.7"
+env_logger = "0.8"

@@ -1,10 +1,15 @@
+use self::restrict::restrict;
 use actix_service::Service;
 use actix_web::{
     body::MessageBody,
     dev::{ServiceRequest, ServiceResponse},
+    error::InternalError,
     middleware, web, App, HttpRequest, HttpResponse, HttpServer,
 };
-use futures::Future;
+use futures::{
+    future::{FutureExt, TryFutureExt},
+    Future,
+};
 use std::{collections::BTreeMap, sync::Arc};
 
 use crate::{bridge, config, critters_db::CrittersDb, database::SledDb};
@@ -17,6 +22,7 @@ mod char_action;
 mod dir;
 mod gm;
 mod meta;
+mod restrict;
 mod stats;
 
 #[cfg(feature = "fo_data")]
@@ -33,7 +39,7 @@ async fn index(
 ) -> actix_web::Result<HttpResponse> {
     let body = match meta::get_user_id(&session) {
         Some(user_id) => {
-            let (name_string, max_rank) = match meta::get_user_record(&*data, user_id) {
+            let (name_string, max_rank) = match meta::get_user_record(&*data, user_id).await {
                 Ok(record) => (
                     match &record.nick {
                         Some(nick) => format!(r#"{} ({})"#, record.name, nick),
@@ -112,11 +118,10 @@ fn _info(
     }
 }
 */
-#[derive(Clone)]
 pub struct AppState {
     oauth: Option<oauth2::basic::BasicClient>,
     config: config::Config,
-    mrhandy: Option<Arc<mrhandy::MrHandy>>,
+    mrhandy: Option<mrhandy::MrHandy>,
     sled_db: SledDb,
     critters_db: CrittersDb,
     bridge: bridge::Bridge,
@@ -130,7 +135,6 @@ pub struct AppState {
 impl AppState {
     pub fn new(
         config: config::Config,
-        mrhandy: Option<mrhandy::MrHandy>,
         db: sled::Db,
         #[cfg(feature = "fo_data")] fo_data: FoRetriever,
         #[cfg(feature = "fo_proto_format")] items: BTreeMap<u16, fo_proto_format::ProtoItem>,
@@ -157,7 +161,7 @@ impl AppState {
         Self {
             oauth,
             config,
-            mrhandy: mrhandy.map(|mrhandy| Arc::new(mrhandy)),
+            mrhandy: None,
             sled_db,
             critters_db,
             bridge,
@@ -168,9 +172,9 @@ impl AppState {
             reqwest,
         }
     }
-    fn start_bridge(&self) {
+    fn start_bridge(&self) -> impl Future<Output = bridge::Server> {
         self.bridge
-            .start(self.sled_db.root.clone(), self.config.host.clone());
+            .start(self.sled_db.root.clone(), self.config.host.clone())
     }
 }
 
@@ -195,13 +199,26 @@ pub fn oauth2_client(
 pub fn run(state: AppState) {
     println!("Starting actix-web server...");
 
-    let sys = actix_rt::System::new("charsheet");
-
     crate::templates::init();
 
-    state.start_bridge();
+    let sys = actix_rt::System::new();
+    sys.block_on(run_async(state));
+}
 
-    let config = state.config.clone();
+async fn run_async(mut state: AppState) {
+    let bridge_server = state.start_bridge().await;
+
+    let mut serenity_client = if let Some(discord) = &state.config.discord {
+        // TODO: Should we keep or join client fut?
+        let (mrhandy, serenity_client) =
+            mrhandy::init(&discord.bot.token, discord.main_guild_id).await;
+        state.mrhandy = Some(mrhandy);
+        Some(serenity_client)
+    } else {
+        None
+    };
+
+    let state = web::Data::new(state);
 
     let web_server = HttpServer::new({
         let state = state.clone();
@@ -210,7 +227,7 @@ pub fn run(state: AppState) {
                 .name("meta-session")
                 .secure(false);
             let app = App::new()
-                .data(state.clone())
+                .app_data(state.clone())
                 .wrap(middleware::Compress::default())
                 .wrap(middleware::Logger::default())
                 .wrap_fn(restrict_web)
@@ -224,7 +241,7 @@ pub fn run(state: AppState) {
                 )
                 .service(
                     web::scope("/gm")
-                        .wrap_fn(meta::restrict_gm)
+                        .wrap(restrict(meta::restrict_gm))
                         .service(web::resource("/clients").route(web::get().to(gm::clients)))
                         .service(
                             web::resource("/client/{client}").route(web::get().to(stats::gm_stats)),
@@ -234,7 +251,7 @@ pub fn run(state: AppState) {
                     web::scope("/char/{id}")
                         .service(
                             web::scope("/edit")
-                                .wrap_fn(meta::restrict_ownership)
+                                .wrap(restrict(meta::restrict_ownership))
                                 .service(
                                     web::resource("/avatar")
                                         .route(web::get().to(avatar::edit))
@@ -243,7 +260,7 @@ pub fn run(state: AppState) {
                         )
                         .service(
                             web::scope("/action")
-                                .wrap_fn(meta::restrict_ownership)
+                                .wrap(restrict(meta::restrict_ownership))
                                 .service(
                                     web::resource("/start_game")
                                         .route(web::get().to(char_action::start_game)),
@@ -254,7 +271,7 @@ pub fn run(state: AppState) {
                 .service(actix_files::Files::new("/static", STATIC_PATH))
                 .service({
                     let mut private = web::scope("/private")
-                        .wrap_fn(meta::restrict_gm)
+                        .wrap(restrict(meta::restrict_gm))
                         .service(web::resource("/").route(web::get().to(list_privates)));
                     let name_path = state.config.paths.privates();
                     for (name, path) in name_path {
@@ -269,7 +286,7 @@ pub fn run(state: AppState) {
             #[cfg(feature = "map_viewer")]
             let app = app.service(
                 web::scope("/maps")
-                    .wrap_fn(meta::restrict_gm)
+                    .wrap(restrict(meta::restrict_gm))
                     //.service(web::resource("/tilemap").route(web::get().to(map_viewer::tilemap))),
                     .service(web::resource("/{path:.+}").route(web::get().to(map_viewer::view)))
                     .service(web::resource("").route(web::get().to(map_viewer::list))),
@@ -277,7 +294,7 @@ pub fn run(state: AppState) {
             #[cfg(feature = "fo_data")]
             let app = app.service(
                 web::resource("/data/{path:.+}")
-                    .wrap_fn(meta::restrict_gm)
+                    .wrap(restrict(meta::restrict_gm))
                     .route(web::get().to(data::get)),
             );
             app
@@ -286,10 +303,10 @@ pub fn run(state: AppState) {
             //)
         }
     })
-    .server_hostname(config.host.web.domain_port());
+    .server_hostname(state.config.host.web.domain_port());
 
-    let web_port = config.host.web_port();
-    if let Some(cert) = &config.host.web_tls {
+    let web_port = state.config.host.web_port();
+    let web_server = if let Some(cert) = &state.config.host.web_tls {
         let tls_config = cert.server_config().expect("TLS server config");
         web_server.bind_rustls(("0.0.0.0", web_port), tls_config)
     } else {
@@ -298,30 +315,53 @@ pub fn run(state: AppState) {
     .expect("Can't bind web server to port")
     .run();
 
-    HttpServer::new(move || {
-        App::new()
-            .data(state.clone())
-            .wrap(middleware::Compress::default())
-            .wrap(middleware::Logger::default())
-            //.wrap_fn(restrict_files)
-            .wrap(
-                middleware::DefaultHeaders::new()
-                    .header("Access-Control-Allow-Origin", state.config.host.web_url("")),
-            )
-            .service(web::resource("/").route(web::get().to(go_web)))
-            .service(actix_files::Files::new("/static", STATIC_PATH))
-            .service(
-                web::scope("/char/{id}")
-                    .service(web::resource("/avatar").route(web::get().to(avatar::show))),
-            )
+    let file_server = HttpServer::new({
+        let state = state.clone();
+        move || {
+            App::new()
+                .app_data(state.clone())
+                .wrap(middleware::Compress::default())
+                .wrap(middleware::Logger::default())
+                //.wrap_fn(restrict_files)
+                .wrap(
+                    middleware::DefaultHeaders::new()
+                        .header("Access-Control-Allow-Origin", state.config.host.web_url("")),
+                )
+                .service(web::resource("/").route(web::get().to(go_web)))
+                .service(actix_files::Files::new("/static", STATIC_PATH))
+                .service(
+                    web::scope("/char/{id}")
+                        .service(web::resource("/avatar").route(web::get().to(avatar::show))),
+                )
+        }
     })
-    .server_hostname(config.host.files.domain_port())
-    .bind(("0.0.0.0", config.host.files_port()))
+    .server_hostname(state.config.host.files.domain_port())
+    .bind(("0.0.0.0", state.config.host.files_port()))
     .expect("Can't bind files server to port")
     .run();
 
     println!("Servers started!");
-    let _ = sys.run();
+    let mut futs = vec![
+        bridge_server.map_err(RuntimeError::Io).boxed(),
+        web_server.map_err(RuntimeError::Io).boxed(),
+        file_server.map_err(RuntimeError::Io).boxed(),
+    ];
+    if let Some(serenity_client) = serenity_client.as_mut() {
+        futs.push(
+            serenity_client
+                .start()
+                .map_err(RuntimeError::Serenity)
+                .boxed(),
+        );
+    }
+    let (res, _, _) = futures::future::select_all(futs).await;
+    println!("Stopping... Result: {:?}", res);
+}
+
+#[derive(Debug)]
+enum RuntimeError {
+    Io(std::io::Error),
+    Serenity(mrhandy::serenity::Error),
 }
 
 fn req_host(req: &ServiceRequest) -> Option<&str> {
@@ -338,10 +378,10 @@ fn req_host(req: &ServiceRequest) -> Option<&str> {
 
 fn restrict_web<
     B: MessageBody,
-    S: Service<Response = ServiceResponse<B>, Request = ServiceRequest, Error = actix_web::Error>,
+    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = actix_web::Error>,
 >(
     req: ServiceRequest,
-    srv: &mut S,
+    srv: &S,
 ) -> impl Future<Output = Result<ServiceResponse<B>, actix_web::Error>> {
     let data: &web::Data<AppState> = req.app_data().expect("AppData");
     let host = req_host(&req);
@@ -358,10 +398,10 @@ fn restrict_web<
 
 fn _restrict_files<
     B: MessageBody,
-    S: Service<Response = ServiceResponse<B>, Request = ServiceRequest, Error = actix_web::Error>,
+    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = actix_web::Error>,
 >(
     req: ServiceRequest,
-    srv: &mut S,
+    srv: &S,
 ) -> impl Future<Output = Result<ServiceResponse<B>, actix_web::Error>> {
     let data: &web::Data<AppState> = req.app_data().expect("AppData");
     let host = req_host(&req);
@@ -385,4 +425,15 @@ async fn list_privates(data: web::Data<AppState>) -> HttpResponse {
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
         .body(body)
+}
+
+fn internal_error<D: std::fmt::Debug>(err: D) -> actix_web::Error {
+    let text = format!("Internal error: {:?}", err);
+    InternalError::from_response(
+        text.clone(),
+        HttpResponse::BadRequest()
+            .content_type("text/plain; charset=utf-8")
+            .body(text),
+    )
+    .into()
 }

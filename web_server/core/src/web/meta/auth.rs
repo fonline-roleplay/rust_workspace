@@ -39,7 +39,7 @@ pub async fn auth(
     let user: DiscordUser = serde_json::from_str(&identity).map_err(internal_error)?;
     let user_id: u64 = user.id.parse().map_err(internal_error)?;
 
-    session.set(DISCORD_USER_ID_COOKIE_NAME, user_id)?;
+    session.insert(DISCORD_USER_ID_COOKIE_NAME, user_id)?;
     let location: String = if let Some(location) = session.get(LOCATION_AFTER_AUTH)? {
         session.remove(LOCATION_AFTER_AUTH);
         location
@@ -49,8 +49,8 @@ pub async fn auth(
 
     Ok(HttpResponse::Found()
         //.content_type("text/plain; charset=utf-8")
-        .header(header::LOCATION, location)
-        .header(header::ACCESS_CONTROL_MAX_AGE, "0")
+        .append_header((header::LOCATION, location))
+        .append_header((header::ACCESS_CONTROL_MAX_AGE, "0"))
         .finish())
 }
 

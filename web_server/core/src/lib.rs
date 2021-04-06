@@ -3,6 +3,7 @@ pub mod config;
 pub mod critters_db;
 pub mod database;
 mod templates;
+pub mod utils;
 pub mod web;
 
 #[cfg(feature = "fo_data")]

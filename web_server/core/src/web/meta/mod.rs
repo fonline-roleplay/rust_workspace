@@ -1,11 +1,13 @@
-use crate::web::AppState;
+use std::mem;
+
+use crate::web::{internal_error, restrict::Restrict, AppState};
 use actix_service::Service;
 use actix_session::{Session, UserSession};
 use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::{
     error::InternalError,
     http::{header, Method},
-    web, HttpResponse,
+    web, HttpRequest, HttpResponse,
 };
 use futures::{
     future::{err as fut_err, Either},
@@ -54,17 +56,6 @@ pub fn access_denied(text: &'static str) -> impl Fn() -> InternalError<&'static 
     }
 }
 
-fn internal_error<D: std::fmt::Debug>(err: D) -> actix_web::Error {
-    let text = format!("Internal error: {:?}", err);
-    InternalError::from_response(
-        text.clone(),
-        HttpResponse::BadRequest()
-            .content_type("text/plain; charset=utf-8")
-            .body(text),
-    )
-    .into()
-}
-
 pub fn get_user_id(session: &Session) -> Option<u64> {
     match session.get(DISCORD_USER_ID_COOKIE_NAME) {
         Ok(Some(uid)) => Some(uid),
@@ -77,24 +68,15 @@ pub fn get_user_id(session: &Session) -> Option<u64> {
     }
 }
 
-pub fn restrict_gm<
-    S: Service<Response = ServiceResponse, Request = ServiceRequest, Error = actix_web::Error>,
->(
-    req: ServiceRequest,
-    srv: &mut S,
-) -> impl Future<Output = Result<ServiceResponse, actix_web::Error>> {
-    let first_rank = extract_member(&req);
-    let fut = srv.call(req);
-    async move {
-        match first_rank?
-            .ok_or_else(access_denied("Restricted zone"))?
-            .ranks
-            .first()
-        {
-            Some(rank) if rank >= &Rank::GameMaster => fut.await,
-            _ => Err(access_denied("Rank is too low for this restricted zone")())?,
-        }
-    }
+pub async fn restrict_gm(req: HttpRequest) -> Result<Restrict, actix_web::Error> {
+    let first_rank = extract_member(&req).await?;
+    Ok(match first_rank {
+        Some(member) => match member.ranks.first() {
+            Some(rank) if rank >= &Rank::GameMaster => Restrict::Allow,
+            _ => Restrict::Deny("Rank is too low for this restricted zone".into()),
+        },
+        None => Restrict::Deny("Restricted zone".into()),
+    })
 }
 
 pub async fn login(
@@ -110,7 +92,7 @@ pub async fn login(
         .add_scope(Scope::new("identify".to_owned()))
         .url();
     session.remove(DISCORD_USER_ID_COOKIE_NAME);
-    session.set(DISCORD_CSRF_COOKIE_NAME, csrf_token)?;
+    session.insert(DISCORD_CSRF_COOKIE_NAME, csrf_token)?;
     /*println!(
         "Login: session: {:?}",
         session.get::<String>(DISCORD_CSRF_COOKIE_NAME)

@@ -5,8 +5,6 @@ use clients_db::{ClientsDb, CritterInfo};
 
 type InnerCritter = Arc<CritterInfo>;
 type InnerClients = Arc<ClientsDb>;
-
-#[derive(Clone)]
 pub struct CrittersDb {
     clients: ArcSwapAny<InnerClients>,
     path: PathBuf,

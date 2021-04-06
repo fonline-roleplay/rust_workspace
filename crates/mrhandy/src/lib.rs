@@ -1,17 +1,20 @@
-pub use serenity::model::guild::Role;
-use serenity::model::guild::{Guild, Member};
+use parking_lot::{RwLock, RwLockReadGuard};
+pub use serenity::{
+    self,
+    model::guild::{Guild, Role},
+};
+use serenity::{client::bridge::gateway::GatewayIntents, model::guild::Member};
 use serenity::{
     client::{bridge::gateway::ShardManager, Client},
     framework::standard::{
-        macros::{command, group},
-        CommandResult, StandardFramework,
+        macros::{command, group, hook},
+        CommandError, CommandResult, DispatchError, StandardFramework,
     },
     model::prelude::{Message, UserId},
     prelude::{Context, EventHandler, Mutex, TypeMapKey},
     CacheAndHttp,
 };
-use std::{env, sync::Arc, thread::JoinHandle};
-use parking_lot::{RwLock, RwLockReadGuard};
+use std::{collections::HashMap, env, future::Future, sync::Arc, thread::JoinHandle};
 
 #[group]
 #[commands(private)]
@@ -34,32 +37,40 @@ pub struct MrHandy {
 }
 
 impl MrHandy {
-    pub fn shutdown(&self) {
-        let mut guard = self.shard_manager.lock();
+    /*pub async fn shutdown(&self) {
+        let mut guard = self.shard_manager.lock().await;
         guard.shutdown_all();
-    }
-    pub fn with_guild_member<O, F: Fn(&Guild, &Member) -> O>(
+    }*/
+    pub async fn with_guild_member<O, F: Fn(&Guild, &Member) -> O>(
         &self,
         user_id: u64,
         fun: F,
     ) -> Result<O, &'static str> {
-        let cache = self.cache_and_http.cache.read();
-        let guild = cache
-            .guild(self.main_guild_id)
-            .ok_or("MainGuild isn't in cache.")?;
-        let guild = guild.read();
-        let member = guild.members.get(&user_id.into()).ok_or("Member is None")?;
-        Ok(fun(&*guild, &*member))
+        self.with_guild(|guild| match guild {
+            Some(guild) => {
+                let member = guild.members.get(&user_id.into()).ok_or("Member is None")?;
+                Ok(fun(guild, member))
+            }
+            None => Err("MainGuild isn't in cache."),
+        })
+        .await
     }
 
-    pub fn get_server(
-        &self,
-    ) -> Result<Server, &'static str> {
-        let cache = self.cache_and_http.cache.read();
-        let guild = cache
-            .guild(self.main_guild_id)
-            .ok_or("MainGuild isn't in cache.")?;
-        Ok(Server{guild})
+    pub async fn with_guild<O, F: Fn(Option<&Guild>) -> O>(&self, fun: F) -> O {
+        let cache = &self.cache_and_http.cache;
+        cache
+            .guild_field(self.main_guild_id, |guild| fun(Some(guild)))
+            .await
+            .unwrap_or_else(|| fun(None))
+    }
+
+    pub async fn clone_members(&self) -> Option<Members> {
+        self.with_guild(move |guild| {
+            guild.map(|guild| Members {
+                members: guild.members.clone(),
+            })
+        })
+        .await
     }
 
     pub fn get_roles<O, F: Fn(&Role) -> O>(guild: &Guild, member: &Member, fun: F) -> Vec<O> {
@@ -72,78 +83,71 @@ impl MrHandy {
     }
 
     pub fn get_name_nick(member: &Member) -> (String, Option<String>) {
-        let user = member.user.read();
+        let user = &member.user;
         (user.name.clone(), member.nick.clone())
     }
 }
-impl Drop for MrHandy {
+/*impl Drop for MrHandy {
     fn drop(&mut self) {
         self.shutdown();
     }
-}
+}*/
 
-
-pub struct Server {
-    guild: Arc<RwLock<Guild>>,
+pub struct Members {
+    members: HashMap<UserId, Member>,
 }
-impl Server {
-    pub fn read(&self) -> ServerRead<'_> {
-        ServerRead{guild: self.guild.read()}
+impl Members {
+    pub fn get(&self, user_id: u64) -> Option<&Member> {
+        self.members.get(&user_id.into())
     }
 }
 
-pub struct ServerRead<'a> {
-    guild: RwLockReadGuard<'a, Guild>,
+#[hook]
+async fn dispatch_error_hook(_context: &Context, _msg: &Message, error: DispatchError) {
+    eprintln!("DispatchError: {:?}", error)
 }
 
-impl ServerRead<'_> {
-    pub fn get_member(&self, user_id: u64) -> Result<&Member, &'static str> {
-        let member = self.guild.members.get(&user_id.into()).ok_or("Member is None")?;
-        Ok(member)
+#[hook]
+async fn after_hook(_: &Context, _: &Message, cmd_name: &str, error: Result<(), CommandError>) {
+    if let Err(why) = error {
+        println!("Error in {}: {:?}", cmd_name, why);
     }
 }
 
-pub fn start(token: &str, main_guild_id: u64) -> (MrHandy, JoinHandle<()>) {
+pub async fn init(token: &str, main_guild_id: u64) -> (MrHandy, Client) {
     // Login with a bot token from the environment
     //let token = &env::var("DISCORD_TOKEN").expect("token");
-    let mut client = Client::new(token, Handler).expect("Error creating client");
-    {
-        let mut data = client.data.write();
+    let framework = StandardFramework::new()
+        .configure(|c| c.prefix("~")) // set the bot's prefix to "~"
+        .on_dispatch_error(dispatch_error_hook)
+        .group(&GENERAL_GROUP)
+        .after(after_hook);
+    let client = Client::builder(token)
+        .intents(GatewayIntents::all())
+        .event_handler(Handler)
+        .framework(framework)
+        .await
+        .expect("Error creating client");
+    /*{
+        let mut data = client.data.write().await;
         data.insert::<MainGuild>(main_guild_id);
-    }
-    client.with_framework(
-        StandardFramework::new()
-            .configure(|c| c.prefix("~")) // set the bot's prefix to "~"
-            .on_dispatch_error(|_ctx, _msg, err| eprintln!("DispatchError: {:?}", err))
-            .group(&GENERAL_GROUP)
-            .after(|_ctx, _msg, cmd_name, error| {
-                if let Err(why) = error {
-                    println!("Error in {}: {:?}", cmd_name, why);
-                }
-            }),
-    );
+    }*/
     let cache_and_http = Arc::clone(&client.cache_and_http);
     let shard_manager = Arc::clone(&client.shard_manager);
 
-    let handle = std::thread::spawn(move || {
-        // start listening for events by starting a single shard
-        if let Err(why) = client.start() {
-            println!("An error occurred while running the client: {:?}", why);
-        }
-    });
     (
         MrHandy {
             cache_and_http,
             shard_manager,
             main_guild_id,
         },
-        handle,
+        client,
     )
 }
 
 #[command]
-fn private(ctx: &mut Context, msg: &Message) -> CommandResult {
-    msg.author.dm(ctx, |msg| msg.content(":eyes:"))?;
+async fn private(ctx: &Context, msg: &Message) -> CommandResult {
+    msg.author.dm(ctx, |msg| msg.content(":eyes:")).await?;
     Ok(())
 }
 /*

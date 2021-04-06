@@ -7,6 +7,7 @@ use fo_defines_fo4rp::param::Param;
 use futures::{future::ok as fut_ok, future::Either, Future, FutureExt};
 use serde::Serialize;
 
+// TODO: Rewrite
 pub fn gm_stats(
     req: HttpRequest,
     data: web::Data<AppState>,
@@ -24,7 +25,8 @@ pub fn gm_stats(
                 |res| {
                     match res {
                         //Ok(Some(cr_info)) => Ok(format!("Your info: {:?}", cr_info).into()),
-                        Ok((cr_info, data)) => match Stats::new(&cr_info).render(&data.config.host)
+                        Ok(Ok((cr_info, data))) => match Stats::new(&cr_info)
+                            .render(&data.config.host)
                         {
                             Ok(body) => Ok(HttpResponse::Ok().content_type("text/html").body(body)),
                             Err(err) => {
@@ -32,7 +34,7 @@ pub fn gm_stats(
                                 Ok(HttpResponse::InternalServerError().into())
                             }
                         },
-                        Err(_) => Ok(HttpResponse::InternalServerError().into()),
+                        _ => Ok(HttpResponse::InternalServerError().into()),
                     }
                 },
             ),

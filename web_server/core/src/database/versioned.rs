@@ -3,7 +3,7 @@ use super::{
     ArcSlice, Root,
 };
 use actix_web::error::BlockingError;
-use arrayvec::{Array, ArrayVec};
+use arrayvec::ArrayVec;
 use sled::IVec;
 use std::{
     fmt::Write,
@@ -26,12 +26,9 @@ pub enum VersionedError {
     ConcurrentWrites,
 }
 
-impl From<BlockingError<VersionedError>> for VersionedError {
-    fn from(err: BlockingError<VersionedError>) -> Self {
-        match err {
-            BlockingError::Error(err) => err,
-            BlockingError::Canceled => VersionedError::Blocking,
-        }
+impl From<BlockingError> for VersionedError {
+    fn from(_err: BlockingError) -> Self {
+        VersionedError::Blocking
     }
 }
 
@@ -147,12 +144,12 @@ where
     root.tree().insert(key, value).map_err(VersionedError::Sled)
 }
 
-pub fn new_leaf<'a, V, A: Array<Item = (&'a str, V)>>(
+pub fn new_leaf<'a, V, const SIZE: usize>(
     root: &Root,
     trunk: &str,
     id: u32,
     counter: &str,
-    branch_values: A,
+    branch_values: [(&'a str, V); SIZE],
 ) -> Result<u32, VersionedError>
 where
     IVec: From<V>,

@@ -1,8 +1,9 @@
 use super::*;
 use actix_session::UserSession;
 use actix_web::web::Data;
+use std::sync::Arc;
 
-pub fn get_ranks(data: &AppState, user_id: u64) -> Result<Vec<Rank>, &'static str> {
+pub async fn get_ranks(data: Arc<AppState>, user_id: u64) -> Result<Vec<Rank>, &'static str> {
     data.mrhandy
         .as_ref()
         .expect("Discord config")
@@ -15,9 +16,10 @@ pub fn get_ranks(data: &AppState, user_id: u64) -> Result<Vec<Rank>, &'static st
             ranks.sort_by_key(|key| std::cmp::Reverse(*key));
             ranks
         })
+        .await
 }
 
-pub fn get_user_record(data: &AppState, user_id: u64) -> Result<UserRecord, &'static str> {
+pub async fn get_user_record(data: &AppState, user_id: u64) -> Result<UserRecord, &'static str> {
     data.mrhandy
         .as_ref()
         .expect("Discord config")
@@ -31,6 +33,7 @@ pub fn get_user_record(data: &AppState, user_id: u64) -> Result<UserRecord, &'st
             let (name, nick) = mrhandy::MrHandy::get_name_nick(member);
             UserRecord { name, nick, ranks }
         })
+        .await
 }
 
 pub struct UserRecord {
@@ -69,18 +72,25 @@ pub struct Member {
     pub ranks: Vec<Rank>,
 }
 
-pub fn extract_member(req: &ServiceRequest) -> Result<Option<Member>, actix_web::Error> {
-    let data: &Data<AppState> = req
+pub fn extract_member(
+    req: &HttpRequest,
+) -> impl Future<Output = Result<Option<Member>, actix_web::Error>> {
+    let data = req
         .app_data()
+        .cloned()
+        .map(Data::<AppState>::into_inner)
         .ok_or("No AppState data")
-        .map_err(internal_error)?;
+        .map_err(internal_error);
     let session = req.get_session();
     let user_id = get_user_id(&session);
-    match user_id {
-        Some(id) => {
-            let ranks = get_ranks(&data, id).map_err(internal_error)?;
-            Ok(Some(Member { id, ranks }))
+
+    async move {
+        match user_id {
+            Some(id) => {
+                let ranks = get_ranks(data?, id).await.map_err(internal_error)?;
+                Ok(Some(Member { id, ranks }))
+            }
+            None => Ok(None),
         }
-        None => Ok(None),
     }
 }

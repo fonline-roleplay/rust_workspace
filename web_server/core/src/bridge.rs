@@ -1,12 +1,13 @@
 use crate::{
     config,
     database::{ownership, CharTrunk, Root, VersionedError},
+    utils::blocking,
 };
 use actix_codec::{Decoder, Encoder, Framed};
 use actix_rt::net::TcpStream;
-use actix_server::Server;
+pub use actix_server::Server;
 use actix_service::fn_service;
-use actix_web::{error::BlockingError, web};
+use actix_web::error::BlockingError;
 use bytes::BytesMut;
 use futures::{
     channel::mpsc::{channel, Sender, TrySendError},
@@ -33,11 +34,13 @@ type BridgeResult<T> = Result<T, BridgeError>;
 #[derive(Clone)]
 pub struct Bridge {
     sender: Arc<RwLock<Option<MsgOutSender>>>,
+    //server: Option<Server>,
 }
 impl Bridge {
     pub fn new() -> Self {
         Bridge {
             sender: Arc::new(RwLock::new(None)), //Arc::new(AtomicCell::new(None))
+                                                 //server: None,
         }
     }
     fn set_sender(&self, sender: MsgOutSender) {
@@ -50,13 +53,16 @@ impl Bridge {
             _ => None,
         }
     }
-    pub fn start(&self, tree: Root, host: config::Host) {
+    pub fn start(&self, tree: Root, host: config::Host) -> impl Future<Output = Server> {
+        /*if self.server.is_some() {
+            panic!("Bridge server is already running");
+        }*/
         let data = BridgeData {
             bridge: self.clone(),
             tree,
             host,
         };
-        start_impl(data);
+        start_impl(data)
     }
     /*pub send(sender: MsgOutSende, msg: MsgOut) -> Option<> {
         match sender.start_send(msg) {
@@ -73,8 +79,9 @@ struct BridgeData {
     host: config::Host,
 }
 
-fn start_impl(data: BridgeData) {
+async fn start_impl(data: BridgeData) -> Server {
     Server::build()
+        .workers(1)
         .bind(
             // configure service pipeline
             "bridge",
@@ -109,7 +116,7 @@ fn start_impl(data: BridgeData) {
             },
         )
         .unwrap()
-        .start();
+        .run()
 }
 
 fn handle_message_async(
@@ -126,7 +133,7 @@ fn handle_message_async(
             }),
             MsgIn::PlayerAuth(cr_id) => {
                 let root = data.tree;
-                let fut = web::block(move || {
+                let fut = blocking(move || {
                     let owner =
                         ownership::get_ownership(&root, cr_id).map_err(BridgeError::Versioned)?;
                     if owner.is_some() {
@@ -154,8 +161,6 @@ fn handle_message_async(
                     let authkey: [u32; 3] = unsafe { std::mem::transmute(authkey) };
                     Ok(Some(authkey))
                 })
-                //.from_err()
-                .err_into()
                 .map_ok(move |authkey| {
                     MsgOut::SendKeyToPlayer(cr_id, authkey.unwrap_or([0u32; 3]))
                 });
@@ -220,11 +225,8 @@ pub enum BridgeError {
     SenderDropped,
 }
 
-impl From<BlockingError<BridgeError>> for BridgeError {
-    fn from(err: BlockingError<BridgeError>) -> Self {
-        match err {
-            BlockingError::Error(err) => err,
-            BlockingError::Canceled => BridgeError::Blocking,
-        }
+impl From<BlockingError> for BridgeError {
+    fn from(_err: BlockingError) -> Self {
+        BridgeError::Blocking
     }
 }

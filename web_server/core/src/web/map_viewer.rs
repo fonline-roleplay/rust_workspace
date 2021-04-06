@@ -1,5 +1,6 @@
 use super::{web, AppState, HttpResponse};
-use crate::templates;
+use crate::{templates, utils::blocking};
+use actix_http::error::BlockingError;
 use futures::{Future, TryFutureExt};
 use serde::Serialize;
 
@@ -22,8 +23,8 @@ struct Sprite<'a> {
 }
 
 pub fn list() -> impl Future<Output = actix_web::Result<HttpResponse>> {
-    web::block(|| -> Result<String, std::io::Error> {
-        let dir = std::fs::read_dir("../../FO4RP/maps")?;
+    blocking(|| -> Result<String, MapViewError> {
+        let dir = std::fs::read_dir("../../FO4RP/maps").map_err(MapViewError::Io)?;
         let mut maps: Vec<_> = dir
             .into_iter()
             .filter_map(|r| r.ok())
@@ -41,15 +42,25 @@ pub fn list() -> impl Future<Output = actix_web::Result<HttpResponse>> {
             .collect();
         Ok(response)
     })
-    .err_into()
+    .map_err(|err| {
+        eprintln!("Map viewer error: {:#?}", err);
+        HttpResponse::InternalServerError().into()
+    })
     .and_then(|body| HttpResponse::Ok().content_type("text/html").body(body))
 }
 
 #[derive(Debug)]
 enum MapViewError {
-    Io(fo_map_format::Error),
+    Io(std::io::Error),
+    MapFormat(fo_map_format::Error),
     Nom(String),
     Template(templates::TemplatesError),
+    Blocking,
+}
+impl From<BlockingError> for MapViewError {
+    fn from(_err: BlockingError) -> Self {
+        MapViewError::Blocking
+    }
 }
 
 pub fn view(
@@ -59,7 +70,7 @@ pub fn view(
     use draw_geometry::fo as geometry;
     use primitives::Hex;
     let full_path = data.config.paths.maps.join(&*path);
-    web::block(move || {
+    blocking(move || {
         fo_map_format::verbose_read_file(full_path, |text, res| {
             let (_rest, map) =
                 nom_prelude::nom_err_to_string(text, res).map_err(MapViewError::Nom)?;
@@ -149,7 +160,7 @@ pub fn view(
             )
             .map_err(MapViewError::Template)
         })
-        .map_err(MapViewError::Io)?
+        .map_err(MapViewError::MapFormat)?
     })
     .map_err(|err| {
         eprintln!("Map viewer error: {:#?}", err);

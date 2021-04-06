@@ -11,26 +11,22 @@ use futures::{Future, FutureExt};
 use serde::Serialize;
 use std::{borrow::Cow, net::Ipv4Addr, time::Duration};
 
-pub fn clients(data: web::Data<AppState>) -> impl Future<Output = actix_web::Result<HttpResponse>> {
-    web::block(move || -> Result<_, ()> {
+pub async fn clients(data: web::Data<AppState>) -> actix_web::Result<HttpResponse> {
+    let mrhandy = data.mrhandy.as_ref().expect("Discord config");
+    let members = mrhandy.clone_members().await;
+    let res = web::block(move || {
         let clients = data.critters_db.list_clients();
-        let mrhandy = data.mrhandy.as_ref().expect("Discord config");
-        let server = mrhandy.get_server();
-        let server_read = server.as_ref().map(mrhandy::Server::read);
-        match ClientsList::new(clients.clients().iter(), &data.sled_db.root, &server_read)
-            .render(&data.config.host)
-        {
-            Ok(body) => Ok(body),
-            Err(err) => {
-                eprintln!("Template error: {:?}", err);
-                Err(())
-            }
-        }
+        let list = ClientsList::new(
+            clients.clients().iter(),
+            &data.sled_db.root,
+            members.as_ref(),
+        );
+        list.render(&data.config.host)
     })
-    .map(|res| match res {
-        Ok(body) => Ok(HttpResponse::Ok().content_type("text/html").body(body)),
-        Err(_) => Ok(HttpResponse::InternalServerError().into()),
-    })
+    .await?
+    .map_err(|err| super::internal_error(err))?;
+
+    Ok(HttpResponse::Ok().content_type("text/html").body(res))
 }
 
 #[derive(Debug, Serialize)]
@@ -60,37 +56,38 @@ struct ClientRowInfo<'a> {
 const GAMEMODS: [&'static str; fos::GAME_MAX as usize] =
     ["START", "ADVENTURE", "SURVIVAL", "ARCADE", "TEST"];
 
-fn get_name<'a, E>(
-    server: &'a Result<mrhandy::ServerRead<'a>, E>,
+fn get_name<'a>(
+    members: Option<&'a mrhandy::Members>,
     root: &Root,
     id: u32,
 ) -> Result<OwnerInfo<'a>, &'static str> {
-    let server = server.as_ref().map_err(|_| "Err")?;
-    let owner = get_ownership(root, id).map_err(|_| "Err")?.ok_or("None")?;
-    let member = match server.get_member(owner) {
-        Ok(member) => member,
-        Err(_) => return Ok(OwnerInfo::Id(owner)),
+    let members = members.ok_or("Main guild unavaible")?;
+    let owner = get_ownership(root, id)
+        .map_err(|_| "Err")?
+        .ok_or("No owner")?;
+    let member = match members.get(owner) {
+        Some(member) => member,
+        None => return Ok(OwnerInfo::Id(owner)),
     };
-    let user_read = member.user.read();
-    let name = &user_read.name;
+    let name = member.user.name.as_str();
     Ok(match member.nick.as_ref() {
-        None => OwnerInfo::Name(name.clone()),
-        Some(nick) => OwnerInfo::NickName(name.clone(), nick.as_str()),
+        None => OwnerInfo::Name(name),
+        Some(nick) => OwnerInfo::NickName(name, nick.as_str()),
     })
 }
 
 #[derive(Debug, Serialize)]
 enum OwnerInfo<'a> {
     Id(u64),
-    Name(String),
-    NickName(String, &'a str),
+    Name(&'a str),
+    NickName(&'a str, &'a str),
 }
 
 impl<'a> ClientsList<'a> {
-    fn new<E, I: Iterator<Item = (&'a String, &'a ClientRecord)>>(
+    fn new<I: Iterator<Item = (&'a String, &'a ClientRecord)>>(
         clients: I,
         root: &Root,
-        server_read: &'a Result<mrhandy::ServerRead<'a>, E>,
+        members: Option<&'a mrhandy::Members>,
     ) -> Self {
         Self {
             clients: clients
@@ -104,7 +101,7 @@ impl<'a> ClientsList<'a> {
                         cond: info.cond(),
                         gamemode: GAMEMODS
                             [info.uparam(Param::QST_GAMEMODE).min(fos::GAME_MAX - 1) as usize],
-                        discord: get_name(server_read, root, info.id), //.unwrap_or_else(|err| Cow::Borrowed(err)),
+                        discord: get_name(members, root, info.id), //.unwrap_or_else(|err| Cow::Borrowed(err)),
                         ip: &info.ip[..],
                     });
                     ClientRow {

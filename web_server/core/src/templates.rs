@@ -39,7 +39,7 @@ impl Templates {
         std::fs::write(CSS_PATH, &self.css)
     }
     fn compile_css() -> Result<String, TemplatesError> {
-        let vec = rsass::compile_scss_file(SCSS_PATH.as_ref(), Default::default())
+        let vec = rsass::compile_scss_path(SCSS_PATH.as_ref(), Default::default())
             .map_err(|err| TemplatesError::Rsass { inner: err })?;
         let string = String::from_utf8(vec)?;
         //OutputStyle::Compressed

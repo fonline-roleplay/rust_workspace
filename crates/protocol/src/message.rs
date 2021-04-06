@@ -5,13 +5,14 @@ pub mod server_dll_web {
     use super::*;
 
     pub const HANDSHAKE: u16 = 0xBABA;
-    pub const VERSION: u16 = 3;
+    pub const VERSION: u16 = 4;
 
     #[repr(C)]
-    #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+    #[derive(Debug, Clone, Deserialize, Serialize)]
     pub enum ServerDllToWeb {
         PlayerConnected(u32),
         PlayerAuth(u32),
+        DiscordSendMessage{channel: String, text: String},
     }
 
     #[repr(C)]

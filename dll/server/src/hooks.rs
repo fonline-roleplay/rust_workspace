@@ -118,6 +118,17 @@ pub extern "C" fn player_auth(cr: &Critter) {
 }
 
 #[no_mangle]
+pub extern "C" fn discord_send_message(channel: Option<&ScriptString>, text: Option<&ScriptString>) {
+    if let Some(msg) = (move || {
+        let channel = channel?.string();
+        let text = text?.string();
+        Some(bridge::MsgOut::DiscordSendMessage{channel, text})
+    })() {
+        bridge::send_one(msg);
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn update_character(cr: &Critter) {
     //if let Err(err) = WEBSERVER.update_critter(cr) {
     //    eprintln!("Error updating character: {:?}", err);

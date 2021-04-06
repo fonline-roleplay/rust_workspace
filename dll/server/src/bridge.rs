@@ -36,10 +36,10 @@ pub fn send_one(message: MsgOut) -> bool {
     true
 }
 
-pub fn send(messages: &[MsgOut]) -> bool {
+pub fn send(messages: impl Iterator<Item=MsgOut>) -> bool {
     let sender = BRIDGE.sender.lock().expect("poisoned sender");
     for message in messages {
-        if let Err(_) = sender.send(*message) {
+        if let Err(_) = sender.send(message) {
             return false;
         }
     }
@@ -91,16 +91,11 @@ impl Bridge {
                 }
             }
         });
-        let write_res = (|| -> std::io::Result<_> {
+        let write_res = (|| -> bincode::Result<_> {
             loop {
                 match receiver.recv() {
                     Ok(msg) => {
-                        //let mut buf = [0u8; std::(mem::size_of::<MsgOut>()];
-                        println!("writing... {:?}", &msg);
-                        let buf: [u8; std::mem::size_of::<MsgOut>()] =
-                            unsafe { std::mem::transmute(msg) };
-                        writer.write(&buf)?;
-                        //println!("writed: {:?}", &buf[..]);
+                        bincode::serialize_into(&writer, &msg)?;
                     }
                     Err(err) => {
                         return Ok(err);

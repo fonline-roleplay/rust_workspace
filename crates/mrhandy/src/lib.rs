@@ -56,12 +56,15 @@ impl MrHandy {
         .await
     }
 
-    pub async fn with_guild<O, F: Fn(Option<&Guild>) -> O>(&self, fun: F) -> O {
+    pub async fn with_guild<O, F: FnOnce(Option<&Guild>) -> O>(&self, fun: F) -> O {
         let cache = &self.cache_and_http.cache;
+        let mut fun = Some(fun);
         cache
-            .guild_field(self.main_guild_id, |guild| fun(Some(guild)))
+            .guild_field(self.main_guild_id, |guild| {
+                (fun.take().unwrap())(Some(guild))
+            })
             .await
-            .unwrap_or_else(|| fun(None))
+            .unwrap_or_else(|| (fun.take().unwrap())(None))
     }
 
     pub async fn clone_members(&self) -> Option<Members> {
@@ -71,6 +74,25 @@ impl MrHandy {
             })
         })
         .await
+    }
+
+    pub async fn send_message(&self, channel: String, text: String) -> Result<(), Error> {
+        let channel_id = self
+            .with_guild(move |guild| {
+                let guild = guild.ok_or(Error::NoMainGuild)?;
+                let channel = guild
+                    .channels
+                    .values()
+                    .find(|ch| &ch.name == &channel)
+                    .ok_or_else(|| Error::ChannelNotFound(channel))?;
+                Ok(channel.id)
+            })
+            .await?;
+        let _ = channel_id
+            .say(&self.cache_and_http.http, text)
+            .await
+            .map_err(Error::Serenity)?;
+        Ok(())
     }
 
     pub fn get_roles<O, F: Fn(&Role) -> O>(guild: &Guild, member: &Member, fun: F) -> Vec<O> {
@@ -87,6 +109,13 @@ impl MrHandy {
         (user.name.clone(), member.nick.clone())
     }
 }
+
+pub enum Error {
+    NoMainGuild,
+    ChannelNotFound(String),
+    Serenity(serenity::Error),
+}
+
 /*impl Drop for MrHandy {
     fn drop(&mut self) {
         self.shutdown();

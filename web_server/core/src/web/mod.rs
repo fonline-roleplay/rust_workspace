@@ -120,11 +120,11 @@ fn _info(
 */
 pub struct AppState {
     oauth: Option<oauth2::basic::BasicClient>,
-    config: config::Config,
-    mrhandy: Option<mrhandy::MrHandy>,
-    sled_db: SledDb,
+    pub(crate) config: config::Config,
+    pub(crate) mrhandy: Option<mrhandy::MrHandy>,
+    pub(crate) sled_db: SledDb,
     critters_db: CrittersDb,
-    bridge: bridge::Bridge,
+    pub(crate) bridge: bridge::Bridge,
     #[cfg(feature = "fo_data")]
     fo_data: Arc<FoRetriever>,
     #[cfg(feature = "fo_proto_format")]
@@ -172,10 +172,6 @@ impl AppState {
             reqwest,
         }
     }
-    fn start_bridge(&self) -> impl Future<Output = bridge::Server> {
-        self.bridge
-            .start(self.sled_db.root.clone(), self.config.host.clone())
-    }
 }
 
 pub fn oauth2_client(
@@ -206,8 +202,6 @@ pub fn run(state: AppState) {
 }
 
 async fn run_async(mut state: AppState) {
-    let bridge_server = state.start_bridge().await;
-
     let mut serenity_client = if let Some(discord) = &state.config.discord {
         // TODO: Should we keep or join client fut?
         let (mrhandy, serenity_client) =
@@ -219,6 +213,8 @@ async fn run_async(mut state: AppState) {
     };
 
     let state = web::Data::new(state);
+
+    let bridge_server = bridge::Bridge::start(state.clone().into_inner()).await;
 
     let web_server = HttpServer::new({
         let state = state.clone();

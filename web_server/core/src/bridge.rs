@@ -2,6 +2,7 @@ use crate::{
     config,
     database::{ownership, CharTrunk, Root, VersionedError},
     utils::blocking,
+    web::AppState,
 };
 use actix_codec::{Decoder, Encoder, Framed};
 use actix_rt::net::TcpStream;
@@ -53,15 +54,11 @@ impl Bridge {
             _ => None,
         }
     }
-    pub fn start(&self, tree: Root, host: config::Host) -> impl Future<Output = Server> {
+    pub fn start(state: Arc<AppState>) -> impl Future<Output = Server> {
         /*if self.server.is_some() {
             panic!("Bridge server is already running");
         }*/
-        let data = BridgeData {
-            bridge: self.clone(),
-            tree,
-            host,
-        };
+        let data = BridgeData { state };
         start_impl(data)
     }
     /*pub send(sender: MsgOutSende, msg: MsgOut) -> Option<> {
@@ -74,9 +71,15 @@ impl Bridge {
 
 #[derive(Clone)]
 struct BridgeData {
-    bridge: Bridge,
-    tree: Root,
-    host: config::Host,
+    state: Arc<AppState>,
+}
+impl BridgeData {
+    fn root(&self) -> &Root {
+        &self.state.sled_db.root
+    }
+    fn bridge(&self) -> &Bridge {
+        &self.state.bridge
+    }
 }
 
 async fn start_impl(data: BridgeData) -> Server {
@@ -93,14 +96,14 @@ async fn start_impl(data: BridgeData) -> Server {
                     let data = data.clone();
 
                     let (sender, receiver) = channel(128);
-                    data.bridge.set_sender(sender);
+                    data.bridge().set_sender(sender);
 
                     let framed = Framed::new(tcp_stream, WebSide);
                     let (sink, stream) = framed.split();
 
                     futures::stream::select(
                         stream
-                            .map_err(BridgeError::Io)
+                            .map_err(BridgeError::Bincode)
                             //.filter_map(handle_message)
                             .and_then(move |msg| handle_message_async(msg, data.clone()))
                             .boxed(),
@@ -127,12 +130,12 @@ fn handle_message_async(
         match msg_in {
             MsgIn::PlayerConnected(player_id) => Ok(MsgOut::SendConfig {
                 player_id,
-                url: CStr::from_bytes_with_nul(data.host.overlay_urls().as_bytes())
+                url: CStr::from_bytes_with_nul(data.state.config.host.overlay_urls().as_bytes())
                     .expect("Can't fail, null byte supplied")
                     .to_owned(),
             }),
             MsgIn::PlayerAuth(cr_id) => {
-                let root = data.tree;
+                let root = data.root().clone();
                 let fut = blocking(move || {
                     let owner =
                         ownership::get_ownership(&root, cr_id).map_err(BridgeError::Versioned)?;
@@ -165,7 +168,13 @@ fn handle_message_async(
                     MsgOut::SendKeyToPlayer(cr_id, authkey.unwrap_or([0u32; 3]))
                 });
                 fut.await
-            } //_ => MsgOut::Nop,
+            }
+            MsgIn::DiscordSendMessage { channel, text } => {
+                if let Some(mrhandy) = data.state.mrhandy.as_ref() {
+                    let _ = mrhandy.send_message(channel, text).await;
+                }
+                Ok(MsgOut::Nop)
+            } /*_ => MsgOut::Nop,*/
         }
     }
 }
@@ -187,20 +196,76 @@ struct WebSide;
 
 impl Decoder for WebSide {
     type Item = MsgIn;
-    type Error = std::io::Error;
+    type Error = bincode::Error;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        const LEN: usize = std::mem::size_of::<MsgIn>();
-        println!("decode len: {:?}", src.len());
-        if LEN > src.len() {
+        use bincode::ErrorKind as BinKind;
+        use std::io::ErrorKind;
+        if src.is_empty() {
             return Ok(None);
         }
-        let bytes = src.split_to(LEN);
-        println!("reading... {:?}", &bytes.as_ref()[..]);
-        let mut buf = [0u8; LEN];
-        buf.copy_from_slice(&bytes);
-        Ok(Some(unsafe { std::mem::transmute(buf) }))
+        match partial_read(src, |buf| bincode::deserialize_from(buf)) {
+            Err(err) => {
+                if let BinKind::Io(err) = &*err {
+                    if let ErrorKind::UnexpectedEof = err.kind() {
+                        return Ok(None);
+                    }
+                }
+                Err(err)
+            }
+            Ok(ok) => Ok(Some(ok)),
+        }
     }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_partial_read() {
+        use bytes::BufMut;
+        use std::io::Read;
+        let mut bytes = BytesMut::new();
+        bytes.put_slice(b"Hello world!");
+        let res: std::io::Result<_> = partial_read(&mut bytes, |buf| {
+            let mut hello = [0u8; 5];
+            buf.read_exact(&mut hello)?;
+            Ok(hello)
+        });
+        assert_eq!(&res.unwrap(), &b"Hello"[..]);
+        assert_eq!(&bytes, &b" world!"[..]);
+    }
+
+    /*#[test]
+    fn test_bytes_reader() {
+        use bytes::{Buf, BufMut};
+        use std::io::Read;
+        let mut bytes = BytesMut::new();
+        bytes.put_slice(b"Hello world!");
+        let res = {
+            let mut reader = bytes.reader();
+            let mut hello = [0u8; 5];
+            reader.read_exact(&mut hello).unwrap();
+            hello
+        };
+        assert_eq!(&res, &b"Hello"[..]);
+        assert_eq!(&bytes, &b" world!"[..]);
+    }*/
+}
+
+fn partial_read<O, E>(src: &mut BytesMut, fun: fn(&mut &[u8]) -> Result<O, E>) -> Result<O, E> {
+    use bytes::Buf;
+    let mut buf: &[u8] = &*src;
+    let mut len = buf.len();
+    let ret = fun(&mut buf)?;
+    if buf.len() > len {
+        panic!("buffer bigger than it was");
+    }
+    len -= buf.len();
+    if len > 0 {
+        src.advance(len);
+    }
+    Ok(ret)
 }
 
 impl Encoder<MsgOut> for WebSide {
@@ -220,6 +285,7 @@ impl Encoder<MsgOut> for WebSide {
 pub enum BridgeError {
     Versioned(VersionedError),
     Io(std::io::Error),
+    Bincode(bincode::Error),
     Blocking,
     TryInto,
     SenderDropped,

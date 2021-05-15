@@ -15,9 +15,11 @@ use futures::{
     future, Future, StreamExt, TryFutureExt, TryStreamExt,
 };
 use parking_lot::RwLock;
-use std::{convert::TryInto, ffi::CStr, sync::Arc};
+use std::{convert::TryInto, ffi::CStr, sync::Arc, time::Instant};
 
-pub use protocol::message::server_dll_web::{ServerDllToWeb as MsgIn, ServerWebToDll as MsgOut};
+pub use protocol::message::server_dll_web::{
+    ServerDllToWeb as MsgIn, ServerStatus, ServerWebToDll as MsgOut,
+};
 pub type MsgOutSender = Sender<MsgOut>;
 //pub type MsgOutSendError = SendError<MsgOut>;
 pub type MsgOutSendError = TrySendError<MsgOut>;
@@ -31,6 +33,62 @@ type BridgeResult<T> = Result<T, BridgeError>;
     println!("New connection: {:?}", stream);
     future::ok(stream)
 }*/
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+enum StatusDisplay {
+    Online(ServerStatus),
+    Unwell,
+    Offline,
+}
+impl StatusDisplay {
+    fn nickname_rus(&self) -> String {
+        match self {
+            StatusDisplay::Online(status) => {
+                if status.connections > 0 {
+                    format!("Игроков: {}", status.connections)
+                } else {
+                    format!("Пустошь")
+                }
+            }
+            StatusDisplay::Unwell => {
+                format!("Серверу плохо")
+            }
+            StatusDisplay::Offline => {
+                format!("Нет связи")
+            }
+        }
+    }
+}
+
+pub struct Status {
+    current: StatusDisplay,
+    //new: Option<(ServerStatus, Instant)>,
+    new: Option<ServerStatus>,
+}
+impl Status {
+    pub fn new() -> Self {
+        Self {
+            current: StatusDisplay::Offline,
+            new: None,
+        }
+    }
+    pub fn update(&mut self, server: ServerStatus) {
+        //self.new = Some((server, Instant::now()));
+        self.new = Some(server);
+    }
+    pub fn new_nickname(&mut self) -> Option<String> {
+        use StatusDisplay::*;
+        let new = match (&self.current, self.new.take()) {
+            (Online(..), None) => Unwell,
+            (_, None) => return None,
+            (Online(old), Some(ref new)) if old == new => return None,
+            (_, Some(new)) => Online(new),
+        };
+        let nickname = new.nickname_rus();
+        self.current = new;
+        Some(nickname)
+    }
+}
 
 #[derive(Clone)]
 pub struct Bridge {
@@ -174,7 +232,12 @@ fn handle_message_async(
                     let _ = mrhandy.send_message(channel, text).await;
                 }
                 Ok(MsgOut::Nop)
-            } /*_ => MsgOut::Nop,*/
+            }
+            MsgIn::Status(server) => {
+                let mut status = data.state.server_status.lock();
+                status.update(server);
+                Ok(MsgOut::Nop)
+            }
         }
     }
 }

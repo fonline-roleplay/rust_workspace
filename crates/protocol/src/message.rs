@@ -12,7 +12,14 @@ pub mod server_dll_web {
     pub enum ServerDllToWeb {
         PlayerConnected(u32),
         PlayerAuth(u32),
+        Status(ServerStatus),
         DiscordSendMessage{channel: String, text: String},
+    }
+
+    #[repr(C)]
+    #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+    pub struct ServerStatus {
+        pub connections: u32,
     }
 
     #[repr(C)]

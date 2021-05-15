@@ -108,6 +108,21 @@ impl MrHandy {
         let user = &member.user;
         (user.name.clone(), member.nick.clone())
     }
+    pub async fn edit_nickname(&self, new_nickname: Option<String>) -> Result<(), serenity::Error> {
+        //let shards = self.shard_manager.lock().await;
+        self.cache_and_http
+            .http
+            .edit_nickname(self.main_guild_id, new_nickname.as_deref())
+            .await
+            //TODO: return local Error
+            //.map_err(Error::Serenity)
+    }
+}
+
+pub enum Condition {
+    Well,
+    Unwell,
+    Bad,
 }
 
 pub enum Error {

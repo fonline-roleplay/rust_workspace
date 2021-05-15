@@ -10,7 +10,8 @@ use futures::{
     future::{FutureExt, TryFutureExt},
     Future,
 };
-use std::{collections::BTreeMap, sync::Arc};
+use parking_lot::Mutex;
+use std::{collections::BTreeMap, sync::Arc, time::Duration};
 
 use crate::{bridge, config, critters_db::CrittersDb, database::SledDb};
 
@@ -130,6 +131,7 @@ pub struct AppState {
     #[cfg(feature = "fo_proto_format")]
     items: Arc<BTreeMap<u16, fo_proto_format::ProtoItem>>,
     reqwest: reqwest::Client,
+    pub(crate) server_status: Mutex<bridge::Status>,
 }
 
 impl AppState {
@@ -170,6 +172,7 @@ impl AppState {
             #[cfg(feature = "fo_proto_format")]
             items: Arc::new(items),
             reqwest,
+            server_status: Mutex::new(bridge::Status::new()),
         }
     }
 }
@@ -337,6 +340,7 @@ async fn run_async(mut state: AppState) {
     .run();
 
     println!("Servers started!");
+
     let mut futs = vec![
         bridge_server.map_err(RuntimeError::Io).boxed(),
         web_server.map_err(RuntimeError::Io).boxed(),
@@ -349,9 +353,31 @@ async fn run_async(mut state: AppState) {
                 .map_err(RuntimeError::Serenity)
                 .boxed(),
         );
+        let status_updater = status_updater(state);
+        futs.push(status_updater.boxed());
     }
     let (res, _, _) = futures::future::select_all(futs).await;
     println!("Stopping... Result: {:?}", res);
+}
+
+async fn status_updater(state: web::Data<AppState>) -> Result<(), RuntimeError> {
+    let mut interval = tokio::time::interval(Duration::from_secs(5));
+    loop {
+        interval.tick().await;
+        let new_nickname = {
+            let mut server_status = state.server_status.lock();
+            server_status.new_nickname()
+        };
+        if new_nickname.is_some() {
+            state
+                .mrhandy
+                .as_ref()
+                .expect("MrHandy")
+                .edit_nickname(new_nickname)
+                .await
+                .map_err(RuntimeError::Serenity)?;
+        }
+    }
 }
 
 #[derive(Debug)]

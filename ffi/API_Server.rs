@@ -32,4 +32,6 @@ dynamic_ffi!(ServerApi,
         collection: size_t,
         string: *mut ScriptString,
     ) -> ::std::os::raw::c_int;
+
+    pub fn StatisticsCurOnline() -> uint;
 );

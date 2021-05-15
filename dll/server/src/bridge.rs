@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 
-pub use protocol::message::server_dll_web::{ServerDllToWeb as MsgOut, ServerWebToDll as MsgIn};
+pub use protocol::message::server_dll_web::{ServerDllToWeb as MsgOut, ServerWebToDll as MsgIn, ServerStatus};
 use std::{
     io::{Read, Write},
     sync::{

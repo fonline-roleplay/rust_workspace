@@ -1,8 +1,7 @@
 //use crate::webserver;
 use crate::bridge;
 use cstr::cstr;
-use tnf_common::engine_types::critter::Critter;
-use tnf_common::engine_types::{ScriptArray, ScriptString};
+use tnf_common::engine_types::{ScriptArray, ScriptString, critter::Critter};
 //lazy_static! {
 //    static ref WEBSERVER: webserver::Mailbox = { webserver::run() };
 //}
@@ -12,13 +11,13 @@ use tnf_common::engine_types::{ScriptArray, ScriptString};
 
 #[no_mangle]
 pub extern "C" fn main_loop() {
+    use crate::{
+        engine_functions::{get_critter, run_client_script, run_critter_script, statistics_connections},
+        param::change_uparams,
+    };
     //bridge::init();
     let messages = bridge::receive();
     for message in messages {
-        use crate::{
-            engine_functions::{get_critter, run_client_script, run_critter_script},
-            param::change_uparams,
-        };
         use bridge::MsgIn;
         use tnf_common::defines_fo4rp::param::Param;
         println!("{:?}", message);
@@ -87,6 +86,10 @@ pub extern "C" fn main_loop() {
             }
         }
     }
+
+    let connections = statistics_connections();
+    let status = bridge::ServerStatus{connections};
+    bridge::send_one(bridge::MsgOut::Status(status));
 }
 
 #[no_mangle]

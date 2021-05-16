@@ -5,9 +5,7 @@ pub mod server_dll_web {
     use super::*;
 
     pub const HANDSHAKE: u16 = 0xBABA;
-    pub const VERSION: u16 = 4;
-
-    #[repr(C)]
+    pub const VERSION: u16 = 5;
     #[derive(Debug, Clone, Deserialize, Serialize)]
     pub enum ServerDllToWeb {
         PlayerConnected(u32),
@@ -15,14 +13,30 @@ pub mod server_dll_web {
         Status(ServerStatus),
         DiscordSendMessage{channel: String, text: String},
     }
+    #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+    pub enum DayTime {
+        Morning,
+        Day,
+        Evening,
+        Night,
+    }
+    impl DayTime {
+        pub fn from_hour(hour: u16) -> Self {
+            match hour {
+                0..=5 => DayTime::Night,
+                6..=11 => DayTime::Morning,
+                12..=16 => DayTime::Day,
+                17..=20 => DayTime::Evening,
+                _ => DayTime::Night,
+            }
+        }
+    }
 
-    #[repr(C)]
     #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
     pub struct ServerStatus {
         pub connections: u32,
+        pub day_time: DayTime,
     }
-
-    #[repr(C)]
     #[derive(Debug, Clone, Deserialize, Serialize)]
     pub enum ServerWebToDll {
         UpdateCharLeaf { id: u32, ver: u32, secret: u32 },

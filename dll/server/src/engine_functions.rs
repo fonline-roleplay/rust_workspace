@@ -128,7 +128,3 @@ pub extern "C" fn DisplaySI(
         ScriptString::from_string(&server.angelscript, &output)
     })
 }
-
-pub fn statistics_connections() -> u32 {
-    Server::with(|server| unsafe { server.api.StatisticsCurOnline() })
-}

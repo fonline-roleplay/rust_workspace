@@ -10,8 +10,9 @@ use futures::{
     future::{FutureExt, TryFutureExt},
     Future,
 };
-use parking_lot::Mutex;
+//use parking_lot::Mutex;
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
+use tokio::sync::Mutex;
 
 use crate::{bridge, config, critters_db::CrittersDb, database::SledDb};
 
@@ -364,19 +365,10 @@ async fn status_updater(state: web::Data<AppState>) -> Result<(), RuntimeError> 
     let mut interval = tokio::time::interval(Duration::from_secs(5));
     loop {
         interval.tick().await;
-        let new_nickname = {
-            let mut server_status = state.server_status.lock();
-            server_status.new_nickname()
-        };
-        if new_nickname.is_some() {
-            state
-                .mrhandy
-                .as_ref()
-                .expect("MrHandy")
-                .edit_nickname(new_nickname)
-                .await
-                .map_err(RuntimeError::Serenity)?;
-        }
+        let mut server_status = state.server_status.lock().await;
+        let mrhandy = state.mrhandy.as_ref().expect("MrHandy");
+        server_status.new_status(mrhandy).await;
+        //.map_err(RuntimeError::Serenity)?;
     }
 }
 

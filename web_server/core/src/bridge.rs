@@ -14,11 +14,12 @@ use futures::{
     channel::mpsc::{channel, Sender, TrySendError},
     future, Future, StreamExt, TryFutureExt, TryStreamExt,
 };
+use mrhandy::{Condition, ConditionColor};
 use parking_lot::RwLock;
 use std::{convert::TryInto, ffi::CStr, sync::Arc, time::Instant};
 
 pub use protocol::message::server_dll_web::{
-    ServerDllToWeb as MsgIn, ServerStatus, ServerWebToDll as MsgOut,
+    DayTime, ServerDllToWeb as MsgIn, ServerStatus, ServerWebToDll as MsgOut,
 };
 pub type MsgOutSender = Sender<MsgOut>;
 //pub type MsgOutSendError = SendError<MsgOut>;
@@ -39,25 +40,103 @@ enum StatusDisplay {
     Online(ServerStatus),
     Unwell,
     Offline,
+    Unknown,
 }
+
+fn number_emoji(num: u32) -> String {
+    let normal = format!("{}", num);
+    let mut buf = String::with_capacity(normal.len() * 2);
+    for char in normal.chars() {
+        buf.push(char);
+        buf.push('\u{fe0f}');
+        buf.push('\u{20e3}');
+    }
+    buf
+}
+
+fn players_rus(num: u32) -> &'static str {
+    match num {
+        1 => "игрок",
+        2..=4 => "игрока",
+        _ => "игроков",
+    }
+}
+
 impl StatusDisplay {
-    fn nickname_rus(&self) -> String {
+    fn condition(&self) -> Condition {
+        Condition {
+            name: self.condition_name(),
+            color: self.condition_color(),
+            //emoji: self.condition_emoji(),
+        }
+    }
+    fn condition_name(&self) -> String {
         match self {
-            StatusDisplay::Online(status) => {
-                if status.connections > 0 {
-                    format!("Игроков: {}", status.connections)
-                } else {
-                    format!("Пустошь")
+            /*StatusDisplay::Online(status) => match status.connections {
+                0 => format!("Пустошь"),
+                1 => format!("игрок"),
+                2..=4 => format!("игрока"),
+                5..=9 => format!("игроков"),
+                connections => format!("{} игроков", connections),
+            },*/
+            StatusDisplay::Online(ServerStatus {
+                connections,
+                day_time,
+            }) => {
+                let day_time = match day_time {
+                    DayTime::Night => "🌃 Ночь",
+                    DayTime::Morning => "🏙️ Утро",
+                    DayTime::Day => "🌇 День",
+                    DayTime::Evening => "🌆 Вечер",
+                };
+                match connections {
+                    0 => format!("🏜️ Пустошь, {}", day_time),
+                    _ => format!(
+                        "{}{}, {}",
+                        number_emoji(*connections),
+                        players_rus(*connections),
+                        day_time
+                    ),
                 }
             }
             StatusDisplay::Unwell => {
-                format!("Серверу плохо")
+                format!("🤮Серверу плохо")
             }
             StatusDisplay::Offline => {
-                format!("Нет связи")
+                format!("🛑Нет связи")
             }
+            StatusDisplay::Unknown => unreachable!(),
         }
     }
+    fn condition_color(&self) -> ConditionColor {
+        match self {
+            StatusDisplay::Online(..) => ConditionColor::Green,
+            StatusDisplay::Unwell => ConditionColor::Yellow,
+            StatusDisplay::Offline => ConditionColor::Red,
+            StatusDisplay::Unknown => unreachable!(),
+        }
+    }
+    /*fn condition_emoji(&self) -> String {
+        match self {
+            StatusDisplay::Online(ServerStatus { connections }) => match connections {
+                0 => "desert",
+                1 => "one",
+                2 => "two",
+                3 => "three",
+                4 => "four",
+                5 => "five",
+                6 => "six",
+                7 => "seven",
+                8 => "eight",
+                9 => "nine",
+                _ => "fire",
+            },
+            StatusDisplay::Unwell => "dizzy_face",
+            StatusDisplay::Offline => "stop_sign",
+            StatusDisplay::Unknown => unreachable!(),
+        }
+        .to_owned()
+    }*/
 }
 
 pub struct Status {
@@ -68,7 +147,7 @@ pub struct Status {
 impl Status {
     pub fn new() -> Self {
         Self {
-            current: StatusDisplay::Offline,
+            current: StatusDisplay::Unknown,
             new: None,
         }
     }
@@ -76,17 +155,21 @@ impl Status {
         //self.new = Some((server, Instant::now()));
         self.new = Some(server);
     }
-    pub fn new_nickname(&mut self) -> Option<String> {
+    pub async fn new_status(&mut self, mrhandy: &mrhandy::MrHandy) {
         use StatusDisplay::*;
         let new = match (&self.current, self.new.take()) {
             (Online(..), None) => Unwell,
-            (_, None) => return None,
-            (Online(old), Some(ref new)) if old == new => return None,
+            (Unknown, None) => Offline,
+            (_, None) => return,
+            (Online(old), Some(ref new)) if old == new => return,
             (_, Some(new)) => Online(new),
         };
-        let nickname = new.nickname_rus();
-        self.current = new;
-        Some(nickname)
+        let condition = new.condition();
+
+        if mrhandy.set_activity(condition).await {
+            self.current = new;
+            self.new = None;
+        }
     }
 }
 
@@ -234,7 +317,7 @@ fn handle_message_async(
                 Ok(MsgOut::Nop)
             }
             MsgIn::Status(server) => {
-                let mut status = data.state.server_status.lock();
+                let mut status = data.state.server_status.lock().await;
                 status.update(server);
                 Ok(MsgOut::Nop)
             }

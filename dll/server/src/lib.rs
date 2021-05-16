@@ -17,6 +17,13 @@ struct Server {
     api: Container<engine_functions::ServerApi>,
     angelscript: Container<AngelScriptApi>,
 }
+
+impl Server {
+    fn statistics_connections(&self) -> u32 {
+        unsafe { self.api.StatisticsCurOnline() }
+    }
+}
+
 impl State for Server {
     fn init() -> Self {
         Self {

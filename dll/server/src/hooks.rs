@@ -2,6 +2,12 @@
 use crate::bridge;
 use cstr::cstr;
 use tnf_common::engine_types::{ScriptArray, ScriptString, critter::Critter};
+use tnf_common::{
+    state::State,
+    engine_types::{
+        game_options::{game_state},
+    },
+};
 //lazy_static! {
 //    static ref WEBSERVER: webserver::Mailbox = { webserver::run() };
 //}
@@ -12,7 +18,7 @@ use tnf_common::engine_types::{ScriptArray, ScriptString, critter::Critter};
 #[no_mangle]
 pub extern "C" fn main_loop() {
     use crate::{
-        engine_functions::{get_critter, run_client_script, run_critter_script, statistics_connections},
+        engine_functions::{get_critter, run_client_script, run_critter_script},
         param::change_uparams,
     };
     //bridge::init();
@@ -87,8 +93,11 @@ pub extern "C" fn main_loop() {
         }
     }
 
-    let connections = statistics_connections();
-    let status = bridge::ServerStatus{connections};
+    let status = crate::Server::with(|server| {
+        let connections = server.statistics_connections();
+        let day_time = bridge::DayTime::from_hour(game_state().unwrap().Hour);
+        bridge::ServerStatus{connections, day_time}
+    });
     bridge::send_one(bridge::MsgOut::Status(status));
 }
 

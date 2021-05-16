@@ -114,15 +114,54 @@ impl MrHandy {
             .http
             .edit_nickname(self.main_guild_id, new_nickname.as_deref())
             .await
-            //TODO: return local Error
-            //.map_err(Error::Serenity)
+        //TODO: return local Error
+        //.map_err(Error::Serenity)
+    }
+    pub async fn set_activity(&self, condition: Condition) -> bool {
+        use serenity::model::{gateway::Activity, user::OnlineStatus};
+
+        let activity = Activity::watching(condition.name.clone());
+
+        //TODO: Discord API doesn't support setting of custom status, fix when it's supported
+        //activity.kind = ActivityType::Custom;
+        //activity.state = Some(condition.name);
+        //activity.emoji = Some(ActivityEmoji {
+        //    name: condition.emoji,
+        //    id: None,
+        //    animated: None,
+        //});
+        //println!("set_activity: {:?}", activity);
+        let status = match condition.color {
+            ConditionColor::Green => OnlineStatus::Online,
+            ConditionColor::Yellow => OnlineStatus::Idle,
+            ConditionColor::Red => OnlineStatus::DoNotDisturb,
+        };
+
+        let shard_manager = self.shard_manager.lock().await;
+        let runners = shard_manager.runners.lock().await;
+        runners
+            .values()
+            .inspect(|runner| {
+                runner
+                    .as_ref()
+                    .set_presence(Some(activity.clone()), status.clone());
+            })
+            .count()
+            > 0
     }
 }
 
-pub enum Condition {
-    Well,
-    Unwell,
-    Bad,
+#[derive(Debug)]
+pub struct Condition {
+    pub name: String,
+    pub color: ConditionColor,
+    //pub emoji: String,
+}
+#[derive(Debug)]
+pub enum ConditionColor {
+    Green,
+    Yellow,
+    Red,
 }
 
 pub enum Error {

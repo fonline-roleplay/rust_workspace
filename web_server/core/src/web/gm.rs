@@ -48,6 +48,8 @@ struct ClientRowInfo<'a> {
     map_id: u32,
     map_pid: u16,
     cond: &'static str,
+    st_access_level: i32,
+    qst_vision: i32,
     gamemode: &'static str,
     discord: Result<OwnerInfo<'a>, &'static str>,
     ip: &'a [Ipv4Addr],
@@ -99,6 +101,8 @@ impl<'a> ClientsList<'a> {
                         map_id: info.map_id,
                         map_pid: info.map_pid,
                         cond: info.cond(),
+                        st_access_level: info.param(Param::ST_ACCESS_LEVEL),
+                        qst_vision: info.param(Param::QST_VISION),
                         gamemode: GAMEMODS
                             [info.uparam(Param::QST_GAMEMODE).min(fos::GAME_MAX - 1) as usize],
                         discord: get_name(members, root, info.id), //.unwrap_or_else(|err| Cow::Borrowed(err)),

@@ -67,6 +67,8 @@ function update_rows() {
         <th>HP</th>        
         <th>MapId</th>
         <th>MapPid</th>
+        <th title="ST_ACCESS_LEVEL">AL</th>
+        <th title="QST_VISION">QV</th>
         <th>Game mode</th>
         <th>Discord</th>
         <th>IPs</th>
@@ -110,6 +112,12 @@ function update_rows() {
                 <td>{{client.info.hp}}</td>
                 <td>{{client.info.map_id}}</td>
                 <td>{{client.info.map_pid}}</td>
+                <td
+                    {% if client.info.st_access_level == 0 %} class="bg-grey" {% endif %}
+                >{{client.info.st_access_level}}</td>
+                <td
+                    {% if client.info.st_access_level == 0 %} class="bg-grey" {% endif %}
+                >{{client.info.qst_vision}}</td>
                 <td class="client-{{client.info.gamemode}}">{{client.info.gamemode}}</td>
 
                 {% if client.info.discord.Ok %}

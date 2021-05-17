@@ -43,7 +43,7 @@ enum StatusDisplay {
     Unknown,
 }
 
-fn number_emoji(num: u32) -> String {
+fn _number_emoji(num: u32) -> String {
     let normal = format!("{}", num);
     let mut buf = String::with_capacity(normal.len() * 2);
     for char in normal.chars() {
@@ -92,8 +92,8 @@ impl StatusDisplay {
                 match connections {
                     0 => format!("🏜️ Пустошь, {}", day_time),
                     _ => format!(
-                        "{}{}, {}",
-                        number_emoji(*connections),
+                        "🧑‍🤝‍🧑{} {}, {}",
+                        *connections,
                         players_rus(*connections),
                         day_time
                     ),

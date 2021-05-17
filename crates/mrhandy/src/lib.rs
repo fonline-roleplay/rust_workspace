@@ -120,7 +120,7 @@ impl MrHandy {
     pub async fn set_activity(&self, condition: Condition) -> bool {
         use serenity::model::{gateway::Activity, user::OnlineStatus};
 
-        let activity = Activity::watching(condition.name.clone());
+        let activity = Activity::playing(condition.name.clone());
 
         //TODO: Discord API doesn't support setting of custom status, fix when it's supported
         //activity.kind = ActivityType::Custom;

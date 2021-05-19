@@ -1,5 +1,5 @@
 use crate::engine_types::stl::{stlp_std_allocator, stlp_std_priv__STLP_alloc_proxy};
-use std::ffi::CStr;
+use std::{borrow::Cow, ffi::{CStr, CString}};
 use std::mem::ManuallyDrop;
 
 #[repr(C)]
@@ -71,18 +71,13 @@ pub struct ScriptString {
 
 impl ScriptString {
     pub fn string(&self) -> String {
-        cp1251_to_utf8(self.inner.buffer._base._M_start_of_storage._M_data)
+        unsafe {
+            cp1251_to_utf8(self.inner.buffer._base._M_start_of_storage._M_data)
+        }
     }
     pub fn from_string(api: &crate::engine_functions::AngelScriptApi, string: &str) -> *mut Self {
-        use encoding_rs::*;
-
-        //assert_eq!(string.as_bytes().last(), b'\0');
-
-        let (cow, encoding_used, had_errors) = WINDOWS_1251.encode(string);
-        assert_eq!(encoding_used, WINDOWS_1251);
-        assert!(!had_errors);
-        let c_str = CStr::from_bytes_with_nul(cow.as_ref()).expect("Null terminated cp1251 string");
-        unsafe { api.Script_String(c_str.as_ptr()) }
+        let c_str = utf8_to_cp1251(string);
+        unsafe { api.Script_String(c_str.as_ptr() as _) }
     }
 }
 
@@ -126,29 +121,48 @@ const FORWARD_TABLE: &'static [u16] = &[
 ]; // 128 entries
 */
 
-fn cp1251_to_utf8(ptr: *mut ::std::os::raw::c_char) -> String {
+const MAP_CHAR_1251: &[char] = &['Ќ', 'Ћ', 'Џ', 'ђ'];
+const MAP_CHAR_UTF: &[char] = &['♣', '♦', '♥', '♠'];
+
+fn map_chars<'a>(string: Cow<'a, str>, from: &[char], to: &[char]) -> Cow<'a, str> {
+    if string.chars().any(|char| from.iter().any(|from_char| *from_char == char)) {
+        let string: String = string.chars().map(|from_char| {
+            from.iter().position(|char| *char == from_char).map(|pos| to[pos]).unwrap_or(from_char)
+        }).collect();
+        string.into()
+    } else {
+        string
+    }
+}
+
+unsafe fn cp1251_to_utf8(ptr: *mut ::std::os::raw::c_char) -> String {
     use encoding_rs::*;
 
-    let c_str = unsafe { CStr::from_ptr(ptr) };
+    let c_str = CStr::from_ptr(ptr);
     let (cow, encoding_used, had_errors) = WINDOWS_1251.decode(c_str.to_bytes());
     assert_eq!(encoding_used, WINDOWS_1251);
     assert!(!had_errors);
-    cow.into_owned()
-    /*
-    let string: String = c_str
-        .to_bytes()
-        .iter()
-        .map(|&code| {
-            use std::convert::TryInto;
-            if code >= 0x80 {
-                (FORWARD_TABLE[(code - 0x80) as usize] as u32)
-                    .try_into()
-                    .unwrap_or(' ')
-            } else {
-                code as char
-            }
-        })
-        .collect();
-    string
-    */
+    let string = map_chars(cow, MAP_CHAR_1251, MAP_CHAR_UTF);
+    string.into_owned()
+}
+
+fn utf8_to_cp1251(string: &str) -> Cow<[u8]> {
+    use encoding_rs::*;
+
+    let string = map_chars(Cow::Borrowed(string), MAP_CHAR_UTF, MAP_CHAR_1251);
+
+    let (cow, encoding_used, had_errors) = WINDOWS_1251.encode(&string);
+    assert_eq!(encoding_used, WINDOWS_1251);
+    assert!(!had_errors);
+    {
+        let _ = CStr::from_bytes_with_nul(cow.as_ref()).expect("Null terminated cp1251 string");
+    }
+    if let Cow::Owned(owned) = cow {
+        Cow::Owned(owned)
+    } else {
+        match string {
+            Cow::Borrowed(str) => Cow::Borrowed(str.as_bytes()),
+            Cow::Owned(string) => Cow::Owned(string.into_bytes()),
+        }
+    }
 }

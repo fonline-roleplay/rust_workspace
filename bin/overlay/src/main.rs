@@ -216,13 +216,25 @@ fn _font_atlas(hidpi_factor: f64) -> imgui::SharedFontAtlas {
     atlas
 }
 
+fn glyph_ranges() -> imgui::FontGlyphRanges {
+    static RANGES: &[u16] = &[
+        0x0020, 0x00FF, // Basic Latin + Latin Supplement
+        0x0400, 0x052F, // Cyrillic + Cyrillic Supplement
+        0x2660, 0x2667, // ♠♡♢♣♤♥♦♧
+        //0x2DE0, 0x2DFF, // Cyrillic Extended-A
+        //0xA640, 0xA69F, // Cyrillic Extended-B
+        0,
+    ];
+    imgui::FontGlyphRanges::from_slice(RANGES)
+}
+
 fn add_fonts(atlas: &mut imgui::FontAtlas, font_size: f32) {
     let config = imgui::FontConfig {
         oversample_h: 1,
         pixel_snap_h: true,
         //size_pixels: font_size,
         //rasterizer_multiply: 1.75,
-        glyph_ranges: imgui::FontGlyphRanges::cyrillic(),
+        glyph_ranges: glyph_ranges(),
         ..Default::default()
     };
     let font = imgui::FontSource::TtfData {

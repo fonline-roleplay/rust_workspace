@@ -141,6 +141,13 @@ pub extern "C" fn discord_send_message(channel: Option<&ScriptString>, text: Opt
 }
 
 #[no_mangle]
+pub extern "C" fn prev_hex(cr: &Critter, hex_x: &mut u16, hex_y: &mut u16) -> u32 {
+    *hex_x = cr.PrevHexX;
+    *hex_y = cr.PrevHexY;
+    cr.PrevHexTick
+}
+
+#[no_mangle]
 pub extern "C" fn update_character(cr: &Critter) {
     //if let Err(err) = WEBSERVER.update_critter(cr) {
     //    eprintln!("Error updating character: {:?}", err);

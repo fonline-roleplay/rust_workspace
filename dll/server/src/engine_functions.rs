@@ -128,3 +128,15 @@ pub extern "C" fn DisplaySI(
         ScriptString::from_string(&server.angelscript, &output)
     })
 }
+
+#[no_mangle]
+pub extern "C" fn prev_hex(cr: &Critter, hex_x: &mut u16, hex_y: &mut u16) -> u32 {
+    let game_tick = Server::with(|server| {
+        unsafe {
+            server.api.Timer_GameTick()
+        }
+    });
+    *hex_x = cr.PrevHexX;
+    *hex_y = cr.PrevHexY;
+    game_tick - cr.PrevHexTick
+}

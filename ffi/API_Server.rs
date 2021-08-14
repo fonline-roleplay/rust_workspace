@@ -34,4 +34,8 @@ dynamic_ffi!(ServerApi,
     ) -> ::std::os::raw::c_int;
 
     pub fn StatisticsCurOnline() -> uint;
+
+    pub fn Timer_GameTick() -> uint;
+
+    pub fn Timer_FastTick() -> uint;
 );

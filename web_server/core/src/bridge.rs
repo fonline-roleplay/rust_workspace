@@ -16,6 +16,7 @@ use futures::{
 };
 use mrhandy::{Condition, ConditionColor};
 use parking_lot::RwLock;
+use serde::Serialize;
 use std::{convert::TryInto, ffi::CStr, sync::Arc, time::Instant};
 
 pub use protocol::message::server_dll_web::{
@@ -35,12 +36,24 @@ type BridgeResult<T> = Result<T, BridgeError>;
     future::ok(stream)
 }*/
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-enum StatusDisplay {
-    Online(ServerStatus),
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize)]
+enum StatusKind {
+    Online,
     Unwell,
     Offline,
     Unknown,
+}
+
+impl From<StatusKind> for StatusDisplay {
+    fn from(kind: StatusKind) -> StatusDisplay {
+        StatusDisplay { kind, status: None }
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct StatusDisplay {
+    kind: StatusKind,
+    status: Option<ServerStatus>,
 }
 
 fn _number_emoji(num: u32) -> String {
@@ -71,49 +84,18 @@ impl StatusDisplay {
         }
     }
     fn condition_name(&self) -> String {
-        match self {
-            /*StatusDisplay::Online(status) => match status.connections {
-                0 => format!("Пустошь"),
-                1 => format!("игрок"),
-                2..=4 => format!("игрока"),
-                5..=9 => format!("игроков"),
-                connections => format!("{} игроков", connections),
-            },*/
-            StatusDisplay::Online(ServerStatus {
-                connections,
-                day_time,
-            }) => {
-                let day_time = match day_time {
-                    DayTime::Night => "🌃 Ночь",
-                    DayTime::Morning => "🏙️ Утро",
-                    DayTime::Day => "🌇 День",
-                    DayTime::Evening => "🌆 Вечер",
-                };
-                match connections {
-                    0 => format!("🏜️ Пустошь, {}", day_time),
-                    _ => format!(
-                        "🧑‍🤝‍🧑{} {}, {}",
-                        *connections,
-                        players_rus(*connections),
-                        day_time
-                    ),
-                }
-            }
-            StatusDisplay::Unwell => {
-                format!("🤮Серверу плохо")
-            }
-            StatusDisplay::Offline => {
-                format!("🛑Нет связи")
-            }
-            StatusDisplay::Unknown => unreachable!(),
-        }
+        crate::templates::render("status.html", self, Default::default())
+            .unwrap_or_else(|err| {
+                eprintln!("StatusDisplay render error:\n{}\n{:?}", err, self);
+                "<STATUS ERROR>".into()
+            })
     }
     fn condition_color(&self) -> ConditionColor {
-        match self {
-            StatusDisplay::Online(..) => ConditionColor::Green,
-            StatusDisplay::Unwell => ConditionColor::Yellow,
-            StatusDisplay::Offline => ConditionColor::Red,
-            StatusDisplay::Unknown => unreachable!(),
+        match self.kind {
+            StatusKind::Online => ConditionColor::Green,
+            StatusKind::Unwell => ConditionColor::Yellow,
+            StatusKind::Offline => ConditionColor::Red,
+            StatusKind::Unknown => unreachable!(),
         }
     }
     /*fn condition_emoji(&self) -> String {
@@ -147,7 +129,10 @@ pub struct Status {
 impl Status {
     pub fn new() -> Self {
         Self {
-            current: StatusDisplay::Unknown,
+            current: StatusDisplay {
+                kind: StatusKind::Unknown,
+                status: None,
+            },
             new: None,
         }
     }
@@ -156,13 +141,16 @@ impl Status {
         self.new = Some(server);
     }
     pub async fn new_status(&mut self, mrhandy: &mrhandy::MrHandy) {
-        use StatusDisplay::*;
-        let new = match (&self.current, self.new.take()) {
-            (Online(..), None) => Unwell,
-            (Unknown, None) => Offline,
+        use StatusKind::*;
+        let new = match (&self.current.kind, self.new.take()) {
+            (Online, None) => Unwell.into(),
+            (Unknown, None) => Offline.into(),
             (_, None) => return,
-            (Online(old), Some(ref new)) if old == new => return,
-            (_, Some(new)) => Online(new),
+            (Online, Some(ref new)) if self.current.status.as_ref() == Some(new) => return,
+            (_, Some(new)) => StatusDisplay {
+                status: Some(new),
+                kind: Online,
+            },
         };
         let condition = new.condition();
 
@@ -380,6 +368,51 @@ mod test {
         });
         assert_eq!(&res.unwrap(), &b"Hello"[..]);
         assert_eq!(&bytes, &b" world!"[..]);
+    }
+
+    fn render_status(status: StatusDisplay) -> String {
+        crate::templates::render("status.html", &status, Default::default()).unwrap()
+    }
+
+    #[test]
+    fn test_render_status() {
+        use StatusKind::*;
+        let _config = config::setup().expect("config.toml file");
+
+        assert_eq!(
+            "Нет связи",
+            render_status(StatusDisplay {
+                kind: Offline,
+                status: None
+            })
+        );
+        assert_eq!(
+            "Серверу плохо",
+            render_status(StatusDisplay {
+                kind: Unwell,
+                status: None
+            })
+        );
+        assert_eq!(
+            "Пустошь, День",
+            render_status(StatusDisplay {
+                kind: Online,
+                status: Some(ServerStatus {
+                    connections: 0,
+                    day_time: DayTime::Day
+                })
+            })
+        );
+        assert_eq!(
+            "Игроков: 1, Ночь",
+            render_status(StatusDisplay {
+                kind: Online,
+                status: Some(ServerStatus {
+                    connections: 1,
+                    day_time: DayTime::Night
+                })
+            })
+        );
     }
 
     /*#[test]

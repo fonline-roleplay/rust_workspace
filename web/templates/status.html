@@ -1,0 +1,22 @@
+{%- if kind == "Online" -%}
+    {%- if status.connections > 0 -%}
+        Игроков: {{status.connections}}
+    {%- else -%}
+        Пустошь
+    {%- endif -%}
+    {%- if status.day_time == "Night" -%}
+        , Ночь
+    {%- elif status.day_time == "Morning" -%}
+        , Утро
+    {%- elif status.day_time == "Day" -%}
+        , День
+    {%- elif status.day_time == "Evening" -%}
+        , Вечер
+    {%- endif -%}
+{%- elif kind == "Unwell" -%}
+Серверу плохо
+{%- elif kind == "Offline" -%}
+Нет связи
+{%- else -%}
+???
+{%- endif -%}

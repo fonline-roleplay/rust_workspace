@@ -249,6 +249,11 @@ fn canon(path: &mut PathBuf) -> Result<(), ConfigError> {
 }
 
 pub fn setup() -> Result<Config, ConfigError> {
+    if std::path::Path::new("./working.path").exists() {
+        let path = std::fs::read_to_string("./working.path").unwrap();
+        std::env::set_current_dir(path).unwrap();
+    }
+
     let toml = std::fs::read_to_string("./config.toml").map_err(ConfigError::Io)?;
     let mut config: Config = toml::from_str(&toml).map_err(ConfigError::Toml)?;
     config.session.setup_key()?;

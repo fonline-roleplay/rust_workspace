@@ -156,7 +156,9 @@ pub fn view(
                     tiles,
                     objects,
                 },
-                &data.config.host,
+                templates::RenderConfig {
+                    host: Some(&data.config.host),
+                },
             )
             .map_err(MapViewError::Template)
         })

@@ -60,25 +60,34 @@ lazy_static! {
     };
 }
 
+#[derive(Debug, Default)]
+pub struct RenderConfig<'a> {
+    pub host: Option<&'a Host>,
+}
+
 #[cfg(not(feature = "live_reload"))]
 pub fn render<T: Serialize>(
     template: &str,
     data: &T,
-    host: &Host,
+    config: RenderConfig,
 ) -> Result<String, TemplatesError> {
     let mut context = tera::Context::from_serialize(data)?;
-    context.insert("files_url", &host.web_url(""));
+    if let Some(host) = config.host {
+        context.insert("files_url", &host.web_url(""));
+    }
     Ok(TEMPLATES.tera.render(template, &context)?)
 }
 #[cfg(feature = "live_reload")]
 pub fn render<T: Serialize>(
     template: &str,
     data: &T,
-    host: &Host,
+    config: RenderConfig,
 ) -> Result<String, TemplatesError> {
     let mut templates = TEMPLATES.lock().unwrap();
     let mut context = tera::Context::from_serialize(data)?;
-    context.insert("files_url", &host.web_url(""));
+    if let Some(host) = config.host {
+        context.insert("files_url", &host.web_url(""));
+    }
     templates.remake()?;
     Ok(templates.tera.render(template, &context)?)
 }

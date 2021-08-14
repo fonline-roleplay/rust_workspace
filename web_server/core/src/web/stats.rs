@@ -58,7 +58,11 @@ struct Stats<'a> {
 
 impl<'a> Stats<'a> {
     fn render(&self, host: &Host) -> Result<String, templates::TemplatesError> {
-        templates::render("charsheet.html", self, host)
+        templates::render(
+            "charsheet.html",
+            self,
+            templates::RenderConfig { host: Some(host) },
+        )
     }
 }
 

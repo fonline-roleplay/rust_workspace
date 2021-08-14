@@ -123,7 +123,11 @@ impl<'a> ClientsList<'a> {
         }
     }
     fn render(&self, host: &Host) -> Result<String, templates::TemplatesError> {
-        templates::render("gm_clients.html", self, host)
+        templates::render(
+            "gm_clients.html",
+            self,
+            templates::RenderConfig { host: Some(host) },
+        )
     }
 }
 

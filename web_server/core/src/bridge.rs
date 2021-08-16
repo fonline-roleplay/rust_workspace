@@ -84,11 +84,10 @@ impl StatusDisplay {
         }
     }
     fn condition_name(&self) -> String {
-        crate::templates::render("status.html", self, Default::default())
-            .unwrap_or_else(|err| {
-                eprintln!("StatusDisplay render error:\n{}\n{:?}", err, self);
-                "<STATUS ERROR>".into()
-            })
+        crate::templates::render("status.html", self, Default::default()).unwrap_or_else(|err| {
+            eprintln!("StatusDisplay render error:\n{}\n{:?}", err, self);
+            "<STATUS ERROR>".into()
+        })
     }
     fn condition_color(&self) -> ConditionColor {
         match self.kind {

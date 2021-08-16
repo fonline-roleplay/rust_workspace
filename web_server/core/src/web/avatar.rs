@@ -69,7 +69,9 @@ pub fn edit(
         templates::render(
             "edit_avatar.html",
             &AvatarEditor { char_id },
-            templates::RenderConfig { host: Some(&data.config.host)},
+            templates::RenderConfig {
+                host: Some(&data.config.host),
+            },
         )
         .map_err(AvatarUploadError::Template)
     })

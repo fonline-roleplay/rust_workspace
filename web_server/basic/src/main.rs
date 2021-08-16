@@ -8,10 +8,6 @@ fn main() -> std::io::Result<()> {
         .filter(Some("actix_server"), log::LevelFilter::Info)
         //.filter(Some("serenity"), log::LevelFilter::Info)
         .init();
-    if Path::new("./working.path").exists() {
-        let path = std::fs::read_to_string("./working.path").unwrap();
-        std::env::set_current_dir(path).unwrap();
-    }
     let config = config::setup().expect("config.toml file");
     //println!("{:?}", config);
 

@@ -10,6 +10,7 @@ use tnf_common::{
     primitives::*,
     state::State,
 };
+use protocol::message::server_dll_web::ServerStatistics;
 
 ffi_module!(ServerApi, "../../../ffi/API_Server.rs");
 pub(crate) use ffi::ServerApi;

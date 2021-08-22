@@ -32,6 +32,29 @@ pub mod server_dll_web {
         }
     }
 
+    #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+    #[repr(C)]
+    pub struct ServerStatistics
+    {
+        pub server_start_tick: u32,
+        pub uptime: u32,
+        pub bytes_send: i64,
+        pub bytes_recv: i64,
+        pub data_real: i64,
+        pub data_compressed: i64,
+        pub compress_ratio: f32,
+        pub max_online: u32,
+        pub cur_online: u32,
+
+        pub cycle_time: u32,
+        pub fps: u32,
+        pub loop_time: u32,
+        pub loop_cycles: u32,
+        pub loop_min: u32,
+        pub loop_max: u32,
+        pub lags_count: u32,
+    }
+
     #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
     pub struct ServerStatus {
         pub connections: u32,

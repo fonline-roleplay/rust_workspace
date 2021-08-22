@@ -33,7 +33,7 @@ dynamic_ffi!(ServerApi,
         string: *mut ScriptString,
     ) -> ::std::os::raw::c_int;
 
-    pub fn StatisticsCurOnline() -> uint;
+    pub fn Server_Statistics() -> *const ServerStatistics;
 
     pub fn Timer_GameTick() -> uint;
 

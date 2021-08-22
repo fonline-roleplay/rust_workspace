@@ -20,7 +20,7 @@ struct Server {
 
 impl Server {
     fn statistics_connections(&self) -> u32 {
-        unsafe { self.api.StatisticsCurOnline() }
+        unsafe { (*self.api.Server_Statistics()).cur_online }
     }
 }
 

@@ -1,7 +1,7 @@
 use crate::prelude::{complete::*, *};
 use std::convert::{TryFrom, TryInto};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 #[allow(non_camel_case_types)]
 pub enum MapObjectType {

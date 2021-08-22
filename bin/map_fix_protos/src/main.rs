@@ -1,4 +1,5 @@
-use fo_map_format::verbose_read_file;
+use fo_map_format::{verbose_read_file, MapObjectType};
+use fo_proto_format::ProtoItem;
 use nom_prelude::nom_err_to_string;
 use serde::Deserialize;
 use std::collections::btree_map::BTreeMap;
@@ -11,7 +12,7 @@ struct Patch {
     type_new: u8,
 }
 
-fn read_patches() -> Result<BTreeMap<u16, Patch>, Box<dyn std::error::Error>> {
+fn _read_patches() -> Result<BTreeMap<u16, Patch>, Box<dyn std::error::Error>> {
     // Build the CSV reader and iterate over each record.
     let mut rdr = csv::Reader::from_path("proto_patches.csv")?;
     let mut patches = BTreeMap::new();
@@ -24,8 +25,19 @@ fn read_patches() -> Result<BTreeMap<u16, Patch>, Box<dyn std::error::Error>> {
     Ok(patches)
 }
 
+fn items() -> BTreeMap<u16, ProtoItem> {
+    fo_proto_format::build_btree("../../proto/items/items.lst")
+}
+
+fn item_type_to_map_type(item_type: u8) -> MapObjectType {
+    match item_type {
+        10 | 11 | 12 => MapObjectType::MAP_OBJECT_SCENERY, // ITEM_TYPE_GRID, ITEM_TYPE_GENERIC, ITEM_TYPE_WALL => MAP_OBJECT_SCENERY
+        _ => MapObjectType::MAP_OBJECT_ITEM, // evything else => MAP_OBJECT_ITEM
+    }
+}
+
 fn main() {
-    let patches = read_patches().expect("Read patches from file");
+    let items = items();
 
     for file in std::fs::read_dir("../../maps/")
         .unwrap()
@@ -47,14 +59,18 @@ fn main() {
                 .0
                 .iter()
                 .rev()
+                .filter(|obj| {
+                    obj.kind.map_object_type() != MapObjectType::MAP_OBJECT_CRITTER
+                })
                 .filter_map(|obj| {
-                    patches
+                    items
                         .get(&obj.proto_id)
-                        .filter(|patch| patch.type_new != obj.kind.map_object_type() as u8)
-                        .map(|patch| {
+                        .map(|proto| item_type_to_map_type(proto.Type))
+                        .filter(|proto_map_type| *proto_map_type != obj.kind.map_object_type())
+                        .map(|proto_map_type| {
                             let bytes = obj.ty_str.as_bytes();
                             let offset = u64::wrapping_sub(bytes.as_ptr() as _, text_bytes as _);
-                            (offset, bytes.len(), patch.type_new)
+                            (offset, bytes.len(), proto_map_type as u8)
                         })
                 })
                 .collect();

@@ -3,7 +3,9 @@ mod objects;
 mod prelude;
 mod tiles;
 
-pub use crate::objects::Object;
+pub use crate::{
+    objects::{Object, MapObjectType},
+};
 
 use crate::{
     header::{header, Header},

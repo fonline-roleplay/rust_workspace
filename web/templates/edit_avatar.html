@@ -281,10 +281,10 @@
             <canvas id="canvas-small"></canvas>
         </div>
         <div class="charsheet-cell">
-            <p>Аватар</p>
+            <p>Avatar</p>
             <input id="button-select-image" class="green-button-mini" type="file" onchange="select_image(this)">
-            <label for="button-select-image">Выбрать</label>
-            <div>Пикселяция</div>
+            <label for="button-select-image">Select</label>
+            <div>Pixelation</div>
             <div class="charsheet-radio-form">
                 {% for level in [1,2,3,4] %}
                     <input id="pixelation-{{level}}" name="pixelation"
@@ -294,28 +294,28 @@
                     <label for="pixelation-{{level}}">{{level}}</label>
                 {% endfor %}
             </div>
-            <div>Сглаживание</div>
+            <div>Aliasing</div>
             <div class="charsheet-radio-form">
                 <input id="smoothing-pre" name="smoothing"
                        class="green-button-mini"
                        onchange="smooth_pre(this.checked)"
                        type="checkbox">
-                <label for="smoothing-pre">До</label>
+                <label for="smoothing-pre">Before</label>
                 <input id="smoothing-post" name="smoothing"
                        class="green-button-mini"
                        onchange="smooth_post(this.checked)"
                        type="checkbox">
-                <label for="smoothing-post">После</label>
+                <label for="smoothing-post">After</label>
             </div>
         </div>
         <div class="charsheet-cell">
-            <div class="cell-middle grey"><span>Нет изображения</span></div>
+            <div class="cell-middle grey"><span>No image</span></div>
             <canvas id="avatar-preview"></canvas>
         </div>
         <div class="charsheet-cell">
             <p></p>
             <input id="button-send-image" class="green-button-mini" type="button" disabled onclick="send_image()">
-            <label for="button-send-image">Отправить</label>
+            <label for="button-send-image">Send</label>
         </div>
     </div>
     <div>

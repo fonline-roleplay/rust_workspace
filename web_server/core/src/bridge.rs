@@ -68,9 +68,8 @@ fn _number_emoji(num: u32) -> String {
 
 fn _players_rus(num: u32) -> &'static str {
     match num {
-        1 => "игрок",
-        2..=4 => "игрока",
-        _ => "игроков",
+        1 => "player",
+        _ => "players",
     }
 }
 
@@ -376,23 +375,22 @@ mod test {
     fn test_render_status() {
         use StatusKind::*;
         let _config = crate::config::setup().expect("config.toml file");
-
         assert_eq!(
-            "Нет связи",
+            "Connection loss",
             render_status(StatusDisplay {
                 kind: Offline,
                 status: None
             })
         );
         assert_eq!(
-            "Серверу плохо",
+            "Server feels bad",
             render_status(StatusDisplay {
                 kind: Unwell,
                 status: None
             })
         );
         assert_eq!(
-            "Пустошь, День",
+            "Wasteland, Day",
             render_status(StatusDisplay {
                 kind: Online,
                 status: Some(ServerStatus {
@@ -402,7 +400,7 @@ mod test {
             })
         );
         assert_eq!(
-            "Игроков: 1, Ночь",
+            "Players: 1, Night",
             render_status(StatusDisplay {
                 kind: Online,
                 status: Some(ServerStatus {

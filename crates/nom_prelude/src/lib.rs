@@ -2,7 +2,7 @@ pub use nom::{
     self,
     branch::alt,
     call,
-    combinator::{cond, map, map_opt, map_parser, map_res, opt, recognize, value},
+    combinator::{cond, map, map_opt, map_parser, map_res, opt, recognize, value, cut, peek},
     do_parse,
     error::{ErrorKind, ParseError},
     multi::{count, fold_many0, fold_many_m_n, many0, many_m_n, separated_list},
@@ -508,7 +508,7 @@ macro_rules! parse_struct(
     ($input:ident, $($name:ident)::* {
        $($field:ident: $val:expr,)*
     }$(, {$($field2:ident: $val2:expr,)*})?) => {{
-        let (inner_input, ($($field),*)) = tuple((
+        let (inner_input, ($($field,)*)) = tuple((
             $($val,)*
         ))($input)?;
         (inner_input, $($name)::* {
@@ -602,4 +602,20 @@ where
             }
         }
     }
+}
+
+pub fn cond_err<I:Clone, O, E: ParseError<I>, F>(b: bool, f: F) -> impl Fn(I) -> IResult<I, O, E>
+where
+  F: Fn(I) -> IResult<I, O, E>,
+{
+  move |input: I| {
+    if b {
+      match f(input) {
+        Ok((i, o)) => Ok((i, o)),
+        Err(e) => Err(e),
+      }
+    } else {
+        Err(nom::Err::Error(E::from_error_kind(input, ErrorKind::NoneOf)))
+    }
+  }
 }

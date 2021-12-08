@@ -25,21 +25,23 @@ pub struct Map<'a> {
     pub objects: Objects<'a>,
 }
 
-pub fn root<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Map<'a>, E> {
-    let (i, (header, _, tiles, _, objects, _)) = tuple((
-        header,
-        multispace0,
-        tiles,
-        multispace0,
-        objects,
-        multispace0,
-    ))(i)?;
-    let map = Map {
-        header,
-        tiles,
-        objects,
-    };
-    Ok((i, map))
+pub fn root<'a, E: ParseError<&'a str>>(settings: MapParserSettings) -> impl Fn(&'a str) -> IResult<&'a str, Map<'a>, E> {
+    move |i| {
+        let (i, (header, _, tiles, _, objects, _)) = tuple((
+            header,
+            multispace0,
+            tiles,
+            multispace0,
+            objects(settings.allow_any),
+            multispace0,
+        ))(i)?;
+        let map = Map {
+            header,
+            tiles,
+            objects,
+        };
+        Ok((i, map))
+    }
 }
 
 #[derive(Debug)]
@@ -48,13 +50,19 @@ pub enum Error {
     Utf8(std::str::Utf8Error),
 }
 
-pub fn verbose_read_file<P: AsRef<std::path::Path>, O, F>(path: P, mut fun: F) -> Result<O, Error>
+#[derive(Default)]
+pub struct MapParserSettings {
+    pub allow_any: bool,
+}
+
+pub fn verbose_read_file<P: AsRef<std::path::Path>, O, F>(path: P, mut fun: F, settings: MapParserSettings) -> Result<O, Error>
 where
     F: for<'a> FnMut(&'a str, IResult<&'a str, Map<'a>, nom::error::VerboseError<&'a str>>) -> O,
 {
     let bytes = std::fs::read(path).map_err(Error::Io)?;
     let text = std::str::from_utf8(&bytes).map_err(Error::Utf8)?;
-    Ok(fun(&text, root(&text)))
+    let res = root(settings)(&text);
+    Ok(fun(&text, res))
 }
 
 #[cfg(test)]
@@ -197,7 +205,7 @@ mod tests {
             let (rest, _map) = res.unwrap();
             show_rest(rest);
             assert!(rest.is_empty());
-        })
+        }, Default::default())
         .expect("Can't read map file");
     }
     #[test]
@@ -215,7 +223,7 @@ mod tests {
                 let (rest, _map) = nom_err_to_string(text, res).expect("Can't parse map file");
                 show_rest(rest);
                 assert!(rest.is_empty());
-            })
+            }, Default::default())
             .expect("Can't read map file");
         }
     }

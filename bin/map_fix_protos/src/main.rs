@@ -1,32 +1,16 @@
-use fo_map_format::{verbose_read_file, MapObjectType};
+use fo_map_format::{verbose_read_file, MapObjectType, MapParserSettings};
 use fo_proto_format::ProtoItem;
 use nom_prelude::nom_err_to_string;
-use serde::Deserialize;
-use std::collections::btree_map::BTreeMap;
-
-#[derive(Deserialize, Debug)]
-struct Patch {
-    pid_name: String,
-    pid_old: u16,
-    pid_new: u16,
-    type_new: u8,
-}
-
-fn _read_patches() -> Result<BTreeMap<u16, Patch>, Box<dyn std::error::Error>> {
-    // Build the CSV reader and iterate over each record.
-    let mut rdr = csv::Reader::from_path("proto_patches.csv")?;
-    let mut patches = BTreeMap::new();
-    for result in rdr.deserialize() {
-        let record: Patch = result?;
-        if let Some(old) = patches.insert(record.pid_old, record) {
-            panic!("Two patches with the same pid_old: {:?}", old.pid_old);
-        }
-    }
-    Ok(patches)
-}
+use std::{path::{PathBuf, Path}, io::Write as _, collections::btree_map::BTreeMap, ffi::OsStr};
 
 fn items() -> BTreeMap<u16, ProtoItem> {
-    fo_proto_format::build_btree("../../proto/items/items.lst")
+    let mut dir = dir("PROTO_PATH", "proto_path.cfg")
+        .unwrap_or("../../proto".into())
+        .canonicalize()
+        .unwrap();
+    dir.push("items");
+    dir.push("items.lst");
+    fo_proto_format::build_btree(dir)
 }
 
 fn item_type_to_map_type(item_type: u8) -> MapObjectType {
@@ -39,7 +23,14 @@ fn item_type_to_map_type(item_type: u8) -> MapObjectType {
 fn main() {
     let items = items();
 
-    for file in std::fs::read_dir("../../maps/")
+    let dir = dir("MAPS_PATH", "maps_path.cfg")
+        .unwrap_or("../../maps".into())
+        .canonicalize()
+        .unwrap();
+
+    let mut invalids = std::fs::File::create("invalid_objects.txt").unwrap();
+
+    for file in std::fs::read_dir(dir)
         .unwrap()
         .filter_map(|r| r.ok())
     {
@@ -48,12 +39,30 @@ fn main() {
             continue;
         }
         println!("Parsing {:?}", file);
+        let mut invalids_count = 0;
+
+        let settings = MapParserSettings {
+            allow_any: true,
+        };
 
         let changes = verbose_read_file(&file, |text, res| {
             let (rest, map) = nom_err_to_string(text, res).expect("Can't parse map file");
-            assert!(rest.is_empty());
+            if ! rest.is_empty() {
+                dbg!(rest);
+                panic!("Rest is not empty!");
+            }
 
             let text_bytes = text.as_bytes().as_ptr();
+            map.objects.0.iter().filter(|obj| obj.kind.is_any()).for_each(|obj| {
+                if invalids_count == 0 {
+                    writeln!(invalids, "File: {:?}", file).unwrap();
+                }
+                invalids_count += 1;
+                writeln!(invalids, "{:?}", obj).unwrap();
+            });
+            if invalids_count > 0 {
+                writeln!(invalids).unwrap();
+            }
             let changes: Vec<_> = map
                 .objects
                 .0
@@ -75,7 +84,7 @@ fn main() {
                 })
                 .collect();
             changes
-        })
+        }, settings)
         .expect("Can't read map file");
 
         if changes.is_empty() {
@@ -100,5 +109,18 @@ fn main() {
             file.seek(SeekFrom::Start(offset)).expect("Seek file");
             file.write(&buf).expect("Write new type value to file");
         }
+    }
+}
+
+fn dir<P1: AsRef<OsStr>, P2: AsRef<Path>>(env: P1, file: P2) -> Option<PathBuf> {
+    let env = std::env::var_os(env);
+    if let Some(path) = env.and_then(|env| Path::new(&env).canonicalize().ok()) {
+        Some(path)
+    } else if let Ok(path) =
+        std::fs::read_to_string(file).and_then(|env| Path::new(&env).canonicalize())
+    {
+        Some(path)
+    } else {
+        None
     }
 }

@@ -253,6 +253,10 @@ pub enum Kind<'a> {
         to_dir: Option<u8>,
         sprite_cut: Option<u8>,
     },
+    Any {
+        ty: MapObjectType,
+        fields: Vec<(&'a str, &'a str)>,
+    },
 }
 impl Kind<'_> {
     pub fn map_object_type(&self) -> MapObjectType {
@@ -262,7 +266,11 @@ impl Kind<'_> {
             Critter { .. } => MAP_OBJECT_CRITTER,
             Item { .. } => MAP_OBJECT_ITEM,
             Scenery { .. } => MAP_OBJECT_SCENERY,
+            Any {ty, ..} => *ty,
         }
+    }
+    pub fn is_any(&self) -> bool {
+        matches!(self, &Kind::Any{..})
     }
     pub fn anim(&self) -> Option<&Anim> {
         use Kind::*;
@@ -287,7 +295,7 @@ pub fn param_list<'a, E: ParseError<&'a str>>(
     )(i)
 }
 
-fn parse_kind<'a, E: ParseError<&'a str>>(
+fn parse_kind_valid<'a, E: ParseError<&'a str>>(
     ty: MapObjectType,
 ) -> impl Fn(&'a str) -> IResult<&'a str, Kind, E> {
     use MapObjectType::*;
@@ -336,6 +344,41 @@ fn parse_kind<'a, E: ParseError<&'a str>>(
     }
 }
 
+fn parse_fields<'a, E: ParseError<&'a str>>(
+    i: &'a str,
+) -> IResult<&'a str, Vec<(&'a str, &'a str)>, E> {
+    many_m_n(
+        0,
+        128,
+        kv_kv(word, word),
+    )(i)
+}
+
+fn parse_kind_any<'a, E: ParseError<&'a str>>(
+    ty: MapObjectType,
+) -> impl Fn(&'a str) -> IResult<&'a str, Kind, E> {
+    move |i| {
+        Ok(
+            parse_struct!(
+                i,
+                Kind::Any {
+                    fields: parse_fields,
+                },
+                {
+                    ty: ty,
+                }
+            )
+        )
+    }
+}
+
+fn parse_kind<'a, E: ParseError<&'a str>>(
+    ty: MapObjectType,
+    allow_any: bool,
+) -> impl Fn(&'a str) -> IResult<&'a str, Kind, E> {
+    alt((terminated(parse_kind_valid(ty), peek(t_rn)), cond_err( allow_any, parse_kind_any(ty))))
+}
+
 #[cfg_attr(not(feature = "serde1"), derive(Debug))]
 #[cfg_attr(
     feature = "serde1",
@@ -369,40 +412,44 @@ impl<'a> Object<'a> {
     }
 }
 
-fn object<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Object<'a>, E> {
-    let (i, ty, ty_str) = {
-        let (new_i, ty) = kv("MapObjType", integer)(i)?;
-        let (new_i2, ty_str) = kv("MapObjType", word)(i)?;
-        debug_assert_eq!(new_i, new_i2);
-        (new_i, ty, ty_str)
-    };
-    Ok(parse_struct!(
-        i,
-        Object {
-            proto_id: key_int("ProtoId"),
-            map_x: opt_key_int("MapX"),
-            map_y: opt_key_int("MapY"),
-            dir: opt_key_int("Dir"),
-            relations: parse_relations,
-            light: parse_light,
-            script_name: opt_kv("ScriptName", word),
-            script_func: opt_kv("FuncName", word),
-            user_data: many_key_index_int("UserData", 10),
-            kind: parse_kind(ty),
-        },
-        {
-            ty_str: ty_str,
-        }
-    ))
+fn object<'a, E: ParseError<&'a str>>(allow_any: bool) -> impl Fn(&'a str) -> IResult<&'a str, Object<'a>, E> {
+    move |i| {
+        let (i, ty, ty_str) = {
+            let (new_i, ty) = kv("MapObjType", integer)(i)?;
+            let (new_i2, ty_str) = kv("MapObjType", word)(i)?;
+            debug_assert_eq!(new_i, new_i2);
+            (new_i, ty, ty_str)
+        };
+        Ok(parse_struct!(
+            i,
+            Object {
+                proto_id: key_int("ProtoId"),
+                map_x: opt_key_int("MapX"),
+                map_y: opt_key_int("MapY"),
+                dir: opt_key_int("Dir"),
+                relations: parse_relations,
+                light: parse_light,
+                script_name: opt_kv("ScriptName", word),
+                script_func: opt_kv("FuncName", word),
+                user_data: many_key_index_int("UserData", 10),
+                kind: parse_kind(ty, allow_any),
+            },
+            {
+                ty_str: ty_str,
+            }
+        ))
+    }
 }
 
 #[cfg_attr(not(feature = "serde1"), derive(Debug))]
 #[cfg_attr(feature = "serde1", derive(Serialize, Deserialize, SerDebug))]
 pub struct Objects<'a>(#[cfg_attr(feature = "serde1", serde(borrow))] pub Vec<Object<'a>>);
 
-pub fn objects<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Objects<'a>, E> {
-    let (i, _) = section("Objects")(i)?;
-    map(separated_list(t_rn, object), Objects)(i)
+pub fn objects<'a, E: ParseError<&'a str>>(allow_any: bool) -> impl Fn(&'a str) -> IResult<&'a str, Objects<'a>, E> {
+    move |i| {
+        let (i, _) = section("Objects")(i)?;
+        map(separated_list(t_rn, object(allow_any)), Objects)(i)
+    }
 }
 
 impl crate::Offset for Object<'_> {

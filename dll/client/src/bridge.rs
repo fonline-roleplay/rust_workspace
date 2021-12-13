@@ -19,23 +19,27 @@ type BridgeClientToOverlay = BridgeClientCell<MsgIn, MsgOut>;
 static BRIDGE: BridgeClientToOverlay = BridgeClientToOverlay::new();
 
 fn is_overlay_running() -> bool {
-    const NAME: &str = "FOnlineOverlay.exe";
-    //let ret = unsafe { winapi::um::winuser::FindWindowA(0 as _, "FOnlineOverlay\0".as_ptr() as _) };
-    //ret as usize != 0
+    let fut = is_process_alive("FOnlineOverlay.exe");
+    let process = futures::executor::block_on(fut);
+    process.unwrap_or(false)
+}
+
+async fn is_process_alive(name: &'static str) -> Result<bool, heim::Error> {
     use futures::{
-        future::{self, FutureExt, TryFutureExt},
         stream::StreamExt,
     };
-    let mut stream = heim::process::processes()
-        .filter_map(|res| future::ready(res.ok()))
-        .skip_while(|process| {
-            process.name().then(|res| {
-                //println!("Process: {:?}", res);
-                future::ready(res.map(|name| name != NAME).unwrap_or(false))
-            })
-        });
-    let process = futures::executor::block_on(stream.next());
-    process.is_some()
+    let mut stream = heim::process::processes().await?.boxed();
+
+    while let Some(res) = stream.next().await {
+        if let Ok(proc) = res {
+            if let Ok(proc_name) = proc.name().await {
+                if proc_name == name {
+                    return Ok(true);
+                }
+            }
+        }
+    }
+    Ok(false)
 }
 
 #[no_mangle]

@@ -216,7 +216,7 @@ async fn start_impl(data: BridgeData) -> Server {
         .bind(
             // configure service pipeline
             "bridge",
-            "127.0.0.1:33852",
+            data.state.config.bridge.addr,
             move || {
                 let data = data.clone();
                 // service for converting incoming TcpStream to a SslStream<TcpStream>

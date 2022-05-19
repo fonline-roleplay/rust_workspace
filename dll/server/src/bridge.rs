@@ -11,6 +11,8 @@ use std::{
     time::Duration,
 };
 
+use crate::config::config;
+
 //pub type MsgIn = message::ServerWebToDll;
 //pub type MsgOut = message::ServerDllToWeb;
 
@@ -71,7 +73,7 @@ impl Bridge {
     }
     fn run(sender: Sender<MsgIn>, receiver: &mut Receiver<MsgOut>) -> bincode::Result<()> {
         let stream = std::net::TcpStream::connect_timeout(
-            &"127.0.0.1:33852".parse().unwrap(),
+            config().bridge.addr,
             Duration::from_millis(500),
         )?;
         //stream.set_read_timeout(Some(Duration::from_millis(500)));

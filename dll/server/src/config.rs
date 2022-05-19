@@ -41,6 +41,8 @@ use defaults::*;
 #[serde(default)]
 pub struct ServerConfig {
     pub check_look: CheckLook,
+    #[serde(default)]
+    pub bridge: Bridge,
 }
 
 #[derive(Deserialize, Derivative)]
@@ -156,6 +158,21 @@ impl MovingRates {
             running: MOVING_TARGET_RUN,
             ..Default::default()
         }
+    }
+}
+
+#[derive(Deserialize)]
+pub struct Bridge {
+    pub addr: SocketAddr,
+}
+impl Bridge {
+    fn defaul_addr() -> SocketAddr {
+        "127.0.0.1:33852".parse().unwrap()
+    }
+}
+impl Default for Bridge {
+    fn default() -> Self {
+        Self { addr: Self::defaul_addr() }
     }
 }
 

@@ -24,5 +24,8 @@ developer = "Dev"
 gamemaster = "GM"
 player = "Игрок"
 
+[bridge]
+addr = "127.0.0.1:33852"
+
 [session]
 #cookie_key = ""

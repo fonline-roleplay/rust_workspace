@@ -1,5 +1,6 @@
 use serde::Deserialize;
 use std::collections::BTreeMap;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 
 #[derive(Debug, Deserialize, Clone)]
@@ -222,11 +223,28 @@ impl Session {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct Bridge {
+    pub addr: SocketAddr,
+}
+impl Bridge {
+    fn defaul_addr() -> SocketAddr {
+        "127.0.0.1:33852".parse().unwrap()
+    }
+}
+impl Default for Bridge {
+    fn default() -> Self {
+        Self { addr: Self::defaul_addr() }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub host: Host,
     pub paths: Paths,
     pub discord: Option<Discord>,
     pub session: Session,
+    #[serde(default)]
+    pub bridge: Bridge,
 }
 
 #[derive(Debug)]

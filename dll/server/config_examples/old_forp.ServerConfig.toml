@@ -1,0 +1,33 @@
+# check_look config
+
+[check_look.npc_fast]
+enable = false          # skip all vision/hearing/walls logic, use just basic view value           # default: true
+sense_index = 0         # index, starting from 0, of sense for fast check                           # default: 0
+fast_from = 2200        # range start of mobs' ProtoIds, from which fast check should kick in       # default: 2200
+# fast_to = 65535       # maximum ProtoId for mobs                                                  # default: u16::max_value()
+
+# basic detection distantion value is (basic_bonus + ST_PERCEPTION * basic_perception_rate)
+
+[[check_look.senses]]   # vision
+player  = { basic_bonus = 10, basic_perception_rate = 5 }       # basic rates for players
+npc     = { basic_bonus = 10, basic_perception_rate = 5 }       # basic rates for nps
+self_moving     = { still = 1.0, walking = 1.0, running = 1.0 } # rates which matter when oneself is moving
+target_moving   = { still = 1.0, walking = 1.0, running = 1.0 } # rates which matter when target is moving
+dir_rate        = [1.0, 0.8, 0.5, 0.4]                          # rate which depends on difference between self direction and direction towards target
+# degradation of vision, when line of sight blocked by wall, based on perception - completely blocked, no x-rays for you
+wall_rate       = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[check_look.senses]]   # hearing
+player  = {basic_bonus = 5,  basic_perception_rate = 3}         # basic rates for players
+npc     = {basic_bonus = 5,  basic_perception_rate = 3}         # basic rates for nps
+self_moving     = { still = 1.0, walking = 1.0, running = 0.5 } # rates which matter when oneself is moving
+target_moving   = { still = 1.0, walking = 1.0, running = 2.0 } # rates which matter when target is moving
+dir_rate        = [0.8, 1.0, 0.8, 0.8]                          # rate which depends on difference between self direction and direction towards target
+# degradation of hearing, when line of sight blocked by wall, based on perception - not actually, always 0.5
+wall_rate       = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+
+[check_look]
+map_utility_start = 92  # same as MAP_UTILITY_START from _maps.fos, grants invision between non-gms # default: 92
+
+[bridge]
+addr = "127.0.0.1:33852"

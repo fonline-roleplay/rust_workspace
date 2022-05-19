@@ -76,7 +76,8 @@ pub async fn edit(
             },
         )
         .map_err(AvatarUploadError::Template)
-    }).await;
+    })
+    .await;
     Ok(match res {
         Err(AvatarUploadError::Template(err)) => {
             eprintln!("AvatarEditor template error: {:#?}", err);
@@ -199,7 +200,8 @@ pub async fn show(
             .get_image(secret)?;
         println!("Getting image, completed in {:?}", instant.elapsed());
         Ok(leaf)
-    }).await;
+    })
+    .await;
     Ok(match res {
         Ok(image) => HttpResponse::Ok()
             .append_header(("q-ver", image.ver as u64))

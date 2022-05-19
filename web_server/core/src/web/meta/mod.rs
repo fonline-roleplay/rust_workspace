@@ -5,9 +5,7 @@ use actix_web::{
     http::{header, Method},
     web, HttpRequest, HttpResponse,
 };
-use futures::{
-    Future, TryFutureExt,
-};
+use futures::{Future, TryFutureExt};
 use oauth2::{AuthorizationCode, CsrfToken, Scope, TokenResponse};
 use serde::Deserialize;
 

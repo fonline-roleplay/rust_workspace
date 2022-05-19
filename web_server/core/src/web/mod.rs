@@ -10,10 +10,13 @@ use futures::{
     future::{FutureExt, TryFutureExt},
     Future,
 };
-use std::{collections::BTreeMap, sync::Arc, time::Duration};
+use std::time::Duration;
 use tokio::sync::Mutex;
 
 use crate::{bridge, config, critters_db::CrittersDb, database::SledDb};
+
+#[allow(unused_imports)]
+use std::{collections::BTreeMap, sync::Arc};
 
 #[cfg(feature = "fo_data")]
 use fo_data::FoRetriever;
@@ -224,8 +227,10 @@ async fn run_async(mut state: AppState) {
         move || {
             let cookies = actix_session::SessionMiddleware::builder(
                 actix_session::storage::CookieSessionStore::default(),
-                state.config.session.cookie_key()
-            ).cookie_name("meta-session".into()).build();
+                state.config.session.cookie_key(),
+            )
+            .cookie_name("meta-session".into())
+            .build();
             let app = App::new()
                 .app_data(state.clone())
                 .wrap(middleware::Compress::default())

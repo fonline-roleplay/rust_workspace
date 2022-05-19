@@ -66,7 +66,7 @@ fn _number_emoji(num: u32) -> String {
     buf
 }
 
-fn players_rus(num: u32) -> &'static str {
+fn _players_rus(num: u32) -> &'static str {
     match num {
         1 => "игрок",
         2..=4 => "игрока",

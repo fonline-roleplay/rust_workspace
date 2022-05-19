@@ -20,12 +20,11 @@ pub async fn gm_stats(
     if let Some(name) = name {
         println!("gm_stats: {:?}", name);
         let name = name.to_string();
-        web::block(move || data.critters_db.client_info(&name).map(|cr| (cr, data))).map(
-            |res| {
+        web::block(move || data.critters_db.client_info(&name).map(|cr| (cr, data)))
+            .map(|res| {
                 match res {
                     //Ok(Some(cr_info)) => Ok(format!("Your info: {:?}", cr_info).into()),
-                    Ok(Ok((cr_info, data))) => match Stats::new(&cr_info)
-                        .render(&data.config.host)
+                    Ok(Ok((cr_info, data))) => match Stats::new(&cr_info).render(&data.config.host)
                     {
                         Ok(body) => Ok(HttpResponse::Ok().content_type("text/html").body(body)),
                         Err(err) => {
@@ -35,8 +34,8 @@ pub async fn gm_stats(
                     },
                     _ => Ok(HttpResponse::InternalServerError().into()),
                 }
-            },
-        ).await
+            })
+            .await
     } else {
         Ok(HttpResponse::Ok().body("Get out!"))
     }

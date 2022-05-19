@@ -15,7 +15,7 @@ mod tools;
 
 #[derive(Clone)]
 pub struct SledDb {
-    db: sled::Db,
+    _db: sled::Db,
     pub root: Root,
 }
 
@@ -23,6 +23,6 @@ impl SledDb {
     pub fn new(db: sled::Db) -> Self {
         let tree = db.open_tree("fo4rp").expect("Can't open 'fo4rp' Tree");
         let root = Root::new(tree);
-        SledDb { db, root }
+        SledDb { _db: db, root }
     }
 }

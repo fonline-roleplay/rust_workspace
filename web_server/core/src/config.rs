@@ -1,8 +1,8 @@
+use actix_web::cookie::Key as CookieKey;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use actix_web::cookie::Key as CookieKey;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Cert {
@@ -14,8 +14,11 @@ impl Cert {
         let cert = std::fs::read(&self.full_chain).expect("Full-chain cert file");
         let key = std::fs::read(&self.key).expect("Private key file");
 
-        let certs =
-        rustls_pemfile::certs(&mut cert.as_slice()).expect("Parsed full-chain cert").into_iter().map(|cert| rustls::Certificate(cert)).collect();
+        let certs = rustls_pemfile::certs(&mut cert.as_slice())
+            .expect("Parsed full-chain cert")
+            .into_iter()
+            .map(|cert| rustls::Certificate(cert))
+            .collect();
         let key = rustls_pemfile::pkcs8_private_keys(&mut key.as_slice())
             .ok()
             .and_then(|mut keys| {
@@ -29,7 +32,8 @@ impl Cert {
         let tls_config = rustls::ServerConfig::builder()
             .with_safe_defaults()
             .with_client_cert_verifier(rustls::server::NoClientAuth::new())
-            .with_single_cert(certs, rustls::PrivateKey(key)).unwrap();
+            .with_single_cert(certs, rustls::PrivateKey(key))
+            .unwrap();
         Ok(tls_config)
     }
 }
@@ -212,20 +216,21 @@ impl Session {
         Ok(())
     }
     pub fn cookie_key(&self) -> CookieKey {
-        match self.cookie_key.as_ref().and_then(|base64| {
-            if let Base64::Bytes(bytes) = base64 {
-                Some(bytes)
-            } else {
-                None
-            }
-        }).and_then(|bytes| {
-            match bytes.len() {
+        match self
+            .cookie_key
+            .as_ref()
+            .and_then(|base64| {
+                if let Base64::Bytes(bytes) = base64 {
+                    Some(bytes)
+                } else {
+                    None
+                }
+            })
+            .and_then(|bytes| match bytes.len() {
                 32..=63 => Some(CookieKey::derive_from(&*bytes)),
                 64.. => Some(CookieKey::from(&*bytes)),
-                _ => None
-            }
-        })
-        {
+                _ => None,
+            }) {
             Some(key) => key,
             None => panic!("Session setup wasn't successful"),
         }
@@ -243,7 +248,9 @@ impl Bridge {
 }
 impl Default for Bridge {
     fn default() -> Self {
-        Self { addr: Self::defaul_addr() }
+        Self {
+            addr: Self::defaul_addr(),
+        }
     }
 }
 

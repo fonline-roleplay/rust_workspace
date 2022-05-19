@@ -7,7 +7,6 @@ use crate::{
 use clients_db::{fix_encoding::os_str_debug, ClientRecord};
 use fo_defines::CritterParam;
 use fo_defines_fo4rp::{fos, param::Param};
-use futures::{Future, FutureExt};
 use serde::Serialize;
 use std::{borrow::Cow, net::Ipv4Addr, time::Duration};
 

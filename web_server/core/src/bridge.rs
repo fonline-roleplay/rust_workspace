@@ -1,5 +1,4 @@
 use crate::{
-    config,
     database::{ownership, CharTrunk, Root, VersionedError},
     utils::blocking,
     web::AppState,
@@ -17,7 +16,7 @@ use futures::{
 use mrhandy::{Condition, ConditionColor};
 use parking_lot::RwLock;
 use serde::Serialize;
-use std::{convert::TryInto, ffi::CStr, sync::Arc, time::Instant};
+use std::{convert::TryInto, ffi::CStr, sync::Arc};
 
 pub use protocol::message::server_dll_web::{
     DayTime, ServerDllToWeb as MsgIn, ServerStatus, ServerWebToDll as MsgOut,
@@ -376,7 +375,7 @@ mod test {
     #[test]
     fn test_render_status() {
         use StatusKind::*;
-        let _config = config::setup().expect("config.toml file");
+        let _config = crate::config::setup().expect("config.toml file");
 
         assert_eq!(
             "Нет связи",

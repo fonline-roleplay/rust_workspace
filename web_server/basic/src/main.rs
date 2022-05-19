@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use web_server_core::*;
 
 fn main() -> std::io::Result<()> {

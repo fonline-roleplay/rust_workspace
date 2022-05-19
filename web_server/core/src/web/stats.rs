@@ -4,7 +4,7 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use clients_db::CritterInfo;
 use fo_defines::CritterParam;
 use fo_defines_fo4rp::param::Param;
-use futures::{future::ok as fut_ok, future::Either, Future, FutureExt};
+use futures::FutureExt;
 use serde::Serialize;
 
 // TODO: Rewrite

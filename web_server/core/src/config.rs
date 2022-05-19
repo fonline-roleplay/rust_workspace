@@ -26,7 +26,7 @@ impl Cert {
                 }
             })
             .expect("Parsed private key");
-        let mut tls_config = rustls::ServerConfig::builder()
+        let tls_config = rustls::ServerConfig::builder()
             .with_safe_defaults()
             .with_client_cert_verifier(rustls::server::NoClientAuth::new())
             .with_single_cert(certs, rustls::PrivateKey(key)).unwrap();

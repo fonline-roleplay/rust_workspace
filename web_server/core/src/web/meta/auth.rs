@@ -67,6 +67,7 @@ fn get_guild_member(guild: &str, user: &str) -> String {
 }
 */
 #[derive(Deserialize, Debug)]
+#[allow(dead_code)]
 struct DiscordUser {
     id: String,
     username: String,

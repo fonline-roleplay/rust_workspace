@@ -9,7 +9,7 @@ use crate::{
 use actix_web::{error::BlockingError, web, HttpResponse};
 use arrayvec::ArrayVec;
 use futures::{
-    future::{err as fut_err, ok as fut_ok, Either},
+    future::{err as fut_err, Either},
     Future, FutureExt, TryFutureExt,
 };
 use serde::{Deserialize, Serialize};

@@ -1,19 +1,14 @@
-use std::mem;
-
 use crate::web::{internal_error, restrict::Restrict, AppState};
-use actix_service::Service;
-use actix_session::{Session, UserSession};
-use actix_web::dev::{ServiceRequest, ServiceResponse};
+use actix_session::Session;
 use actix_web::{
     error::InternalError,
     http::{header, Method},
     web, HttpRequest, HttpResponse,
 };
 use futures::{
-    future::{err as fut_err, Either},
     Future, TryFutureExt,
 };
-use oauth2::{AsyncCodeTokenRequest, AuthorizationCode, CsrfToken, Scope, TokenResponse};
+use oauth2::{AuthorizationCode, CsrfToken, Scope, TokenResponse};
 use serde::Deserialize;
 
 const DISCORD_CSRF_COOKIE_NAME: &str = "csrf_discord";
@@ -98,15 +93,15 @@ pub async fn login(
         session.get::<String>(DISCORD_CSRF_COOKIE_NAME)
     );*/
     Ok(HttpResponse::Found()
-        .header(header::LOCATION, authorize_url.to_string())
-        .header(header::ACCESS_CONTROL_MAX_AGE, "0")
+        .append_header((header::LOCATION, authorize_url.to_string()))
+        .append_header((header::ACCESS_CONTROL_MAX_AGE, "0"))
         .finish())
 }
 
 pub async fn logout(session: Session) -> actix_web::Result<HttpResponse> {
     session.remove(DISCORD_USER_ID_COOKIE_NAME);
     Ok(HttpResponse::Found()
-        .header(header::LOCATION, "/")
-        .header(header::ACCESS_CONTROL_MAX_AGE, "0")
+        .append_header((header::LOCATION, "/"))
+        .append_header((header::ACCESS_CONTROL_MAX_AGE, "0"))
         .finish())
 }

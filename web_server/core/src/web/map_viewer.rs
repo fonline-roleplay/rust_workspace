@@ -1,7 +1,6 @@
 use super::{web, AppState, HttpResponse};
 use crate::{templates, utils::blocking};
-use actix_http::error::BlockingError;
-use futures::{Future, TryFutureExt};
+use actix_web::error::BlockingError;
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
@@ -22,8 +21,8 @@ struct Sprite<'a> {
     path: &'a str,
 }
 
-pub fn list() -> impl Future<Output = actix_web::Result<HttpResponse>> {
-    blocking(|| -> Result<String, MapViewError> {
+pub async fn list() -> actix_web::Result<HttpResponse> {
+    let res = blocking(|| -> Result<String, MapViewError> {
         let dir = std::fs::read_dir("../../FO4RP/maps").map_err(MapViewError::Io)?;
         let mut maps: Vec<_> = dir
             .into_iter()
@@ -41,12 +40,14 @@ pub fn list() -> impl Future<Output = actix_web::Result<HttpResponse>> {
             })
             .collect();
         Ok(response)
+    }).await;
+    Ok(match res {
+        Ok(body) => HttpResponse::Ok().content_type("text/html").body(body),
+        Err(err) => {
+            eprintln!("Map viewer error: {:#?}", err);
+            HttpResponse::InternalServerError().into()
+        }
     })
-    .map_err(|err| {
-        eprintln!("Map viewer error: {:#?}", err);
-        HttpResponse::InternalServerError().into()
-    })
-    .and_then(|body| HttpResponse::Ok().content_type("text/html").body(body))
 }
 
 #[derive(Debug)]
@@ -63,14 +64,14 @@ impl From<BlockingError> for MapViewError {
     }
 }
 
-pub fn view(
+pub async fn view(
     path: web::Path<std::path::PathBuf>,
     data: web::Data<AppState>,
-) -> impl Future<Output = actix_web::Result<HttpResponse>> {
+) -> actix_web::Result<HttpResponse> {
     use draw_geometry::fo as geometry;
     use primitives::Hex;
     let full_path = data.config.paths.maps.join(&*path);
-    blocking(move || {
+    let res = blocking(move || {
         fo_map_format::verbose_read_file(full_path, |text, res| {
             let (_rest, map) =
                 nom_prelude::nom_err_to_string(text, res).map_err(MapViewError::Nom)?;
@@ -161,12 +162,14 @@ pub fn view(
                 },
             )
             .map_err(MapViewError::Template)
-        })
+        }, Default::default())
         .map_err(MapViewError::MapFormat)?
+    }).await;
+    Ok(match res {
+        Ok(body) => HttpResponse::Ok().content_type("text/html").body(body),
+        Err(err) => {
+            eprintln!("Map viewer error: {:#?}", err);
+            HttpResponse::InternalServerError().into()
+        }
     })
-    .map_err(|err| {
-        eprintln!("Map viewer error: {:#?}", err);
-        HttpResponse::InternalServerError().into()
-    })
-    .and_then(|body| HttpResponse::Ok().content_type("text/html").body(body))
 }

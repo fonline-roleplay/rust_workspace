@@ -24,7 +24,7 @@ pub async fn auth(
             .request_async(oauth_reqwest::async_http_client)
             .await
             .map_err(internal_error),
-        Err(err) => Err(err),
+        Err(err) => Err(err.into()),
         _ => Err(bad_request("Anti-CSRF check failed")().into()),
     };
     session.remove(DISCORD_CSRF_COOKIE_NAME);

@@ -89,7 +89,7 @@ async fn index(
 async fn go_web(data: web::Data<AppState>) -> HttpResponse {
     let url = data.config.host.web_url("/");
     HttpResponse::MovedPermanently()
-        .header(actix_http::http::header::LOCATION, url)
+        .append_header((actix_http::header::LOCATION, url))
         .finish()
 }
 
@@ -192,7 +192,7 @@ pub fn oauth2_client(
         )?),
     )
     // Set the URL the user will be redirected to after the authorization process.
-    .set_redirect_url(RedirectUrl::new(redirect)?);
+    .set_redirect_uri(RedirectUrl::new(redirect)?);
     Ok(client)
 }
 
@@ -223,9 +223,10 @@ async fn run_async(mut state: AppState) {
     let web_server = HttpServer::new({
         let state = state.clone();
         move || {
-            let cookies = actix_session::CookieSession::private(state.config.session.cookie_key())
-                .name("meta-session")
-                .secure(false);
+            let cookies = actix_session::SessionMiddleware::builder(
+                actix_session::storage::CookieSessionStore::default(),
+                state.config.session.cookie_key()
+            ).cookie_name("meta-session".into()).build();
             let app = App::new()
                 .app_data(state.clone())
                 .wrap(middleware::Compress::default())
@@ -325,7 +326,7 @@ async fn run_async(mut state: AppState) {
                 //.wrap_fn(restrict_files)
                 .wrap(
                     middleware::DefaultHeaders::new()
-                        .header("Access-Control-Allow-Origin", state.config.host.web_url("")),
+                        .add(("Access-Control-Allow-Origin", state.config.host.web_url(""))),
                 )
                 .service(web::resource("/").route(web::get().to(go_web)))
                 .service(actix_files::Files::new("/static", STATIC_PATH))
@@ -383,7 +384,7 @@ fn req_host(req: &ServiceRequest) -> Option<&str> {
     if host.is_none() {
         host = req
             .headers()
-            .get(actix_http::http::header::HOST)
+            .get(actix_http::header::HOST)
             .and_then(|header| header.to_str().ok())
             .and_then(|host_port| host_port.split(':').next());
     }

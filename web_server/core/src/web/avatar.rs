@@ -1,3 +1,5 @@
+use std::io::Cursor;
+
 use crate::{
     bridge,
     database::{CharTrunk, Leaf, Root, VersionedError},
@@ -59,13 +61,13 @@ struct AvatarEditor {
     char_id: u32,
 }
 
-pub fn edit(
+pub async fn edit(
     path: web::Path<u32>,
     data: web::Data<super::AppState>,
-) -> impl Future<Output = actix_web::Result<HttpResponse>> {
+) -> actix_web::Result<HttpResponse> {
     let char_id = *path;
 
-    blocking(move || {
+    let res = blocking(move || {
         templates::render(
             "edit_avatar.html",
             &AvatarEditor { char_id },
@@ -74,8 +76,8 @@ pub fn edit(
             },
         )
         .map_err(AvatarUploadError::Template)
-    })
-    .then(|res| match res {
+    }).await;
+    Ok(match res {
         Err(AvatarUploadError::Template(err)) => {
             eprintln!("AvatarEditor template error: {:#?}", err);
             HttpResponse::InternalServerError().finish()
@@ -120,7 +122,7 @@ pub fn upload(
 }
 
 fn save_image(root: &Root, char_id: u32, data: &[u8]) -> Result<Leaf<()>, AvatarUploadError> {
-    use image::{DynamicImage, GenericImageView, ImageFormat};
+    use image::{DynamicImage, ImageFormat};
 
     let instant = std::time::Instant::now();
     let decoded =
@@ -138,15 +140,16 @@ fn save_image(root: &Root, char_id: u32, data: &[u8]) -> Result<Leaf<()>, Avatar
 
     let mut buffer = decoded;
     buffer.clear();
+    let mut cursor = Cursor::new(buffer);
     new_image
-        .write_to(&mut buffer, ImageFormat::Png)
+        .write_to(&mut cursor, ImageFormat::Png)
         .map_err(AvatarUploadError::ImageWrite)?;
     println!("Writed in {:?}", instant2.elapsed());
     let instant2 = std::time::Instant::now();
 
     let leaf = root
         .trunk(char_id, None, CharTrunk::default())
-        .set_image(buffer)
+        .set_image(cursor.into_inner())
         .map_err(AvatarUploadError::SledVersioned)?;
     println!("Saved to db in {:?}", instant2.elapsed());
 
@@ -177,37 +180,35 @@ fn update_char_leaf(
 
 // ===== Show avatar =====
 
-pub fn show(
+pub async fn show(
     path: web::Path<u32>,
     query: web::Query<VersionSecret>,
     data: web::Data<super::AppState>,
-) -> impl Future<Output = actix_web::Result<HttpResponse>> {
+) -> actix_web::Result<HttpResponse> {
     let VersionSecret { ver, secret } = *query;
 
     if secret.is_none() {
-        return Either::Left(fut_ok(HttpResponse::Forbidden().finish()));
+        return Ok(HttpResponse::Forbidden().finish());
     }
 
     let root = data.sled_db.root.clone();
-    Either::Right(
-        blocking(move || {
-            let instant = std::time::Instant::now();
-            let leaf = root
-                .trunk(*path, ver, CharTrunk::default())
-                .get_image(secret)?;
-            println!("Getting image, completed in {:?}", instant.elapsed());
-            Ok(leaf)
-        })
-        .then(|res| match res {
-            Ok(image) => HttpResponse::Ok()
-                .append_header(("q-ver", image.ver as u64))
-                .append_header(("q-length", image.data.len()))
-                .content_type("image/png")
-                .body(bytes::Bytes::copy_from_slice(image.data.as_ref())),
-            Err(VersionedError::NotFound) => HttpResponse::NotFound().finish(),
-            Err(err) => HttpResponse::InternalServerError().body(format!("Error: {:?}", err)),
-        }),
-    )
+    let res = blocking(move || {
+        let instant = std::time::Instant::now();
+        let leaf = root
+            .trunk(*path, ver, CharTrunk::default())
+            .get_image(secret)?;
+        println!("Getting image, completed in {:?}", instant.elapsed());
+        Ok(leaf)
+    }).await;
+    Ok(match res {
+        Ok(image) => HttpResponse::Ok()
+            .append_header(("q-ver", image.ver as u64))
+            .append_header(("q-length", image.data.len()))
+            .content_type("image/png")
+            .body(bytes::Bytes::copy_from_slice(image.data.as_ref())),
+        Err(VersionedError::NotFound) => HttpResponse::NotFound().finish(),
+        Err(err) => HttpResponse::InternalServerError().body(format!("Error: {:?}", err)),
+    })
 }
 
 // ===== AvatarUploadError =====
@@ -263,16 +264,3 @@ impl actix_web::error::ResponseError for AvatarUploadError {
         resp.set_body(Body::from(buf))
     }*/
 }
-/*
-pub(crate) struct Writer<'a>(pub &'a mut web::BytesMut);
-
-impl<'a> std::io::Write for Writer<'a> {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.0.extend_from_slice(buf);
-        Ok(buf.len())
-    }
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
-    }
-}
-*/

@@ -1,5 +1,5 @@
 use super::*;
-use actix_session::UserSession;
+use actix_session::SessionExt;
 use actix_web::web::Data;
 use std::sync::Arc;
 

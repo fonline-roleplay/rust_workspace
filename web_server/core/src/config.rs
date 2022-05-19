@@ -2,6 +2,7 @@ use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use actix_web::cookie::Key as CookieKey;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Cert {
@@ -14,8 +15,8 @@ impl Cert {
         let key = std::fs::read(&self.key).expect("Private key file");
 
         let certs =
-            rustls::internal::pemfile::certs(&mut cert.as_slice()).expect("Parsed full-chain cert");
-        let key = rustls::internal::pemfile::pkcs8_private_keys(&mut key.as_slice())
+        rustls_pemfile::certs(&mut cert.as_slice()).expect("Parsed full-chain cert").into_iter().map(|cert| rustls::Certificate(cert)).collect();
+        let key = rustls_pemfile::pkcs8_private_keys(&mut key.as_slice())
             .ok()
             .and_then(|mut keys| {
                 if keys.is_empty() {
@@ -25,8 +26,10 @@ impl Cert {
                 }
             })
             .expect("Parsed private key");
-        let mut tls_config = rustls::ServerConfig::new(rustls::NoClientAuth::new());
-        tls_config.set_single_cert(certs, key).unwrap();
+        let mut tls_config = rustls::ServerConfig::builder()
+            .with_safe_defaults()
+            .with_client_cert_verifier(rustls::server::NoClientAuth::new())
+            .with_single_cert(certs, rustls::PrivateKey(key)).unwrap();
         Ok(tls_config)
     }
 }
@@ -190,8 +193,8 @@ impl Session {
         if let Some(key) = &mut self.cookie_key {
             if let Base64::String(string) = &*key {
                 let bytes = base64::decode(string).map_err(ConfigError::SessionKeyDecode)?;
-                if bytes.len() != 32 {
-                    return Err(ConfigError::SessionKeyLengthNot32(bytes.len()));
+                if bytes.len() < 32 {
+                    return Err(ConfigError::SessionKeyLengthLessThan32(bytes.len()));
                 }
                 let mut buf = [0u8; 32];
                 buf.copy_from_slice(&bytes);
@@ -208,14 +211,21 @@ impl Session {
         }
         Ok(())
     }
-    pub fn cookie_key(&self) -> &[u8; 32] {
+    pub fn cookie_key(&self) -> CookieKey {
         match self.cookie_key.as_ref().and_then(|base64| {
             if let Base64::Bytes(bytes) = base64 {
                 Some(bytes)
             } else {
                 None
             }
-        }) {
+        }).and_then(|bytes| {
+            match bytes.len() {
+                32..=63 => Some(CookieKey::derive_from(&*bytes)),
+                64.. => Some(CookieKey::from(&*bytes)),
+                _ => None
+            }
+        })
+        {
             Some(key) => key,
             None => panic!("Session setup wasn't successful"),
         }
@@ -256,7 +266,7 @@ pub enum ConfigError {
     PrivateNotDir(PathBuf),
     NoSessionKey,
     SessionKeyDecode(base64::DecodeError),
-    SessionKeyLengthNot32(usize),
+    SessionKeyLengthLessThan32(usize),
 }
 
 fn canon(path: &mut PathBuf) -> Result<(), ConfigError> {

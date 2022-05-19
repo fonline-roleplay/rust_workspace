@@ -8,10 +8,10 @@ use futures::{future::ok as fut_ok, future::Either, Future, FutureExt};
 use serde::Serialize;
 
 // TODO: Rewrite
-pub fn gm_stats(
+pub async fn gm_stats(
     req: HttpRequest,
     data: web::Data<AppState>,
-) -> impl Future<Output = actix_web::Result<HttpResponse>> {
+) -> actix_web::Result<HttpResponse> {
     let name = req.match_info().get("client").and_then(|client| {
         percent_encoding::percent_decode(client.as_bytes())
             .decode_utf8()
@@ -20,27 +20,25 @@ pub fn gm_stats(
     if let Some(name) = name {
         println!("gm_stats: {:?}", name);
         let name = name.to_string();
-        Either::Left(
-            web::block(move || data.critters_db.client_info(&name).map(|cr| (cr, data))).map(
-                |res| {
-                    match res {
-                        //Ok(Some(cr_info)) => Ok(format!("Your info: {:?}", cr_info).into()),
-                        Ok(Ok((cr_info, data))) => match Stats::new(&cr_info)
-                            .render(&data.config.host)
-                        {
-                            Ok(body) => Ok(HttpResponse::Ok().content_type("text/html").body(body)),
-                            Err(err) => {
-                                eprintln!("GM Stats error: {:#?}", err);
-                                Ok(HttpResponse::InternalServerError().into())
-                            }
-                        },
-                        _ => Ok(HttpResponse::InternalServerError().into()),
-                    }
-                },
-            ),
-        )
+        web::block(move || data.critters_db.client_info(&name).map(|cr| (cr, data))).map(
+            |res| {
+                match res {
+                    //Ok(Some(cr_info)) => Ok(format!("Your info: {:?}", cr_info).into()),
+                    Ok(Ok((cr_info, data))) => match Stats::new(&cr_info)
+                        .render(&data.config.host)
+                    {
+                        Ok(body) => Ok(HttpResponse::Ok().content_type("text/html").body(body)),
+                        Err(err) => {
+                            eprintln!("GM Stats error: {:#?}", err);
+                            Ok(HttpResponse::InternalServerError().into())
+                        }
+                    },
+                    _ => Ok(HttpResponse::InternalServerError().into()),
+                }
+            },
+        ).await
     } else {
-        Either::Right(fut_ok("Get out!".into()))
+        Ok(HttpResponse::Ok().body("Get out!"))
     }
 }
 

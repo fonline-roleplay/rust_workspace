@@ -2,7 +2,7 @@ use arc_swap::ArcSwap;
 use derivative::Derivative;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
-use std::{ops::Deref, sync::Arc};
+use std::{ops::Deref, sync::Arc, net::SocketAddr};
 
 mod defaults {
     pub const MAP_UTILITY_START: u16 = 92;

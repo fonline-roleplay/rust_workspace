@@ -7,9 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-nalgebra = "0.22"
-ncollide2d = "0.24"
-nphysics2d = "0.17"
+nalgebra = "0.29"
+ncollide2d = "0.32"
+nphysics2d = "0.24"
 
 [dev-dependencies]
 coffee = { version = "0.4", features = ["opengl"] }

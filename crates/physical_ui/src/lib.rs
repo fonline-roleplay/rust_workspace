@@ -96,7 +96,7 @@ mod physics {
         ShapeHandle::new(shape)
     }
 
-    pub struct NPhysics<N: RealField> {
+    pub struct NPhysics<N: RealField + Copy> {
         mechanical_world: DefaultMechanicalWorld<N>,
         geometrical_world: DefaultGeometricalWorld<N>,
         body_set: DefaultBodySet<N>,
@@ -105,7 +105,7 @@ mod physics {
         force_generator_set: DefaultForceGeneratorSet<N>,
     }
 
-    impl<N: RealField> NPhysics<N> {
+    impl<N: RealField + Copy> NPhysics<N> {
         pub fn new() -> Self {
             let mut mechanical_world = DefaultMechanicalWorld::new(Vector2::zeros());
             let contact_model = Box::new(SignoriniModel::new());

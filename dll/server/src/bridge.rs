@@ -73,7 +73,7 @@ impl Bridge {
     }
     fn run(sender: Sender<MsgIn>, receiver: &mut Receiver<MsgOut>) -> bincode::Result<()> {
         let stream = std::net::TcpStream::connect_timeout(
-            config().bridge.addr,
+            &config().bridge.addr,
             Duration::from_millis(500),
         )?;
         //stream.set_read_timeout(Some(Duration::from_millis(500)));
